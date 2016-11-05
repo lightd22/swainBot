@@ -33,13 +33,11 @@ class DraftState:
         self.bans = []
 
     def displayState(self):
-        print("Currently there are {numPicks} picks and {numBans} bans in this draft. \n".format(numPicks=len(self.picks),numBans=len(self.bans)))
+        print("Currently there are {numPicks} picks and {numBans} bans completed in this draft. \n".format(numPicks=len(self.picks),numBans=len(self.bans)))
         
-        print("Banned Champions:")
-        print(self.bans)
-
-        print("Enemy Draft:")
-        print(np.argwhere(self.state[:,1])+1)
+        print("Banned Champions: {0}".format(self.bans))
+        enemyDraftIDs = [x+1 for x in np.where(self.state[:,1])]
+        print("Enemy Draft: {0}".format(enemyDraftIDs[0]))
 
         for posIndex in range(2,len(self.state[0,:])):
             champ = np.argwhere(self.state[:,posIndex])+1

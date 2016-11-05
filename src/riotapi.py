@@ -1,8 +1,22 @@
 def setApiKey(key):
     """
-    Set user's API Key
+    Set calling user's API Key
 
     Args:
         key (string): the Riot API key desired for use.
     """
-    return key = "71ab791f-d5fe-45b3-8b3a-0368ce261cbe"
+    return key
+
+def setRegion(region):
+    """
+    Set region to run API queries through
+
+    Args:
+        region (string): region through which we are sending API requests
+    """
+    region = region.lower()
+    regions = ["br", "eune", "euw", "jp", "kr", "lan", "las", "na", "oce", "tr", "ru"]
+
+    assert (region in regions), "Invalid region!"
+        
+    return region
