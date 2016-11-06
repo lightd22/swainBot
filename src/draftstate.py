@@ -1,4 +1,6 @@
 import numpy as np
+from cassiopeia import riotapi
+from championinfo import getChampionNameFromID
 
 class DraftState:
     """
@@ -35,17 +37,18 @@ class DraftState:
     def displayState(self):
         print("Currently there are {numPicks} picks and {numBans} bans completed in this draft. \n".format(numPicks=len(self.picks),numBans=len(self.bans)))
         
-        print("Banned Champions: {0}".format(self.bans))
-        enemyDraftIDs = [x+1 for x in np.where(self.state[:,1])]
-        print("Enemy Draft: {0}".format(enemyDraftIDs[0]))
+        print("Banned Champions: {0}".format(list(map(getChampionNameFromID, self.bans))))
+        enemyDraftIDs = [x+1 for x in np.where(self.state[:,1])] # Convert index locations in state to correct championIDs
+        print("Enemy Draft: {0}".format(list(map(getChampionNameFromID,enemyDraftIDs[0]))))
 
-        for posIndex in range(2,len(self.state[0,:])):
-            champ = np.argwhere(self.state[:,posIndex])+1
-            if champ:
-                champid = int(champ)
+        print("Our Draft:")
+        for posIndex in range(2,len(self.state[0,:])): # Iterate through each position column in state
+            champ = np.where(self.state[:,posIndex])[0] # Find non-zero index
+            if not champ.size: # No pick is found for this position, create a filler string
+                draftName = "--"
             else:
-                champid = "--"
-            print("Position {p}: {c}".format(p=posIndex-1,c=champid))
+                draftName = getChampionNameFromID(int(champ[0])+1)
+            print("Position {p}: {c}".format(p=posIndex-1,c=draftName))
         print("\n")
 
     def validChampionID(self, championID):
