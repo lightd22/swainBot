@@ -1,10 +1,10 @@
 import numpy as np
-from cassiopeia import riotapi
-from championinfo import getChampionNameFromID
+from championinfo import championNameFromID, validChampionID
 
 class DraftState:
     """
     Args:
+        whichTeam (int) : indicator for which team we are drafting for (RED_TEAM or BLUE_TEAM)
         numChampions (int) : number of champions available in drafting.
         numPositions (int) : number of available positions to draft for. Default is 5 for a standard 5x5 draft.
 
@@ -23,23 +23,37 @@ class DraftState:
         Position 1 -> ADC/Marksman (Primary farm)
         Position 2 -> Middle (Secondary farm)
         Position 3 -> Top (Tertiary farm)
-        Position 4 -> Jungle (Secondary support)
+        Position 4 -> Jungle (Farming support)
         Position 5 -> Support (Primary support)
     """
+    # State codes
+    BAN_SELECTED = 101
+    DUPLICATE_SELECTION = 102
+    DUPLICATE_ROLE = 103
+    invalidStates = [BAN_SELECTED, DUPLICATE_ROLE, DUPLICATE_SELECTION]
 
-    def __init__(self, numChampions, numPositions = 5):
+    DRAFT_COMPLETE = 1
+    BLUE_TEAM = 0
+    RED_TEAM = 1
+
+    def __init__(self, whichTeam, numChampions, numPositions = 5):
+        #TODO (Devin): This should make sure that numChampions >= numPositions
         self.numChampions = numChampions
         self.numPositions = numPositions
         self.state = np.zeros((numChampions, numPositions+2), dtype=bool)
         self.picks = []
         self.bans = []
 
+        #TODO (Devin): This should check for an invalid team passed
+        self.team = whichTeam
+
     def displayState(self):
+        #TODO (Devin): Clean up displayState to make it prettier.
         print("Currently there are {numPicks} picks and {numBans} bans completed in this draft. \n".format(numPicks=len(self.picks),numBans=len(self.bans)))
         
-        print("Banned Champions: {0}".format(list(map(getChampionNameFromID, self.bans))))
+        print("Banned Champions: {0}".format(list(map(championNameFromID, self.bans))))
         enemyDraftIDs = [x+1 for x in np.where(self.state[:,1])] # Convert index locations in state to correct championIDs
-        print("Enemy Draft: {0}".format(list(map(getChampionNameFromID,enemyDraftIDs[0]))))
+        print("Enemy Draft: {0}".format(list(map(championNameFromID,enemyDraftIDs[0]))))
 
         print("Our Draft:")
         for posIndex in range(2,len(self.state[0,:])): # Iterate through each position column in state
@@ -47,18 +61,9 @@ class DraftState:
             if not champ.size: # No pick is found for this position, create a filler string
                 draftName = "--"
             else:
-                draftName = getChampionNameFromID(int(champ[0])+1)
+                draftName = championNameFromID(int(champ[0])+1)
             print("Position {p}: {c}".format(p=posIndex-1,c=draftName))
         print("\n")
-
-    def validChampionID(self, championID):
-        """
-        Checks to see if championID corresponds to a valid champion id code.
-        Returns: True if championID is valid. False otherwise.
-        Args:
-            championID (int): ID of champion to be verified.
-        """
-        return ((championID > 0) and (championID <= self.numChampions))
 
     def canPick(self, championID):
         """
@@ -67,7 +72,7 @@ class DraftState:
         Args:
             championID (int): ID of champion to check for valid selection.
         """
-        return ((championID not in self.picks) and self.validChampionID(championID))
+        return ((championID not in self.picks) and championinfo.validChampionID(championID))
 
     def canBan(self, championID):
         """
@@ -76,7 +81,7 @@ class DraftState:
         Args:
             championID (int): ID of champion to check for valid ban.
         """
-        return ((championID not in self.bans) and self.validChampionID(championID))
+        return ((championID not in self.bans) and championinfo.validChampionID(championID))
     
     def addPick(self, championID, position):
         """
@@ -86,7 +91,10 @@ class DraftState:
             championID (int): ID of champion to add to pick list.
             position (int): Position of champion to be selected. If position = 0 this is interpreted as a selection submitted by the opposing team.
         """
-        if(not self.canPick(championID) or (position < 0) or (position > self.numPositions)):
+        #TODO: Currently getRewards() does not work correctly if invalid picks are blocked from selection. This should be fixed later.
+        #if(not self.canPick(championID) or (position < 0) or (position > self.numPositions)):
+        #    return False
+        if((position < 0) or (position > self.numPositions) or (not validChampionID(championID))):
             return False
         self.picks.append(championID)
         self.state[championID-1,position+1] = True
@@ -99,7 +107,10 @@ class DraftState:
         Args:
             championID (int): ID of champion to add to bans.
         """
-        if(not self.canBan(championID)):
+        #TODO: Currently getRewards() does not work correctly if invalid bans are blocked from selection. This should be fixed later.
+        #if(not self.canBan(championID)):
+        #    return False
+        if(not validChampionID(championID)):
             return False
         self.bans.append(championID)
         self.state[championID-1,0] = True
@@ -111,27 +122,26 @@ class DraftState:
         Returns: value (int) - code indicating validitiy of state
             Valid codes:
                 value = 0 -> state is valid but incomplete.
-                value = 1 -> state is valid and complete.
+                value = DRAFT_COMPLETE -> state is valid and complete.
             Invalid codes: 
-                value = 101 -> state has a banned champion selected for draft.
-                value = 102 -> state has a champion drafted which is already part of the opposing team.
-                value = 103 -> state has a champion selected for multiple roles (champion selected more than once).
+                value = BAN_SELECTED -> state has a banned champion selected for draft.
+                value = DUPLICATE_SELECTION -> state has a champion drafted which is already part of the opposing team.
+                value = DUPLICATE_ROLE -> state has a champion selected for multiple roles (champion selected more than once).
         """
         for champIndex in range(len(self.state[:,0])):
             loc = np.argwhere(self.state[champIndex,:])
             if(len(loc)>1): # State is invalid, check where problem is
                 errIndex = int(loc[0]) # Location of first non-zero index fo
                 if(errIndex==0):
-                    return 101 # Invalid state includes an already banned champion
+                    return DraftState.BAN_SELECTED # Invalid state includes an already banned champion
                 elif(errIndex==1):
-                    return 102 # Invalid state includes a champion which was selected for the other team
+                    return DraftState.DUPLICATE_SELECTION # Invalid state includes a champion which was selected for the other team
                 else:
-                    return 103 # Invalid state includes a champion which has been selected for multiple roles
+                    return DraftState.DUPLICATE_ROLE # Invalid state includes a champion which has been selected for multiple roles
         # State is valid, check if draft is complete
         numEnemyPicks = np.sum(self.state[:,1])
         numAllyPicks = np.sum(self.state[:,2:])
         if(numAllyPicks == self.numPositions and numEnemyPicks == self.numPositions):
-            return 1 # Draft is valid and complete
+            return DraftState.DRAFT_COMPLETE # Draft is valid and complete
         # Draft is valid, but not complete
         return 0 
-
