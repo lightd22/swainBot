@@ -1,11 +1,11 @@
 import numpy as np
-from championinfo import championNameFromID, validChampionID
+from championinfo import championNameFromId, validChampionId
 
 class DraftState:
     """
     Args:
         whichTeam (int) : indicator for which team we are drafting for (RED_TEAM or BLUE_TEAM)
-        numChampions (int) : number of champions available in drafting.
+        champIds (list(int)) : list of valid championids which are available for drafting.
         numPositions (int) : number of available positions to draft for. Default is 5 for a standard 5x5 draft.
 
     DraftState is the class responsible for holding and maintaining the current state of the draft. For a given champion with championid c, 
@@ -33,27 +33,107 @@ class DraftState:
     invalidStates = [BAN_SELECTED, DUPLICATE_ROLE, DUPLICATE_SELECTION]
 
     DRAFT_COMPLETE = 1
+    #TODO (Devin): For 'BAN' draft mode, 
+    DRAFT_MODE = 'BAN'
     BLUE_TEAM = 0
     RED_TEAM = 1
-
-    def __init__(self, whichTeam, numChampions, numPositions = 5):
+    
+    def __init__(self, whichTeam, champIds, numPositions = 5):
         #TODO (Devin): This should make sure that numChampions >= numPositions
-        self.numChampions = numChampions
+        self.numChampions = len(champIds)
         self.numPositions = numPositions
-        self.state = np.zeros((numChampions, numPositions+2), dtype=bool)
+        self.stateIndexToChampId = {i:k for i,k in zip(range(self.numChampions),champIds)}
+        self.champIdToStateIndex = {k:i for i,k in zip(range(self.numChampions),champIds)}
+        self.state = np.zeros((self.numChampions, self.numPositions+2), dtype=bool)
         self.picks = []
         self.bans = []
 
         #TODO (Devin): This should check for an invalid team passed
         self.team = whichTeam
 
+    def stateIndexToChampId(self,index):
+        """
+        stateIndexToChampId returns the valid champion ID corresponding to the given state index. Since champion IDs are not contiguously defined or even necessarily ordered,
+        this mapping will not be trivial. If index is invalid, returns -1.
+        Args:
+            index (int): location index in the state array of the desired champion.
+        Returns:
+            champId (int): champion ID corresponding to index (as defined by champIds)
+        """
+        if index not in self.stateIndexToChampId.keys():
+            return -1
+        return self.stateIndexToChampId[index]
+
+    def champIdToStateIndex(self,champid):
+        """
+        champIdTostateIndex returns the state index corresponding to the given champion ID. Since champion IDs are not contiguously defined or even necessarily ordered,
+        this mapping will not be trivial. If champid is invalid, returns -1.
+        Args:
+            champid (int): id of champion to look up
+        Returns
+            index (int): state index of corresponding champion id
+        """
+        if champid not in self.champIdToStateIndex.keys():
+            return -1
+        return self.champIdToStateIndex[champid]
+
+    def formatState(self):
+        """
+        Format the state array into a vector so the Q-network can process it.
+        Args:
+            None
+        Returns:
+            A copy of self.state reshaped as a numpy vector of length numChampions*(numRoles+2)
+        """
+        return np.reshape(self.state,numChampions*(numRoles+2))
+
+    def formatAction(self,action):
+        """
+        Format input action into the corresponding tuple (champid, position) which indexes the state array.
+        Args:
+            action (int): Action to be interpreted as an index into the state array.
+        Returns: 
+            (championId, position) (tuple of ints): Tuple of integer values which may be passed as arguments to either
+            self.addPick() or self.addBan() depending on the value of position. If position = -1 -> action is a ban otherwise action
+            is a pick.    
+        """
+        (champId,pos) = np.unravel_index(action,self.state.shape)
+        champId += 1
+        pos -= 1
+        return (champId,pos)
+
+    def updateState(self, championId, position):
+        """
+        Attempt to update the current state of the draft and pick/ban lists with a given championId.
+        Returns: True is selection was successful, False otherwise
+        Args:
+            championId (int): Id of champion to add to pick list.
+            position (int): Position of champion to be selected. The value of position determines if championId is interpreted as a pick or ban:
+                position = -1 -> champion ban submitted. 
+                position = 0 -> champion selection submitted by the opposing team.
+                0 < position <= numPositions -> champion selection submitted by our team for pos = position
+        """
+        #TODO: Currently getRewards() does not work correctly if invalid picks are blocked from selection. This should be fixed later.
+        #if(not self.canPick(championId) or (position < -1) or (position > self.numPositions)):
+        #    return False
+        if((position < -1) or (position > self.numPositions) or (not validChampionId(championId))):
+            return False
+
+        if(position == -1):
+            self.bans.append(championId)
+        else:
+            self.picks.append(championId)
+        index = self.champIdToStateIndex[championId]
+        self.state[index,position+1] = True
+        return True
+
     def displayState(self):
         #TODO (Devin): Clean up displayState to make it prettier.
         print("Currently there are {numPicks} picks and {numBans} bans completed in this draft. \n".format(numPicks=len(self.picks),numBans=len(self.bans)))
         
-        print("Banned Champions: {0}".format(list(map(championNameFromID, self.bans))))
-        enemyDraftIDs = [x+1 for x in np.where(self.state[:,1])] # Convert index locations in state to correct championIDs
-        print("Enemy Draft: {0}".format(list(map(championNameFromID,enemyDraftIDs[0]))))
+        print("Banned Champions: {0}".format(list(map(championNameFromId, self.bans))))
+        enemyDraftIds = [x+1 for x in np.where(self.state[:,1])] # Convert index locations in state to correct championIds
+        print("Enemy Draft: {0}".format(list(map(championNameFromId,enemyDraftIds[0]))))
 
         print("Our Draft:")
         for posIndex in range(2,len(self.state[0,:])): # Iterate through each position column in state
@@ -61,59 +141,59 @@ class DraftState:
             if not champ.size: # No pick is found for this position, create a filler string
                 draftName = "--"
             else:
-                draftName = championNameFromID(int(champ[0])+1)
+                draftName = championNameFromId(int(champ[0])+1)
             print("Position {p}: {c}".format(p=posIndex-1,c=draftName))
         print("\n")
 
-    def canPick(self, championID):
+    def canPick(self, championId):
         """
         Check to see if a champion is available to be selected.
         Returns: True if champion is a valid selection, False otherwise.
         Args:
-            championID (int): ID of champion to check for valid selection.
+            championId (int): Id of champion to check for valid selection.
         """
-        return ((championID not in self.picks) and championinfo.validChampionID(championID))
+        return ((championId not in self.picks) and championinfo.validChampionId(championId))
 
-    def canBan(self, championID):
+    def canBan(self, championId):
         """
         Check to see if a champion is available to be banned.
         Returns: True if champion is a valid ban, False otherwise.
         Args:
-            championID (int): ID of champion to check for valid ban.
+            championId (int): Id of champion to check for valid ban.
         """
-        return ((championID not in self.bans) and championinfo.validChampionID(championID))
+        return ((championId not in self.bans) and championinfo.validChampionId(championId))
     
-    def addPick(self, championID, position):
+    def addPick(self, championId, position):
         """
         Attempt to add a champion to the selected champion list and update the state.
         Returns: True is selection was successful, False otherwise
         Args:
-            championID (int): ID of champion to add to pick list.
+            championId (int): Id of champion to add to pick list.
             position (int): Position of champion to be selected. If position = 0 this is interpreted as a selection submitted by the opposing team.
         """
         #TODO: Currently getRewards() does not work correctly if invalid picks are blocked from selection. This should be fixed later.
-        #if(not self.canPick(championID) or (position < 0) or (position > self.numPositions)):
+        #if(not self.canPick(championId) or (position < 0) or (position > self.numPositions)):
         #    return False
-        if((position < 0) or (position > self.numPositions) or (not validChampionID(championID))):
+        if((position < 0) or (position > self.numPositions) or (not validChampionId(championId))):
             return False
-        self.picks.append(championID)
-        self.state[championID-1,position+1] = True
+        self.picks.append(championId)
+        self.state[championId-1,position+1] = True
         return True
     
-    def addBan(self, championID):
+    def addBan(self, championId):
         """
         Attempt to add a champion to the banned champion list and update the state.
         Returns: True is ban was successful, False otherwise
         Args:
-            championID (int): ID of champion to add to bans.
+            championId (int): Id of champion to add to bans.
         """
         #TODO: Currently getRewards() does not work correctly if invalid bans are blocked from selection. This should be fixed later.
-        #if(not self.canBan(championID)):
+        #if(not self.canBan(championId)):
         #    return False
-        if(not validChampionID(championID)):
+        if(not validChampionId(championId)):
             return False
-        self.bans.append(championID)
-        self.state[championID-1,0] = True
+        self.bans.append(championId)
+        self.state[championId-1,0] = True
         return True
 
     def evaluateState(self):
@@ -143,5 +223,8 @@ class DraftState:
         numAllyPicks = np.sum(self.state[:,2:])
         if(numAllyPicks == self.numPositions and numEnemyPicks == self.numPositions):
             return DraftState.DRAFT_COMPLETE # Draft is valid and complete
+        if(DraftState.DRAFT_MODE == 'BAN' and len(self.bans) == 6):
+            return DraftState.DRAFT_COMPLETE # For ban-only drafts, stop once the bans are registered.
+
         # Draft is valid, but not complete
         return 0 
