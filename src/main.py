@@ -34,7 +34,6 @@ for i in range(3):
     _,a,r,_ = expReplay.buffer[i]
     print("{act} \t {rew}   ".format(act=cinfo.championNameFromId(a), rew=r))
 
-
 print("{name} is a level {level} summoner on the NA server.".format(name=summoner.name, level=summoner.level))
 
 champions = riotapi.get_champions()

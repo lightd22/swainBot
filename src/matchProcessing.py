@@ -17,6 +17,7 @@ def buildMatchQueue():
     *** CURRENTLY ONLY PULLS MY SINGLE MOST RECENT RANKED GAME!! ***
     """
     #TODO (Devin): This will be responsible for building the queue of matchids that we will use during learning
+    # eventually it should recursively look through high mmr player match historiess and build up a database of match references.
     matchQueue = queue.Queue()
     summoner = riotapi.get_summoner_by_name("DOCTOR LIGHT")
     matchRef = summoner.match_list()[0] # Most recent ranked game
@@ -42,6 +43,11 @@ def processMatch(matchRef, team, mode):
     experiences = []
     validChampIds = getChampionIds()
     match = matchRef.match()
+
+    # We can only do ban phases (for now..)
+    if mode != "ban":
+        print("From matchProcessing.processMatch(): Returning empty experiences list!")
+        return experiences
 
     # Pull pick queue from match reference
     pickQueue = buildPickQueue(match, mode = "ban")
@@ -88,8 +94,9 @@ def buildPickQueue(match, mode):
     """
     pickQueue = queue.Queue()
     
-    # Bans are currently made in ABABAB (may change later with update to banning format)
+    # Bans are currently made in ABABAB format
     if (mode == "ban"):
+        #TODO (Devin): clean this up to be more readable. Maybe interpret actual character strings (eg ABABAB as above) as pick order?
         selectionOrder = [DraftState.BLUE_TEAM, DraftState.RED_TEAM, DraftState.BLUE_TEAM, DraftState.RED_TEAM, DraftState.BLUE_TEAM, DraftState.RED_TEAM]
         redBans = queue.Queue()
         blueBans = queue.Queue()
@@ -103,4 +110,5 @@ def buildPickQueue(match, mode):
                 pickQueue.put((team,blueBans.get()))
             else:
                 pickQueue.put((team,redBans.get()))
+    # Champion selections are made in ABBAABBAAB format
     return pickQueue  
