@@ -6,14 +6,14 @@ class Qnetwork():
         inputSize (int): number of inputs to network.
         outputSize (int): number of output nodes for network.
         layerSizes (tuple of 2 ints): number of nodes in each of the two hidden layers. Defaults to (280,280).
-        learningRate (float) = network's willingness to change current weights given new example
-        discountFactor (float) = factor by which future reward after next action is taken are discounted
+        learningRate (float): network's willingness to change current weights given new example
+        discountFactor (float): factor by which future reward after next action is taken are discounted
 
     A simple Q-network class which is responsible for holding and updating the weights and biases used in predicing Q-values for a given state. This Q-network will consist of 
     the following layers:
     1) Input- a DraftState state s (an array of bool) representing the current state reshaped into a vector of length inputSize.
     2-3) Two fully connected tanh-activated hidden layers
-    4) Output- linerally activated estimations for Q values Q(s,a) for each of the possible outputSize actions a available from state s.
+    4) Output- linearly activated estimations for Q-values Q(s,a) for each of the outputSize actions a available from state s.
     
     """
     
@@ -44,7 +44,7 @@ class Qnetwork():
 
         # Output layer.
         self.outQ = tf.matmul(layer2,weights["out"])+biases["out"]
-        self.prediction = tf.argmax(self.outQ, axis=1) # Predicted optimal action
+        self.prediction = tf.argmax(self.outQ, dimension=1) # Predicted optimal action
 
         # Loss function and optimization:
         # The inputs self.target and self.actions are indexed by training example. If
@@ -69,6 +69,3 @@ class Qnetwork():
 
         self.trainer = tf.train.GradientDescentOptimizer(learning_rate = learningRate)
         self.updateModel = self.trainer.minimize(self.loss)
-
-    def formatPrediction(self, action):
-        return (0,0)

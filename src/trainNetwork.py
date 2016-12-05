@@ -36,11 +36,15 @@ def trainNetwork(Qnet, numEpisodes, batchSize, bufferSize):
     totalSteps = 0
     # Number of steps to take before doing any training. Needs to be at least batchSize to avoid error when sampling from experience replay
     preTrainingSteps = batchSize
+    # Number of steps to take between training
+    updateFreq = 3 # 3 -> train after every match
+
     # Start training
     with tf.Session() as sess:
         sess.run(init)
         for episode in range(numEpisodes):
             # Get next match from queue
+            # Devin: For now we are just repeatedly training from a single match for testing purposes
             # matchRef = matchQueue.get()
             # match = matchRef.match()
 
@@ -55,9 +59,10 @@ def trainNetwork(Qnet, numEpisodes, batchSize, bufferSize):
                 if (totalSteps > preTrainingSteps) and (totalSteps % updateFreq == 0):
                     trainingBatch = experienceReplay.sample(batchSize)
                     
+                    # Each row in predictedQ gives estimated Q(s',a) values for each possible action for a single input state s'. 
                     predictedQ = sess.run(Qnet.outQ,
                                           feed_dict={Qnet.input:np.vstack([exp[3].formatState() for exp in trainingBatch])})
-                    # Each row in predictedQ gives estimated Q(s',a) values for each possible action for a single input state s'. 
+                    
                     # To get max_{a} Q(s',a) values for each s' (required when calculating targetQ), take max along *rows* of predictedQ.
                     maxQ = np.max(predictedQ,axis=1)
 
@@ -66,5 +71,7 @@ def trainNetwork(Qnet, numEpisodes, batchSize, bufferSize):
 
                     # Update Qnet using target Q
                     _ = sess.run(Qnet.updateModel,
-                                 feed_dict={Qnet.input:np.vstack([exp[0].formatState() for exp in trainingBatch]),Qnet.target:targetQ})
+                                 feed_dict={Qnet.input:np.vstack([exp[0].formatState() for exp in trainingBatch]),
+                                            Qnet.actions:np.vstack([exp[1] for exp in trainingBatch]),
+                                            Qnet.target:targetQ})
     return None

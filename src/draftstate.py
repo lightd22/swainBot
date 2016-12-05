@@ -116,6 +116,12 @@ class DraftState:
         #TODO: Currently getRewards() does not work correctly if invalid picks are blocked from selection. This should be fixed later.
         #if(not self.canPick(championId) or (position < -1) or (position > self.numPositions)):
         #    return False
+
+        # Devin: As is, our input formatting of championId & position allows for submitted ally picks
+        # of the form (champId, pos) to correspond with the selection champion = championId in position = pos. However, this is *not* how they are stored in the state 
+        # array. Furthermore this also forces bans to be given pos = -1 and enemy picks pos = 0. Finally this doesn't match indexing used for state array and action vector indexing
+        # (which follow state indexing).
+
         if((position < -1) or (position > self.numPositions) or (not validChampionId(championId))):
             return False
 

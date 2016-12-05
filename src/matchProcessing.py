@@ -111,4 +111,11 @@ def buildPickQueue(match, mode):
             else:
                 pickQueue.put((team,redBans.get()))
     # Champion selections are made in ABBAABBAAB format
+    #TODO (Devin): When we include actions corresponding to champion selection, we will have to expand actions to include an encoding of
+    # 1. Champion banned (this is handled above)
+    # 2. Enemy team pick (champion selection, but no role information)
+    # 3. Ally team pick (champion selection + role)
+    # This will likely take the form of something like actionId = roleId*numChampion + champId
+    # (+1 to avoid issues with championId = 0)
+
     return pickQueue  
