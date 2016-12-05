@@ -19,7 +19,8 @@ class Qnetwork():
     
     def __init__(self, inputSize, outputSize, layerSizes = (280,280), learningRate = 0.001 , discountFactor = 0.9):
         self.discountFactor = discountFactor
-        self.input = tf.placeholder(tf.bool, [None, inputSize])
+        #self.input = tf.placeholder(tf.bool, [None, inputSize])
+        self.input = tf.placeholder(tf.float32, [None, inputSize])
 
         # Set weight and bias dictonaries.
         self.weights = {
