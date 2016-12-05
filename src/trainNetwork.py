@@ -5,7 +5,6 @@ from cassiopeia import riotapi
 from draftstate import DraftState
 
 import championinfo as cinfo
-from rewards import getReward
 import matchProcessing as mp
 import experienceReplay as er
 

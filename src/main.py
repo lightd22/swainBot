@@ -41,7 +41,7 @@ for i in range(3):
 
 # Let's try learning (a lot) from my most recent game..
 state = DraftState(DraftState.BLUE_TEAM,validChampIds)
-inputSize = len(state.formatState)
+inputSize = len(state.formatState())
 outputSize = inputSize
 Qnet = qNetwork.Qnetwork(inputSize, outputSize)
 tn.trainNetwork(Qnet,10,3,30)
