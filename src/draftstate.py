@@ -83,9 +83,9 @@ class DraftState:
         Args:
             None
         Returns:
-            A copy of self.state reshaped as a numpy vector of length numChampions*(numRoles+2)
+            A copy of self.state reshaped as a numpy vector of length numChampions*(numPositions+2)
         """
-        return np.reshape(self.state,self.numChampions*(self.numRoles+2))
+        return np.reshape(self.state,self.numChampions*(self.numPositions+2))
 
     def formatAction(self,action):
         """
