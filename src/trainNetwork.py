@@ -58,6 +58,9 @@ def trainNetwork(Qnet, numEpisodes, batchSize, bufferSize):
                 if (totalSteps > preTrainingSteps) and (totalSteps % updateFreq == 0):
                     trainingBatch = experienceReplay.sample(batchSize)
                     
+                    #TODO (Devin): Every reference to trainingBatch involves vstacking each column of the batch before using it.. probably better to just have er.sample() return
+                    # a numpy array.
+
                     # Each row in predictedQ gives estimated Q(s',a) values for each possible action for a single input state s'. 
                     predictedQ = sess.run(Qnet.outQ,
                                           feed_dict={Qnet.input:np.vstack([exp[3].formatState() for exp in trainingBatch])})
@@ -66,7 +69,8 @@ def trainNetwork(Qnet, numEpisodes, batchSize, bufferSize):
                     maxQ = np.max(predictedQ,axis=1)
 
                     # Calculate target Q values for each example
-                    targetQ = trainingBatch[:,2] + Qnet.discountFactor*maxQ[:]
+                    rewards = np.vstack([exp[2] for exp in trainingBatch])
+                    targetQ = rewards[:] + Qnet.discountFactor*maxQ[:]
 
                     # Update Qnet using target Q
                     _ = sess.run(Qnet.updateModel,
