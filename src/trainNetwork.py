@@ -72,6 +72,8 @@ def trainNetwork(Qnet, numEpisodes, batchSize, bufferSize):
                     rewards = np.array([exp[2] for exp in trainingBatch])
                     targetQ = rewards[:] + Qnet.discountFactor*maxQ[:]
                     print(targetQ.shape)
+                    actions = np.vstack([exp[1] for exp in trainingBatch])
+                    print(actions.shape)
 
                     # Update Qnet using target Q
                     _ = sess.run(Qnet.updateModel,

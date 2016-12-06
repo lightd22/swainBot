@@ -56,8 +56,8 @@ class Qnetwork():
         # self.target[i] = Q*(s[i],a*[i])
         # self.actions[i] = a*[i]
 
-        self.target = tf.placeholder(tf.float32, [None])
-        self.actions = tf.placeholder(tf.int32, [None])
+        self.target = tf.placeholder(tf.float32, shape=[None])
+        self.actions = tf.placeholder(tf.int32, shape=[None])
 
         # Since the Qnet outputs a vector Q(s,-) of  predicted values for every possible action that can be taken from state s, 
         # we need to connect each self.target value with the appropriate predicted Q(s,a*). This is done with a one_hot representation of
