@@ -47,9 +47,12 @@ Qnet = qNetwork.Qnetwork(inputSize, outputSize)
 tn.trainNetwork(Qnet,10,3,30)
 
 # Now if we want to predict what bans we should make..
-sess = tf.Session()
-inputState = np.vstack([state.formatState()])
-action = sess.run(Qnet.prediction,feed_dict={Qnet.input:inputState})
+with tf.Session() as sess:
+    saver = tf.train.Saver()
+    saver.restore(sess,"tmp/model.ckpt")
+    print("qNetwork restored")
+    inputState = np.vstack([state.formatState()])
+    action = sess.run(Qnet.prediction,feed_dict={Qnet.input:inputState})
 (r_ChampId,r_Pos) = state.formatAction(action)
 print("The champion our network has chosen was: {}".format(cinfo.championNameFromId(r_ChampId)))
 pritn("The position it recommended was: {}".format(r_Pos))

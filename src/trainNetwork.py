@@ -21,6 +21,8 @@ def trainNetwork(Qnet, numEpisodes, batchSize, bufferSize):
         None
     Trains the Q-network Qnet in batches using experience replays.
     """
+    saver = tf.train.Saver()
+
     # Initialize tensorflow variables
     init = tf.initialize_all_variables()
 
@@ -77,4 +79,7 @@ def trainNetwork(Qnet, numEpisodes, batchSize, bufferSize):
                                  feed_dict={Qnet.input:np.vstack([exp[0].formatState() for exp in trainingBatch]),
                                             Qnet.actions:np.array([exp[1] for exp in trainingBatch]),
                                             Qnet.target:targetQ})
+        # Once training is complete, save the updated network
+        outPath = saver.save(sess,"tmp/model.ckpt")
+        print("qNetwork saved in file: {}".format(outPath))
     return None
