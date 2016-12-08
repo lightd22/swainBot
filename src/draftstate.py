@@ -98,9 +98,10 @@ class DraftState:
             is a pick.    
         """
         (champId,pos) = np.unravel_index(action,self.state.shape)
-        champId += 1
-        pos -= 1
-        return (champId,pos)
+        #champId += 1
+        #pos -= 1
+        #return (champId,pos)
+        return (0,0)
 
     def updateState(self, championId, position):
         """
