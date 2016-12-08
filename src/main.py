@@ -55,7 +55,7 @@ with tf.Session() as sess:
     action = sess.run(Qnet.prediction,feed_dict={Qnet.input:inputState})
 (r_ChampId,r_Pos) = state.formatAction(action)
 print("The champion our network has chosen was: {}".format(cinfo.championNameFromId(r_ChampId)))
-pritn("The position it recommended was: {}".format(r_Pos))
+print("The position it recommended was: {}".format(r_Pos))
 
 
 print("{name} is a level {level} summoner on the NA server.".format(name=summoner.name, level=summoner.level))
