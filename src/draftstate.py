@@ -100,6 +100,8 @@ class DraftState:
         (champId,pos) = np.unravel_index(action,self.state.shape)
         print("champId= {}".format(champId))
         print("pos= {}".format(pos))
+        print(type(champId))
+        print(type(pos))
         #champId += 1
         #pos -= 1
         #return (champId,pos)
