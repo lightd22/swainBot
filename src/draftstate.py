@@ -97,15 +97,14 @@ class DraftState:
             self.addPick() or self.addBan() depending on the value of position. If position = -1 -> action is a ban otherwise action
             is a pick.    
         """
-        (champId,pos) = np.unravel_index(action,self.state.shape)
+        (champIds,positions) = np.unravel_index(action,self.state.shape)
+        champId = champIds[0]
+        pos = positions[0]
         print("champId= {}".format(champId))
         print("pos= {}".format(pos))
-        print(type(champId))
-        print(type(pos))
-        #champId += 1
-        #pos -= 1
-        #return (champId,pos)
-        return (0,0)
+        champId += 1
+        pos -= 1
+        return (champId,pos)
 
     def updateState(self, championId, position):
         """
