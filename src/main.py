@@ -58,6 +58,10 @@ print("The champion our network has chosen was: {}".format(cinfo.championNameFro
 print("The position it recommended was: {}".format(r_Pos))
 
 
+
+champ = riotapi.get_champion_by_id(r_ChampId)
+print("cass thinks this champion is: {}".format(champ.name))
+
 print("{name} is a level {level} summoner on the NA server.".format(name=summoner.name, level=summoner.level))
 
 champions = riotapi.get_champions()
