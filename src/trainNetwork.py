@@ -21,6 +21,13 @@ def trainNetwork(Qnet, numEpisodes, batchSize, bufferSize):
         None
     Trains the Q-network Qnet in batches using experience replays.
     """
+    print("***")
+    print("Beginning training..")
+    print("  numEpisodes: {}".format(numEpisodes))
+    print("  batchSize: {}".format(batchSize))
+    print("  bufferSize: {}".format(bufferSize))
+    print("***")
+
     saver = tf.train.Saver()
 
     # Initialize tensorflow variables
@@ -38,7 +45,7 @@ def trainNetwork(Qnet, numEpisodes, batchSize, bufferSize):
     # Number of steps to take before doing any training. Needs to be at least batchSize to avoid error when sampling from experience replay
     preTrainingSteps = batchSize
     # Number of steps to take between training
-    updateFreq = 3 # 3 -> train after every match
+    updateFreq = 3 # 3 picks per match -> train after every match
 
     # Start training
     with tf.Session() as sess:
@@ -53,7 +60,7 @@ def trainNetwork(Qnet, numEpisodes, batchSize, bufferSize):
             # Add this match to experience replay
             experiences = mp.processMatch(matchRef, team, mode = "ban")
             for experience in experiences:
-                experienceReplay.store([experience])
+                experienceReplay.store([experiences[2]]) # Currently only takes the last pick and adds it (sanity check)
                 totalSteps += 1
 
                 # Every updateFreq steps we train the network using the replay buffer
@@ -81,5 +88,5 @@ def trainNetwork(Qnet, numEpisodes, batchSize, bufferSize):
                                             Qnet.target:targetQ})
         # Once training is complete, save the updated network
         outPath = saver.save(sess,"tmp/model.ckpt")
-        print("qNetwork saved in file: {}".format(outPath))
+        print("qNet model is saved in file: {}".format(outPath))
     return None

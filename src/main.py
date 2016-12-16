@@ -34,6 +34,7 @@ team = DraftState.RED_TEAM if match.red_team.win else DraftState.BLUE_TEAM # We 
 experiences = mp.processMatch(matchRef,team,mode="ban")
 expReplay = er.ExperienceBuffer(3)
 expReplay.store(experiences)
+
 for i in range(3):
     _,a,r,_ = expReplay.buffer[i]
     print("{act} \t {rew}   ".format(act=cinfo.championNameFromId(a), rew=r))
@@ -42,32 +43,51 @@ for i in range(3):
 # Let's try learning (a lot) from my most recent game..
 state = DraftState(DraftState.BLUE_TEAM,validChampIds)
 inputSize = len(state.formatState())
-outputSize = inputSize
-Qnet = qNetwork.Qnetwork(inputSize, outputSize)
-tn.trainNetwork(Qnet,10,3,30)
+outputSize = len(validChampIds)
+layerSize = (536,536)
+learningRate = 0.001
+print("Qnet input size: {}".format(inputSize))
+print("Qnet output size: {}".format(outputSize))
+print("Using two layers of size: {}".format(layerSize))
+print("Using learning rate: {}".format(learningRate))
+
+Qnet = qNetwork.Qnetwork(inputSize, outputSize, layerSize, learningRate)
+tn.trainNetwork(Qnet,1000,30,30)
 
 # Now if we want to predict what bans we should make..
+myState,_,_,_ = expReplay.buffer[2]
+print("The state we are trying to predict from is:")
+myState.displayState()
+
 with tf.Session() as sess:
     saver = tf.train.Saver()
     saver.restore(sess,"tmp/model.ckpt")
     print("qNetwork restored")
-    inputState = np.vstack([state.formatState()])
+    inputState = np.vstack([myState.formatState()])
     action = sess.run(Qnet.prediction,feed_dict={Qnet.input:inputState})
+    pred_Q = sess.run(Qnet.outQ,feed_dict={Qnet.input:inputState})
+    pred_action = np.argmax(pred_Q, axis=1)
+    print("We should be taking action a = {}".format(pred_action[0]))
+    print("actionid \t championid \t qValue")
+    print("****************************************")
+    for i in range(len(validChampIds)):
+        (cid,pos) = myState.formatAction([i])
+        qVal = pred_Q[0,i]
+        print("{} \t \t {} \t \t {}".format(i, cid, qVal))
+    
+    maxQ = np.max(pred_Q)
+
 (r_ChampId,r_Pos) = state.formatAction(action)
 print("The champion our network has chosen was: {}".format(cinfo.championNameFromId(r_ChampId)))
 print("The position it recommended was: {}".format(r_Pos))
+print("Other champions that are nearby are: {} & {}".format(cinfo.championNameFromId(r_ChampId-1),cinfo.championNameFromId(r_ChampId+1)))
 
-
-
-champ = riotapi.get_champion_by_id(r_ChampId)
-print("cass thinks this champion is: {}".format(champ.name))
 
 print("{name} is a level {level} summoner on the NA server.".format(name=summoner.name, level=summoner.level))
-
 champions = riotapi.get_champions()
 random_champion = random.choice(champions)
 print("He enjoys playing LoL on all different champions, like {name}.".format(name=random_champion.name))
 
-challenger_league = riotapi.get_challenger()
-best_na = challenger_league[0].summoner
-print("He's much better at writing Python code than he is at LoL. He'll never be as good as {name}.".format(name=best_na.name))
+#challenger_league = riotapi.get_challenger()
+#best_na = challenger_league[0].summoner
+#print("He's much better at writing Python code than he is at LoL. He'll never be as good as {name}.".format(name=best_na.name))
