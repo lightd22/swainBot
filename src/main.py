@@ -70,6 +70,7 @@ print("**************")
 print("Sanity check:")
 blankState,_,_,_ = expReplay.buffer[0]
 
+print("  champion to ban: {}".format(cinfo.championNameFromId(nextBan)))
 print("  championId to ban:  {}".format(nextBan))
 champIndex = blankState.champIdToStateIndex[nextBan]
 print("  state row index of this championId:  {}".format(champIndex))
