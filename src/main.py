@@ -44,9 +44,10 @@ state = DraftState(DraftState.BLUE_TEAM,validChampIds)
 inputSize = len(state.formatState())
 outputSize = inputSize
 Qnet = qNetwork.Qnetwork(inputSize, outputSize)
-tn.trainNetwork(Qnet,10,3,30)
+tn.trainNetwork(Qnet,1000,3,30)
 
 # Now if we want to predict what bans we should make..
+state.evaluateState()
 with tf.Session() as sess:
     saver = tf.train.Saver()
     saver.restore(sess,"tmp/model.ckpt")

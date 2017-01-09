@@ -35,7 +35,7 @@ def processMatch(matchRef, team, mode):
     Returns:
         experiences ( list(tuple) ): list of experience tuples. Each experience is assumed to be of the form (s, a, r, s')
 
-    NOTE: processMatch() can take **EITHER** side of the draft to parse for memories. This means we can ultimately sample from both winning an losing drafts when training
+    NOTE: processMatch() can take **EITHER** side of the draft to parse for memories. This means we can ultimately sample from both winning and losing drafts when training
     using ExperienceBuffer.sample(). 
     
     *** CURRENTLY ONLY PULLS BANS FROM MATCHES BECAUSE CHAMPION PICK ORDER IS UNAVAILABLE IN RIOT'S API ***
