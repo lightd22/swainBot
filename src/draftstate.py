@@ -8,12 +8,12 @@ class DraftState:
         champIds (list(int)) : list of valid championids which are available for drafting.
         numPositions (int) : number of available positions to draft for. Default is 5 for a standard 5x5 draft.
 
-    DraftState is the class responsible for holding and maintaining the current state of the draft. For a given champion with championid c, 
+    DraftState is the class responsible for holding and maintaining the current state of the draft. For a given champion with championid c,
     that champion's state with respect to the draft is at most one of:
         - c is banned from selection.
         - c is selected as part of the opponent's team.
         - c is selected as one of our team's position.
-    
+
      The state of the draft will be stored as a (numChampions) x (numRoles+2) numPy array. If state(c,k) = 1 then:
         - k = 0 -> champion c is banned from selection.
         - k = 1 -> champion c is selected as part of the enemy team.
@@ -33,11 +33,11 @@ class DraftState:
     invalidStates = [BAN_SELECTED, DUPLICATE_ROLE, DUPLICATE_SELECTION]
 
     DRAFT_COMPLETE = 1
-    #TODO (Devin): For 'BAN' draft mode, 
+    #TODO (Devin): For 'BAN' draft mode,
     DRAFT_MODE = 'BAN'
     BLUE_TEAM = 0
     RED_TEAM = 1
-    
+
     def __init__(self, whichTeam, champIds, numPositions = 5):
         #TODO (Devin): This should make sure that numChampions >= numPositions
         self.numChampions = len(champIds)
@@ -92,10 +92,10 @@ class DraftState:
         Format input action into the corresponding tuple (champid, position) which indexes the state array.
         Args:
             action (int): Action to be interpreted as an index into the state array.
-        Returns: 
+        Returns:
             (championId, position) (tuple of ints): Tuple of integer values which may be passed as arguments to either
             self.addPick() or self.addBan() depending on the value of position. If position = -1 -> action is a ban otherwise action
-            is a pick.    
+            is a pick.
         """
         #print("incoming action= {}".format(action))
         #print("championNameFromId(action) = {}".format(championNameFromId(int(action))))
@@ -115,7 +115,7 @@ class DraftState:
         Args:
             championId (int): Id of champion to add to pick list.
             position (int): Position of champion to be selected. The value of position determines if championId is interpreted as a pick or ban:
-                position = -1 -> champion ban submitted. 
+                position = -1 -> champion ban submitted.
                 position = 0 -> champion selection submitted by the opposing team.
                 0 < position <= numPositions -> champion selection submitted by our team for pos = position
         """
@@ -124,7 +124,7 @@ class DraftState:
         #    return False
 
         # Devin: As is, our input formatting of championId & position allows for submitted ally picks
-        # of the form (champId, pos) to correspond with the selection champion = championId in position = pos. However, this is *not* how they are stored in the state 
+        # of the form (champId, pos) to correspond with the selection champion = championId in position = pos. However, this is *not* how they are stored in the state
         # array. Furthermore this also forces bans to be given pos = -1 and enemy picks pos = 0. Finally this doesn't match indexing used for state array and action vector indexing
         # (which follow state indexing).
 
@@ -141,8 +141,9 @@ class DraftState:
 
     def displayState(self):
         #TODO (Devin): Clean up displayState to make it prettier.
-        print("Currently there are {numPicks} picks and {numBans} bans completed in this draft. \n".format(numPicks=len(self.picks),numBans=len(self.bans)))
-        
+        print("=== Begin Draft State ===")
+        print("There are {numPicks} picks and {numBans} bans completed in this draft. \n".format(numPicks=len(self.picks),numBans=len(self.bans)))
+
         print("Banned Champions: {0}".format(list(map(championNameFromId, self.bans))))
         enemyDraftIds = [x+1 for x in np.where(self.state[:,1])] # Convert index locations in state to correct championIds
         print("Enemy Draft: {0}".format(list(map(championNameFromId,enemyDraftIds[0]))))
@@ -155,7 +156,7 @@ class DraftState:
             else:
                 draftName = championNameFromId(int(champ[0])+1)
             print("Position {p}: {c}".format(p=posIndex-1,c=draftName))
-        print("\n")
+        print("=== End Draft State ===")
 
     def canPick(self, championId):
         """
@@ -174,7 +175,7 @@ class DraftState:
             championId (int): Id of champion to check for valid ban.
         """
         return ((championId not in self.bans) and championinfo.validChampionId(championId))
-    
+
     def addPick(self, championId, position):
         """
         Attempt to add a champion to the selected champion list and update the state.
@@ -191,7 +192,7 @@ class DraftState:
         self.picks.append(championId)
         self.state[championId-1,position+1] = True
         return True
-    
+
     def addBan(self, championId):
         """
         Attempt to add a champion to the banned champion list and update the state.
@@ -215,7 +216,7 @@ class DraftState:
             Valid codes:
                 value = 0 -> state is valid but incomplete.
                 value = DRAFT_COMPLETE -> state is valid and complete.
-            Invalid codes: 
+            Invalid codes:
                 value = BAN_SELECTED -> state has a banned champion selected for draft.
                 value = DUPLICATE_SELECTION -> state has a champion drafted which is already part of the opposing team.
                 value = DUPLICATE_ROLE -> state has a champion selected for multiple roles (champion selected more than once).
@@ -239,4 +240,4 @@ class DraftState:
             return DraftState.DRAFT_COMPLETE # For ban-only drafts, stop once the bans are registered.
 
         # Draft is valid, but not complete
-        return 0 
+        return 0

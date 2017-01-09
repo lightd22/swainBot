@@ -27,7 +27,7 @@ def buildMatchQueue():
 def processMatch(matchRef, team, mode):
     """
     processMatch takes an input Cassiopiea match reference and breaks each incremental pick down the draft into experiences (aka "memories").
-         
+
     Args:
         matchRef (cassiopiea matchReference): Cassiopiea match reference returned by summoner.match_list
         team (DraftState.BLUE_TEAM or DraftState.RED_TEAM): Which team perspective is used to process match
@@ -36,8 +36,8 @@ def processMatch(matchRef, team, mode):
         experiences ( list(tuple) ): list of experience tuples. Each experience is assumed to be of the form (s, a, r, s')
 
     NOTE: processMatch() can take **EITHER** side of the draft to parse for memories. This means we can ultimately sample from both winning an losing drafts when training
-    using ExperienceBuffer.sample(). 
-    
+    using ExperienceBuffer.sample().
+
     *** CURRENTLY ONLY PULLS BANS FROM MATCHES BECAUSE CHAMPION PICK ORDER IS UNAVAILABLE IN RIOT'S API ***
     """
     experiences = []
@@ -65,7 +65,7 @@ def processMatch(matchRef, team, mode):
             s = deepcopy(draft)
             a = nextPick
             waitForPick = True
-        
+
         draft.updateState(nextPick,-1)
 
         # There are two conditions under which we want to store a memory:
@@ -76,24 +76,24 @@ def processMatch(matchRef, team, mode):
             r = getReward(draft, match)
             sNext = deepcopy(draft)
             memory = (s, a, r, sNext)
-            experiences.append(memory)        
+            experiences.append(memory)
             waitForPick = False
 
     return experiences
 
 def buildPickQueue(match, mode):
     """
-    Builds queue of champion picks or bans (depending on mode) in selection order. If mode = "ban" this produces a queue of tuples 
+    Builds queue of champion picks or bans (depending on mode) in selection order. If mode = 'ban' this produces a queue of tuples
     Args:
         match (cassiopiea match): Cassiopiea match structure to be parsed
-        mode (string): mode = "ban" -> process bans, "draft" -> process champion draft
+        mode (string): mode = 'ban' -> process bans, 'draft' -> process champion draft
     Returns:
         pickQueue (Queue(tuple)): Queue of pick tuples of the form (team, championId). pickQueue is produced in selection order.
 
-    *** CURRENTLY ONLY PRODUCES BAN MODE SELECTIONS SINCE CHAMPION PICK ORDER IS NOT AVAILABLE THROUGH RIOT'S API ***
+    *** CURRENTLY ONLY PRODUCES BAN MODE SELECTIONS SINCE CHAMPION PICK ORDER ISNT AVAILABLE THROUGH RIOT'S API ***
     """
     pickQueue = queue.Queue()
-    
+
     # Bans are currently made in ABABAB format
     if (mode == "ban"):
         #TODO (Devin): clean this up to be more readable. Maybe interpret actual character strings (eg ABABAB as above) as pick order?
@@ -118,4 +118,4 @@ def buildPickQueue(match, mode):
     # This will likely take the form of something like actionId = roleId*numChampion + champId
     # (+1 to avoid issues with championId = 0)
 
-    return pickQueue  
+    return pickQueue

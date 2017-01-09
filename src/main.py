@@ -22,6 +22,11 @@ class Match(object):
     def __init__(self,redTeamWon):
         self.red_team.win = redTeamWon
 
+print("")
+print("********************************")
+print("** Beginning Smart Draft Run! **")
+print("********************************")
+
 validChampIds = cinfo.getChampionIds()
 print("Number of valid championIds: {}".format(len(validChampIds)))
 
@@ -52,12 +57,34 @@ print("Using two layers of size: {}".format(layerSize))
 print("Using learning rate: {}".format(learningRate))
 
 Qnet = qNetwork.Qnetwork(inputSize, outputSize, layerSize, learningRate)
-tn.trainNetwork(Qnet,1000,30,30)
+#tn.trainNetwork(Qnet,1000,30,30)
 
 # Now if we want to predict what bans we should make..
-myState,_,_,_ = expReplay.buffer[2]
-print("The state we are trying to predict from is:")
+myState,nextBan,_,_ = expReplay.buffer[2]
+print("")
+print("The state we are predicting from is:")
 myState.displayState()
+
+print("")
+print("**************")
+print("Sanity check:")
+blankState,_,_,_ = expReplay.buffer[0]
+
+print("  championId to ban:  {}".format(nextBan))
+champIndex = blankState.champIdToStateIndex[nextBan]
+print("  state row index of this championId:  {}".format(champIndex))
+roleId = 0
+act = champIndex*(blankState.numPositions+2)+roleId
+print("  action index of banning this champion:  {}".format(act))
+
+blankState.displayState()
+blankState.updateState(nextBan,-1)
+blankState.displayState()
+
+# Qnet outputs using actionId = championIndex, mp.processMatch() returns (s,a,r,s')
+# where a = championId (note the Id, _NOT_ Index), this needs to match indexing of
+# Qnet. AKA a = state.champIdToStateIndex(championId). For the time being the roleId
+# is unused until the model can predict picks/roles.
 
 with tf.Session() as sess:
     saver = tf.train.Saver()
@@ -68,13 +95,14 @@ with tf.Session() as sess:
     pred_Q = sess.run(Qnet.outQ,feed_dict={Qnet.input:inputState})
     pred_action = np.argmax(pred_Q, axis=1)
     print("We should be taking action a = {}".format(pred_action[0]))
-    print("actionid \t championid \t qValue")
-    print("****************************************")
+    print("actionid \t championid \t championName \t qValue")
+    print("********************************************************")
     for i in range(len(validChampIds)):
-        (cid,pos) = myState.formatAction([i])
+        (stateid,pos) = myState.formatAction([i])
+        cid = myState.stateIndexToChampId[stateid]
         qVal = pred_Q[0,i]
-        print("{} \t \t {} \t \t {}".format(i, cid, qVal))
-    
+        print("{} \t \t {} \t \t {} \t \t {}".format(i, cid, cinfo.championNameFromId(cid),qVal))
+
     maxQ = np.max(pred_Q)
 
 (r_ChampId,r_Pos) = state.formatAction(action)

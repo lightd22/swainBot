@@ -16,7 +16,7 @@ def trainNetwork(Qnet, numEpisodes, batchSize, bufferSize):
         Qnet (qNetwork): Q-network to be trained.
         numEpisodes (int): total number of drafts to be simulated
         batchSize (int): size of each training set sampled from the replay buffer which will be used to update Qnet at a time
-        bufferSize (int): size of replay buffer used 
+        bufferSize (int): size of replay buffer used
     Returns:
         None
     Trains the Q-network Qnet in batches using experience replays.
@@ -30,13 +30,10 @@ def trainNetwork(Qnet, numEpisodes, batchSize, bufferSize):
 
     saver = tf.train.Saver()
 
-    # Initialize tensorflow variables
-    init = tf.initialize_all_variables()
-
     # Initialize experience replay buffer
     experienceReplay = er.ExperienceBuffer(bufferSize)
-    
-    # For now, we are training off a single draft (my most recent). Later on this will be populated with numEpisode drafts 
+
+    # For now, we are training off a single draft (my most recent). Later on this will be populated with numEpisode drafts
     matchQueue = mp.buildMatchQueue()
     matchRef = matchQueue.get()
     match = matchRef.match()
@@ -49,7 +46,8 @@ def trainNetwork(Qnet, numEpisodes, batchSize, bufferSize):
 
     # Start training
     with tf.Session() as sess:
-        sess.run(init)
+        # Initialize tensorflow variables
+        sess.run(Qnet.init)
         for episode in range(numEpisodes):
             # Get next match from queue
             # Devin: For now we are just repeatedly training from a single match for testing purposes
@@ -66,14 +64,14 @@ def trainNetwork(Qnet, numEpisodes, batchSize, bufferSize):
                 # Every updateFreq steps we train the network using the replay buffer
                 if (totalSteps > preTrainingSteps) and (totalSteps % updateFreq == 0):
                     trainingBatch = experienceReplay.sample(batchSize)
-                    
+
                     #TODO (Devin): Every reference to trainingBatch involves vstacking each column of the batch before using it.. probably better to just have er.sample() return
                     # a numpy array.
 
-                    # Each row in predictedQ gives estimated Q(s',a) values for each possible action for a single input state s'. 
+                    # Each row in predictedQ gives estimated Q(s',a) values for each possible action for a single input state s'.
                     predictedQ = sess.run(Qnet.outQ,
                                           feed_dict={Qnet.input:np.vstack([exp[3].formatState() for exp in trainingBatch])})
-                    
+
                     # To get max_{a} Q(s',a) values for each s' (required when calculating targetQ), take max along *rows* of predictedQ.
                     maxQ = np.max(predictedQ,axis=1)
 
