@@ -51,9 +51,9 @@ class DraftState:
         #TODO (Devin): This should check for an invalid team passed
         self.team = whichTeam
 
-    def stateIndexToChampId(self,index):
+    def getChampId(self,index):
         """
-        stateIndexToChampId returns the valid champion ID corresponding to the given state index. Since champion IDs are not contiguously defined or even necessarily ordered,
+        getChampId returns the valid champion ID corresponding to the given state index. Since champion IDs are not contiguously defined or even necessarily ordered,
         this mapping will not be trivial. If index is invalid, returns -1.
         Args:
             index (int): location index in the state array of the desired champion.
@@ -64,10 +64,10 @@ class DraftState:
             return -1
         return self.stateIndexToChampId[index]
 
-    def champIdToStateIndex(self,champid):
+    def getStateIndex(self,champid):
         """
-        champIdTostateIndex returns the state index corresponding to the given champion ID. Since champion IDs are not contiguously defined or even necessarily ordered,
-        this mapping will not be trivial. If champid is invalid, returns -1.
+        getStateIndex returns the state index corresponding to the given champion ID. Since champion IDs are not contiguously defined or even necessarily ordered,
+        this mapping be non-trivial. If champid is invalid, returns -1.
         Args:
             champid (int): id of champion to look up
         Returns
@@ -109,7 +109,7 @@ class DraftState:
         # In the future the action will be a more complicated recommendation including stateIndex and position so we'll need to make this more elaborate
         # (it will probably look like something above) but for now, let's just do it in the most simple way
         pos = -1
-        champId = self.stateIndexToChampId(action)
+        champId = self.getChampId(action)
         return (champId,pos)
 
     def updateState(self, championId, position):
