@@ -98,8 +98,7 @@ with tf.Session() as sess:
     print("actionid \t championid \t championName \t qValue")
     print("********************************************************")
     for i in range(len(validChampIds)):
-        (stateid,pos) = myState.formatAction([i])
-        cid = myState.stateIndexToChampId[stateid]
+        (cid,pos) = myState.formatAction([i])
         qVal = pred_Q[0,i]
         print("{} \t \t {} \t \t {} \t \t {}".format(i, cid, cinfo.championNameFromId(cid),qVal))
 

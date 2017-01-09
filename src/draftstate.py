@@ -99,13 +99,17 @@ class DraftState:
         """
         #print("incoming action= {}".format(action))
         #print("championNameFromId(action) = {}".format(championNameFromId(int(action))))
-        (champIds,positions) = np.unravel_index(action,self.state.shape,order='F')
-        champId = champIds[0]
-        pos = positions[0]
-        #print("champId= {}".format(champId))
-        #print("pos= {}".format(pos))
-        champId += 1
-        pos -= 1
+        #(champIds,positions) = np.unravel_index(action,self.state.shape,order='F')
+        #champId = champIds[0]
+        #pos = positions[0]
+        #champId += 1
+        #pos -= 1
+
+        #TODO(Devin): Right now network only predicts bans which means that the input action is already a stateIndex and pos = -1.
+        # In the future the action will be a more complicated recommendation including stateIndex and position so we'll need to make this more elaborate
+        # (it will probably look like something above) but for now, let's just do it in the most simple way
+        pos = -1
+        champId = self.stateIndexToChampId(action)
         return (champId,pos)
 
     def updateState(self, championId, position):

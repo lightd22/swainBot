@@ -33,7 +33,10 @@ def processMatch(matchRef, team, mode):
         team (DraftState.BLUE_TEAM or DraftState.RED_TEAM): Which team perspective is used to process match
         mode (string): mode = "ban" -> process bans, "draft" -> process champion draft
     Returns:
-        experiences ( list(tuple) ): list of experience tuples. Each experience is assumed to be of the form (s, a, r, s')
+        experiences ( list(tuple) ): list of experience tuples. Each experience is assumed to be of the form (s, a, r, s') where:
+            - s and s' are before and after DraftState states
+            - a is stateIndex of selected champion 
+            - r is the integer reward obtained from selecting that champion
 
     NOTE: processMatch() can take **EITHER** side of the draft to parse for memories. This means we can ultimately sample from both winning and losing drafts when training
     using ExperienceBuffer.sample(). 
@@ -63,7 +66,8 @@ def processMatch(matchRef, team, mode):
         # Memory starts when the next pick belongs to designated team
         if currentTeam == team:
             s = deepcopy(draft)
-            a = nextPick
+            # Convert action from championId to stateIndex for storage
+            a = draft.champIdToStateIndex[nextPick]
             waitForPick = True
 
         draft.updateState(nextPick,-1)
