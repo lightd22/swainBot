@@ -39,11 +39,11 @@ class Qnetwork():
 
         # First hidden layer.
         self.layer1 = tf.add(tf.matmul(self.input, self.weights["layer1"]), self.biases["layer1"])
-        self.layer1 = tf.nn.tanh(self.layer1)
+        self.layer1 = tf.nn.relu(self.layer1)
 
         # Second hidden layer.
         self.layer2 = tf.add(tf.matmul(self.layer1, self.weights["layer2"]), self.biases["layer2"])
-        self.layer2 = tf.nn.tanh(self.layer2)
+        self.layer2 = tf.nn.relu(self.layer2)
 
         # Output layer.
         self.outQ = tf.matmul(self.layer2,self.weights["out"])+self.biases["out"]
@@ -74,3 +74,4 @@ class Qnetwork():
         self.updateModel = self.trainer.minimize(self.loss)
 
         self.init = tf.initialize_all_variables()
+        self.saver = tf.train.Saver()

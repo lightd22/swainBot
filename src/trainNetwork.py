@@ -10,13 +10,14 @@ import experienceReplay as er
 
 
 
-def trainNetwork(Qnet, numEpisodes, batchSize, bufferSize):
+def trainNetwork(Qnet, numEpisodes, batchSize, bufferSize, loadModel):
     """
     Args:
         Qnet (qNetwork): Q-network to be trained.
         numEpisodes (int): total number of drafts to be simulated
         batchSize (int): size of each training set sampled from the replay buffer which will be used to update Qnet at a time
         bufferSize (int): size of replay buffer used
+        loadModel (bool): flag to reload existing model
     Returns:
         None
     Trains the Q-network Qnet in batches using experience replays.
@@ -27,8 +28,6 @@ def trainNetwork(Qnet, numEpisodes, batchSize, bufferSize):
     print("  batchSize: {}".format(batchSize))
     print("  bufferSize: {}".format(bufferSize))
     print("***")
-
-    saver = tf.train.Saver()
 
     # Initialize experience replay buffer
     experienceReplay = er.ExperienceBuffer(bufferSize)
@@ -46,8 +45,13 @@ def trainNetwork(Qnet, numEpisodes, batchSize, bufferSize):
 
     # Start training
     with tf.Session() as sess:
-        # Initialize tensorflow variables
-        sess.run(Qnet.init)
+        # Open saved model (if flagged)
+        if loadModel:
+            Qnet.saver.restore(sess,"tmp/model.ckpt")
+        else:
+            # Otherwise, initialize tensorflow variables
+            sess.run(Qnet.init)
+
         for episode in range(numEpisodes):
             # Get next match from queue
             # Devin: For now we are just repeatedly training from a single match for testing purposes
@@ -85,6 +89,6 @@ def trainNetwork(Qnet, numEpisodes, batchSize, bufferSize):
                                             Qnet.actions:np.array([exp[1] for exp in trainingBatch]),
                                             Qnet.target:targetQ})
         # Once training is complete, save the updated network
-        outPath = saver.save(sess,"tmp/model.ckpt")
+        outPath = Qnet.saver.save(sess,"tmp/model.ckpt")
         print("qNet model is saved in file: {}".format(outPath))
     return None
