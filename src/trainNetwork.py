@@ -72,7 +72,7 @@ def trainNetwork(Qnet, numEpisodes, batchSize, bufferSize, loadModel):
             # Add this match to experience replay
             experiences = mp.processMatch(matchRef, team, mode = "ban")
             for experience in experiences:
-                experienceReplay.store([experiences[2]]) # Currently only takes the last pick and adds it (sanity check)
+                experienceReplay.store([experience])
                 totalSteps += 1
 
                 # Every updateFreq steps we train the network using the replay buffer
@@ -81,18 +81,30 @@ def trainNetwork(Qnet, numEpisodes, batchSize, bufferSize, loadModel):
 
                     #TODO (Devin): Every reference to trainingBatch involves vstacking each column of the batch before using it.. probably better to just have er.sample() return
                     # a numpy array.
+                    
+                    # Calculate target Q values for each example:
+                    # Normally, targetQ is estimated according to 
+                    #   targetQ = r + gamma*max_{a} Q(s',a). 
+                    # However, for terminating states (where state.evaluateState() == DS.DRAFT_COMPLETE) the target is computed as
+                    #   targetQ = r 
+                    # therefore, it isn't necessary to feed these states through the ANN to evalutate targetQ. This should save
+                    # time as the network complexity increases.
+                    updates = []
+                    for exp in trainingBatch:
+                        startState,_,reward,finalState = exp
+                        if finalState.evaluateState() == DraftState.DRAFT_COMPLETE: # Action selection moves to terminal state
+                            updates.append(reward)
+                        else:                           
+                            # Each row in predictedQ gives estimated Q(s',a) values for each possible action for the input state s'.
+                            predictedQ = sess.run(Qnet.outQ,
+                                                  feed_dict={Qnet.input:[finalState.formatState()]})
 
-                    # Each row in predictedQ gives estimated Q(s',a) values for each possible action for a single input state s'.
-                    predictedQ = sess.run(Qnet.outQ,
-                                          feed_dict={Qnet.input:np.vstack([exp[3].formatState() for exp in trainingBatch])})
+                            # To get max_{a} Q(s',a) values take max along *rows* of predictedQ.
+                            maxQ = np.max(predictedQ,axis=1)
+                            updates.append(reward + Qnet.discountFactor*maxQ)
 
-                    # To get max_{a} Q(s',a) values for each s' (required when calculating targetQ), take max along *rows* of predictedQ.
-                    maxQ = np.max(predictedQ,axis=1)
-
-                    # Calculate target Q values for each example
-                    rewards = np.array([exp[2] for exp in trainingBatch])
-                    #targetQ = rewards[:] + Qnet.discountFactor*maxQ[:]
-                    targetQ = rewards[:] #NOTE: ONLY GOOD FOR LAST PICK TRAINING
+                    targetQ = np.array(updates)
+                    
                     estQ = sess.run(Qnet.outQ,
                                     feed_dict={Qnet.input:np.vstack([exp[0].formatState() for exp in trainingBatch])})
                     print("Current estimates for Q(s,-) for last-pick episode are..")
