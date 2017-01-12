@@ -59,7 +59,7 @@ print("Using two layers of size: {}".format(layerSize))
 print("Using learning rate: {}".format(learningRate))
 
 Qnet = qNetwork.Qnetwork(inputSize, outputSize, layerSize, learningRate)
-tn.trainNetwork(Qnet,2,3,3,False)
+tn.trainNetwork(Qnet,20,3,3,False)
 
 # Now if we want to predict what bans we should make..
 myState,nextBan,_,_ = expReplay.buffer[2]

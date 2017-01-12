@@ -27,7 +27,6 @@ def trainNetwork(Qnet, numEpisodes, batchSize, bufferSize, loadModel):
     print("  numEpisodes: {}".format(numEpisodes))
     print("  batchSize: {}".format(batchSize))
     print("  bufferSize: {}".format(bufferSize))
-    print("***")
 
     # Initialize experience replay buffer
     experienceReplay = er.ExperienceBuffer(bufferSize)
@@ -51,6 +50,17 @@ def trainNetwork(Qnet, numEpisodes, batchSize, bufferSize, loadModel):
         else:
             # Otherwise, initialize tensorflow variables
             sess.run(Qnet.init)
+            team = DraftState.RED_TEAM if match.red_team.win else DraftState.BLUE_TEAM # For now only learn from winning team
+            foos = mp.processMatch(matchRef, team, mode = "ban")
+            blankExp = foos[0]
+            blankState = blankExp[0] 
+            estQ = sess.run(Qnet.outQ,
+                            feed_dict={Qnet.input:[blankState.formatState()]})
+            print("Starting estimates for Q(s,-) from blank state are..")
+            print("a \t \t Q(s,a)")
+            print("************************")
+            for i in range(estQ.shape[1]):
+                print("{} \t \t {}".format(i,estQ[0,i]))
 
         for episode in range(numEpisodes):
             # Get next match from queue
@@ -66,7 +76,7 @@ def trainNetwork(Qnet, numEpisodes, batchSize, bufferSize, loadModel):
                 totalSteps += 1
 
                 # Every updateFreq steps we train the network using the replay buffer
-                if (totalSteps > preTrainingSteps) and (totalSteps % updateFreq == 0):
+                if (totalSteps >= preTrainingSteps) and (totalSteps % updateFreq == 0):
                     trainingBatch = experienceReplay.sample(batchSize)
 
                     #TODO (Devin): Every reference to trainingBatch involves vstacking each column of the batch before using it.. probably better to just have er.sample() return
@@ -81,7 +91,15 @@ def trainNetwork(Qnet, numEpisodes, batchSize, bufferSize, loadModel):
 
                     # Calculate target Q values for each example
                     rewards = np.array([exp[2] for exp in trainingBatch])
-                    targetQ = rewards[:] + Qnet.discountFactor*maxQ[:]
+                    #targetQ = rewards[:] + Qnet.discountFactor*maxQ[:]
+                    targetQ = rewards[:] #NOTE: ONLY GOOD FOR LAST PICK TRAINING
+                    estQ = sess.run(Qnet.outQ,
+                                    feed_dict={Qnet.input:np.vstack([exp[0].formatState() for exp in trainingBatch])})
+                    print("Current estimates for Q(s,-) for last-pick episode are..")
+                    print("a \t \t Q(s,a)")
+                    print("************************")
+                    for i in range(estQ.shape[1]):
+                        print("{} \t \t {}".format(i,estQ[0,i]))
 
                     # Update Qnet using target Q
                     _ = sess.run(Qnet.updateModel,
@@ -91,4 +109,5 @@ def trainNetwork(Qnet, numEpisodes, batchSize, bufferSize, loadModel):
         # Once training is complete, save the updated network
         outPath = Qnet.saver.save(sess,"tmp/model.ckpt")
         print("qNet model is saved in file: {}".format(outPath))
+    print("***")
     return None

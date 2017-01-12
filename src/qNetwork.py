@@ -25,16 +25,26 @@ class Qnetwork():
         self.input = tf.placeholder(tf.float32, [None, inputSize])
 
         # Set weight and bias dictonaries.
+#        self.weights = {
+#            "layer1": tf.Variable(tf.random_normal([inputSize,layerSizes[0]])),
+#            "layer2": tf.Variable(tf.random_normal([layerSizes[0],layerSizes[1]])),
+#            "out": tf.Variable(tf.random_normal([layerSizes[1],outputSize]))
+#        }
         self.weights = {
-            "layer1": tf.Variable(tf.random_normal([inputSize,layerSizes[0]])),
-            "layer2": tf.Variable(tf.random_normal([layerSizes[0],layerSizes[1]])),
-            "out": tf.Variable(tf.random_normal([layerSizes[1],outputSize]))
+            "layer1": tf.Variable(tf.random_uniform([inputSize,layerSizes[0]],0,0.1)),
+            "layer2": tf.Variable(tf.random_uniform([layerSizes[0],layerSizes[1]],0,0.1)),
+            "out": tf.Variable(tf.random_uniform([layerSizes[1],outputSize],0,0.1))
         }
 
+#        self.biases = {
+#            "layer1": tf.Variable(tf.random_normal([layerSizes[0]])),
+#            "layer2": tf.Variable(tf.random_normal([layerSizes[1]])),
+#            "out": tf.Variable(tf.random_normal([outputSize]))
+#        }
         self.biases = {
-            "layer1": tf.Variable(tf.random_normal([layerSizes[0]])),
-            "layer2": tf.Variable(tf.random_normal([layerSizes[1]])),
-            "out": tf.Variable(tf.random_normal([outputSize]))
+            "layer1": tf.Variable(tf.random_uniform([layerSizes[0]],0,0.1)),
+            "layer2": tf.Variable(tf.random_uniform([layerSizes[1]],0,0.1)),
+            "out": tf.Variable(tf.random_uniform([outputSize],0,0.1))
         }
 
         # First hidden layer.
