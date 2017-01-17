@@ -50,17 +50,6 @@ def trainNetwork(Qnet, numEpisodes, batchSize, bufferSize, loadModel):
         else:
             # Otherwise, initialize tensorflow variables
             sess.run(Qnet.init)
-            team = DraftState.RED_TEAM if match.red_team.win else DraftState.BLUE_TEAM # For now only learn from winning team
-            foos = mp.processMatch(matchRef, team, mode = "ban")
-            blankExp = foos[0]
-            blankState = blankExp[0] 
-            estQ = sess.run(Qnet.outQ,
-                            feed_dict={Qnet.input:[blankState.formatState()]})
-            print("Starting estimates for Q(s,-) from blank state are..")
-            print("a \t \t Q(s,a)")
-            print("************************")
-            for i in range(estQ.shape[1]):
-                print("{} \t \t {}".format(i,estQ[0,i]))
 
         for episode in range(numEpisodes):
             # Get next match from queue
@@ -83,21 +72,21 @@ def trainNetwork(Qnet, numEpisodes, batchSize, bufferSize, loadModel):
                     # a numpy array.
                     
                     # Calculate target Q values for each example:
-                    # Normally, targetQ is estimated according to 
+                    # For non-temrinal states, targetQ is estimated according to 
                     #   targetQ = r + gamma*max_{a} Q(s',a). 
-                    # However, for terminating states (where state.evaluateState() == DS.DRAFT_COMPLETE) the target is computed as
+                    # For terminating states (where state.evaluateState() == DS.DRAFT_COMPLETE) the target is computed as
                     #   targetQ = r 
                     # therefore, it isn't necessary to feed these states through the ANN to evalutate targetQ. This should save
                     # time as the network complexity increases.
                     updates = []
                     for exp in trainingBatch:
-                        startState,_,reward,finalState = exp
-                        if finalState.evaluateState() == DraftState.DRAFT_COMPLETE: # Action selection moves to terminal state
+                        startState,_,reward,endingState = exp
+                        if endingState.evaluateState() == DraftState.DRAFT_COMPLETE: # Action selection moves to terminal state
                             updates.append(reward)
                         else:                           
                             # Each row in predictedQ gives estimated Q(s',a) values for each possible action for the input state s'.
                             predictedQ = sess.run(Qnet.outQ,
-                                                  feed_dict={Qnet.input:[finalState.formatState()]})
+                                                  feed_dict={Qnet.input:[endingState.formatState()]})
 
                             # To get max_{a} Q(s',a) values take max along *rows* of predictedQ.
                             maxQ = np.max(predictedQ,axis=1)
@@ -107,7 +96,7 @@ def trainNetwork(Qnet, numEpisodes, batchSize, bufferSize, loadModel):
                     
                     estQ = sess.run(Qnet.outQ,
                                     feed_dict={Qnet.input:np.vstack([exp[0].formatState() for exp in trainingBatch])})
-                    print("Current estimates for Q(s,-) for last-pick episode are..")
+                    print("Current estimates for Q(s,-) for last-pick episode..")
                     print("a \t \t Q(s,a)")
                     print("************************")
                     for i in range(estQ.shape[1]):

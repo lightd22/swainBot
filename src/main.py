@@ -59,10 +59,10 @@ print("Using two layers of size: {}".format(layerSize))
 print("Using learning rate: {}".format(learningRate))
 
 Qnet = qNetwork.Qnetwork(inputSize, outputSize, layerSize, learningRate)
-tn.trainNetwork(Qnet,20,3,3,False)
+tn.trainNetwork(Qnet,200,10,30,False)
 
 # Now if we want to predict what bans we should make..
-myState,nextBan,_,_ = expReplay.buffer[2]
+myState,nextBan,_,_ = expReplay.buffer[0]
 print("")
 print("The state we are predicting from is:")
 myState.displayState()
@@ -81,11 +81,7 @@ act = nextBan
 print("  action index of banning this champion:  {}".format(act))
 print("**************")
 
-# Qnet outputs using actionId = championIndex, mp.processMatch() returns (s,a,r,s')
-# where a = championId (note the Id, _NOT_ Index), this needs to match indexing of
-# Qnet. AKA a = state.champIdToStateIndex(championId). For the time being the roleId
-# is unused until the model can predict picks/roles.
-
+# Print out ANN's predicted Q-values for myState after training.
 with tf.Session() as sess:
     Qnet.saver.restore(sess,"tmp/model.ckpt")
     print("qNetwork restored")
@@ -95,14 +91,12 @@ with tf.Session() as sess:
     pred_Q = sess.run(Qnet.outQ,feed_dict={Qnet.input:inputState})
     pred_action = np.argmax(pred_Q, axis=1)
     print("We should be taking action a = {}".format(pred_action[0]))
-    print("actionid \t championid \t championName \t qValue")
-    print("********************************************************")
+    print("actionid \t championid \t championName \t \t qValue")
+    print("*****************************************************************")
     for i in range(len(validChampIds)):
         (cid,pos) = myState.formatAction(i)
         qVal = pred_Q[0,i]
-        print("{} \t \t {} \t \t {} \t \t {}".format(i, cid, cinfo.championNameFromId(cid),qVal))
-
-    maxQ = np.max(pred_Q)
+        print("{} \t \t {} \t \t {:12} \t \t {:.4f}".format(i, cid, cinfo.championNameFromId(cid),qVal))
 
 (r_ChampId,r_Pos) = state.formatAction(action[0])
 print("The champion our network has chosen was: {}".format(cinfo.championNameFromId(r_ChampId)))
