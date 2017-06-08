@@ -47,9 +47,8 @@ for i in range(3):
     print("{act} \t {rew}   ".format(act=cinfo.championNameFromId(cid), rew=r))
 
 
-# Let's try learning (a lot) from my most recent game..
-state = DraftState(DraftState.BLUE_TEAM,validChampIds)
-inputSize = len(state.formatState())
+# Let's try learning from some of my most recent games
+inputSize = len(blankState.formatState())
 outputSize = len(validChampIds)
 layerSize = (536,536)
 learningRate = 0.001
@@ -59,7 +58,7 @@ print("Using two layers of size: {}".format(layerSize))
 print("Using learning rate: {}".format(learningRate))
 
 Qnet = qNetwork.Qnetwork(inputSize, outputSize, layerSize, learningRate)
-tn.trainNetwork(Qnet,200,10,30,False)
+tn.trainNetwork(Qnet,100,10,30,False)
 
 # Now if we want to predict what bans we should make..
 myState,nextBan,_,_ = expReplay.buffer[0]
@@ -98,7 +97,7 @@ with tf.Session() as sess:
         qVal = pred_Q[0,i]
         print("{} \t \t {} \t \t {:12} \t \t {:.4f}".format(i, cid, cinfo.championNameFromId(cid),qVal))
 
-(r_ChampId,r_Pos) = state.formatAction(action[0])
+(r_ChampId,r_Pos) = myState.formatAction(action[0])
 print("The champion our network has chosen was: {}".format(cinfo.championNameFromId(r_ChampId)))
 print("The position it recommended was: {}".format(r_Pos))
 
@@ -111,3 +110,8 @@ print("He enjoys playing LoL on all different champions, like {name}.".format(na
 #challenger_league = riotapi.get_challenger()
 #best_na = challenger_league[0].summoner
 #print("He's much better at writing Python code than he is at LoL. He'll never be as good as {name}.".format(name=best_na.name))
+
+print("")
+print("********************************")
+print("**  Ending Smart Draft Run!   **")
+print("********************************")

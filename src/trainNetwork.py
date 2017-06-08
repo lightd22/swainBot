@@ -31,10 +31,8 @@ def trainNetwork(Qnet, numEpisodes, batchSize, bufferSize, loadModel):
     # Initialize experience replay buffer
     experienceReplay = er.ExperienceBuffer(bufferSize)
 
-    # For now, we are training off a single draft (my most recent). Later on this will be populated with numEpisode drafts
-    matchQueue = mp.buildMatchQueue()
-    matchRef = matchQueue.get()
-    match = matchRef.match()
+    # For now, we are training off my match history. Later on this will be populated with numEpisode drafts from more.. qualified players
+    matchQueue = mp.buildMatchQueue(3) #(Temporary) right now only learn from my 3 most recent matches.
 
     totalSteps = 0
     # Number of steps to take before doing any training. Needs to be at least batchSize to avoid error when sampling from experience replay
@@ -53,9 +51,9 @@ def trainNetwork(Qnet, numEpisodes, batchSize, bufferSize, loadModel):
 
         for episode in range(numEpisodes):
             # Get next match from queue
-            # Devin: For now we are just repeatedly training from a single match for testing purposes
-            # matchRef = matchQueue.get()
-            # match = matchRef.match()
+            matchRef = matchQueue.get()
+            match = matchRef.match()
+            matchQueue.put(matchRef) #(Temporary) put the match we just popped back into queue to check long-time learning
 
             team = DraftState.RED_TEAM if match.red_team.win else DraftState.BLUE_TEAM # For now only learn from winning team
             # Add this match to experience replay
@@ -81,7 +79,7 @@ def trainNetwork(Qnet, numEpisodes, batchSize, bufferSize, loadModel):
                     updates = []
                     for exp in trainingBatch:
                         startState,_,reward,endingState = exp
-                        if endingState.evaluateState() == DraftState.DRAFT_COMPLETE: # Action selection moves to terminal state
+                        if endingState.evaluateState() == DraftState.DRAFT_COMPLETE: # Action moves to terminal state
                             updates.append(reward)
                         else:                           
                             # Each row in predictedQ gives estimated Q(s',a) values for each possible action for the input state s'.
@@ -93,6 +91,8 @@ def trainNetwork(Qnet, numEpisodes, batchSize, bufferSize, loadModel):
                             updates.append(reward + Qnet.discountFactor*maxQ)
 
                     targetQ = np.array(updates)
+                    # Make sure targetQ shape is correct (sometimes np.array likes to return array of shape (batchSize,1) for some reason)
+                    targetQ.shape = (batchSize,) 
                     
                     estQ = sess.run(Qnet.outQ,
                                     feed_dict={Qnet.input:np.vstack([exp[0].formatState() for exp in trainingBatch])})

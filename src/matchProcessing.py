@@ -6,22 +6,22 @@ from championinfo import getChampionIds, championNameFromId
 from rewards import getReward
 from copy import deepcopy
 
-def buildMatchQueue():
+def buildMatchQueue(numMatches):
     """
     Args:
-        None
+        numMatches (int): Number of matches to include in the queue (0 indicates to use the maximum number of matches available)
     Returns:
         matchQueue (Queue of match references): Python Queue structure containing matchIds  to be processed
 
     This will be responsible for building the queue of matchids that we will use during learning phase.
-    *** CURRENTLY ONLY PULLS MY SINGLE MOST RECENT RANKED GAME!! ***
+    *** CURRENTLY ONLY PULLS MY RANKED MATCH HISTORY ***
     """
     #TODO (Devin): This will be responsible for building the queue of matchids that we will use during learning
-    # eventually it should recursively look through high mmr player match historiess and build up a database of match references.
-    matchQueue = queue.Queue()
+    # eventually it should recursively look through high mmr player match histories and build up a database of match references.
+    matchQueue = queue.Queue(maxsize=numMatches)
     summoner = riotapi.get_summoner_by_name("DOCTOR LIGHT")
-    matchRef = summoner.match_list()[0] # Most recent ranked game
-    matchQueue.put(matchRef)
+    for matchRef in summoner.match_list()[0:numMatches]:
+        matchQueue.put(matchRef)
     return matchQueue
 
 def processMatch(matchRef, team, mode):
