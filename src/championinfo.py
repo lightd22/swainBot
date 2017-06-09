@@ -1,7 +1,8 @@
 import numpy as np
 from cassiopeia import riotapi
+import re
 
-# Box is a vacant class with no initial members. This will be used to hold the championId list and championId -> name dictionary.
+# Box is a vacant class with no initial members. This will be used to hold the championId list and championId <-> name dictionaries.
 
 #TODO (Devin): These members should really just be initialized whenever the storage class is created since the very first thing all of these functions
 # do is check if they are none or not..
@@ -9,6 +10,7 @@ class Box:
     pass
 __m = Box()
 __m.championNameFromId = None
+__m.championIdFromName = None
 __m.validChampionIds = None
 
 def championNameFromId(championId):
@@ -26,7 +28,25 @@ def championNameFromId(championId):
 
     if (championId in __m.championNameFromId):
         return __m.championNameFromId[championId]
-    return "ERROR: Champion not found"
+    return None
+
+def championIdFromName(championName):
+    """
+    Args:
+        championName (string): lowercase and pruned string label corresponding to the desired champion id.
+    Returns:
+        id (int): id of requested champion. If no such champion can be found, returns NULL
+
+    getChampionIdFromName takes a requested champion name and returns the id label of that champion using a championIdFromName dictionary.
+    If the dictonary has not yet been populated, this creates the dictionary using cassiopeia's interface to Riot's API.
+    Note that championName should be all lowercase and have any non-alphanumeric characters (including whitespace) removed.
+    """
+    if __m.championIdFromName is None:
+       populateChampionDictionary()
+
+    if (championName in __m.championIdFromName):
+        return __m.championIdFromName[championName]
+    return None
 
 def validChampionId(championId):
     """
@@ -65,6 +85,7 @@ def populateChampionDictionary():
     riotapi.set_api_key("71ab791f-d5fe-45b3-8b3a-0368ce261cbe")
     champions = riotapi.get_champions()
     __m.championNameFromId = {champion.id: champion.name for champion in champions}
+    __m.championIdFromName = {re.sub("[^A-Za-z0-9]+", "", champion.name.lower()): champion.id for champion in champions}
     __m.validChampionIds = sorted(__m.championNameFromId.keys())
     if not __m.championNameFromId:
         return False
