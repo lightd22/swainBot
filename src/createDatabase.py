@@ -52,6 +52,28 @@ def createTables(cursor, tableNames, columnInfo):
 
     return 1
 
+def getTournamentData(gameData):
+    """
+    getTournamentData cleans up and combines the region/season/split fields in gameData for entry into
+    the game table. When combined with the game_id field it uniquely identifies the match played.
+
+    Args:
+        gameData (dict): dictonary output from queryWiki()
+    Returns:
+        tournamentData (string): formatted and cleaned region/season/split data
+    """
+    if gameData["season"] is None:
+        year = re.search("([0-9]+)",gameData["region"]).group(0)
+    else:
+        year = re.search("([0-9]+)",gameData["season"]).group(0)
+
+    if gameData["split"] is None:
+        tournamentData = internationalEventsDict["".join(re.split("_?[0-9]+_?",gameData["region"]))]
+    else:
+        tournamentData = "/".join([gameData["split"],regionsDict[gameData["region"]]])
+    tournamentData = "/".join([year,tournamentData])
+    return tournamentData
+
 def insertGame(cursor, gameData):
     """
     insertGame attempts to format collected gameData from queryWiki() and insert
@@ -59,26 +81,14 @@ def insertGame(cursor, gameData):
 
     Args:
         cursor (sqlite cursor): cursor used to execute commmands
-        wikiGameData (list(dict)): dictionary output from queryWiki()
+        gameData (list(dict)): dictionary output from queryWiki()
     Returns:
         status (int): status = 1 if insert was successful, otherwise status = 0
     """
     status = 0
-    # Do some minor clean up / manipulation to format gameData for row entry.
-    # If the "season" and "split" values are empty strings then the rows added are
-    # from an international event and require slightly different handling.
     gameId = gameData["game_id"]
-    if gameData["season"] is None:
-        year = re.search("([0-9]+)",gameData["region"]).group(0)
-    else:
-        year = re.search("([0-9]+)",gameData["season"]).group(0)
+    tournamentData = getTournamentData(gameData)
 
-    if gameData["split"] is None:
-        split = internationalEventsDict["".join(re.split("_?[0-9]+_?",gameData["region"]))]
-    else:
-        split = "/".join([gameData["split"],regionsDict[gameData["region"]]])
-
-    split = "/".join([year,split])
     cursor.execute("SELECT id FROM team WHERE display_name=?",(gameData["blue_team"],))
     blueTeamId = cursor.fetchone()
     cursor.execute("SELECT id FROM team WHERE display_name=?",(gameData["red_team"],))
@@ -90,8 +100,8 @@ def insertGame(cursor, gameData):
         blueTeamId = blueTeamId[0]
         redTeamId = redTeamId[0]
     winner = gameData["winning_team"]
-    vals = (split, gameId, blueTeamId, redTeamId, winner)
-    cursor.execute("INSERT INTO game(split, game_number, blue_teamid, red_teamid, winning_team) VALUES(?,?,?,?,?)", vals)
+    vals = (tournamentData, gameId, blueTeamId, redTeamId, winner)
+    cursor.execute("INSERT INTO game(tournament, game_number, blue_teamid, red_teamid, winning_team) VALUES(?,?,?,?,?)", vals)
     cursor.execute("SELECT * FROM game")
     print(cursor.fetchone())
     status = 1
@@ -100,7 +110,7 @@ def insertGame(cursor, gameData):
 def insertTeam(cursor, gameData):
     """
     insertTeam attempts to format collected gameData from queryWiki() and insert
-    into the game team in the competitiveGameData.db.
+    into the team table in the competitiveGameData.db.
 
     Args:
         cursor (sqlite cursor): cursor used to execute commmands
@@ -125,18 +135,68 @@ def insertTeam(cursor, gameData):
 
 def insertBan(cursor, gameData):
     """
+    insertBan attempts to format collected gameData from queryWiki() and insert into the
+    ban table in the competitiveGameData.db.
+
+    Args:
+        cursor (sqlite cursor): cursor used to execute commmands
+        gameData (list(dict)): dictionary output from queryWiki()
+    Returns:
+        status (int): status = 1 if insert was successful, otherwise status = 0
     """
     status = 0
-    bans = gameData["bans"]["blue"]
+    teams = ["blue", "red"]
+    tournament = getTournamentData(gameData)
+    vals = (tournament,gameData["game_number"])
+    cursor.execute("SELECT id FROM game WHERE tournament=? AND game_number=?", vals)
+    gameId = cursor.fetchone()
+    for k in range(len(teams)):
+        bans = gameData["bans"][teams[k]]
+        selectionOrder = 0
+        side = k
+        for ban in bans:
+            selectionOrder += 1
+            vals = (gameId,championIdFromName(ban),selectionOrder,side)
+            cursor.execute("INSERT INTO ban(game_id, champion_id, selection_order, side_id) VALUES(?,?,?,?)", vals)
     status = 1
     return status
+
+def insertPick(cursor, gameData):
+    """
+    insertPick formats collected gameData from queryWiki() and inserts it into the pick table of the
+    competitiveGameData.db.
+
+    Args:
+        cursor (sqlite cursor): cursor used to execute commmands
+        gameData (list(dict)): list of formatted game data from queryWiki()
+    Returns:
+        status (int): status = 1 if insert was successful, otherwise status = 0
+    """
+    status = 0
+    teams = ["blue", "red"]
+    tournament = getTournamentData(gameData)
+    vals = (tournament,gameData["game_number"])
+    cursor.execute("SELECT id FROM game WHERE tournament=? AND game_number=?", vals)
+    gameId = cursor.fetchone()
+    for k in range(len(teams)):
+        picks = gameData["picks"][teams[k]]
+        selectionOrder = 0
+        side = k
+        for (pick,position) in picks:
+            selectionOrder += 1
+            vals = (gameId,championIdFromName(pick),position,selectionOrder,side)
+            cursor.execute("INSERT INTO pick(game_id, champion_id, position_id, selection_order, side_id) VALUES(?,?,?,?,?)", vals)
+    status = 1
+    return status
+
+
 if __name__ == "__main__":
     dbName = "competitiveGameData.db"
     tableNames = ["game", "pick", "ban", "team"]
 
     columnInfo = []
     columnInfo.append(["id INTEGER PRIMARY KEY",
-                        "split TEXT","game_number INTEGER", "blue_teamid INTEGER NOT NULL",
+                        "tournament TEXT","game_number INTEGER", "blue_teamid INTEGER NOT NULL",
                         "red_teamid INTEGER NOT NULL", "winning_team INTEGER"])
     columnInfo.append(["id INTEGER PRIMARY KEY",
                         "game_id INTEGER", "champion_id INTEGER","position_id INTEGER",
@@ -150,7 +210,7 @@ if __name__ == "__main__":
     cur = conn.cursor()
     print("Creating tables..")
     createTables(cur, tableNames, columnInfo)
-    print("Committing changes to db..")
+
 
     gameData = queryWiki("League_Championship_Series", "Europe", "2017_Season", "Summer_Season")
     #gameData = queryWiki("2016_Season_World_Championship")
@@ -161,5 +221,8 @@ if __name__ == "__main__":
     print("The championId for {} is {}".format(cname,cid))
     status = insertTeam(cur,game)
     status = insertGame(cur,game)
+
+    print("Committing changes to db..")
     conn.commit()
+    print("Closing db..")
     conn.close()

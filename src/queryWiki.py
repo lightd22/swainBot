@@ -181,5 +181,5 @@ if __name__ == "__main__":
     print("Number of games found: {}".format(len(gameData)))
     print("**********************************************")
     print("**********************************************")
-#    for game in gameData:
-#        print(json.dumps(game, indent=4, sort_keys=True))
+    for game in gameData:
+        print(json.dumps(game, indent=4, sort_keys=True))
