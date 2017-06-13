@@ -6,14 +6,20 @@ def queryWiki(head,*args):
     """
     queryWiki takes identifying sections and subsections for a page title on lol.esportswiki and formats and executes a set of requests to the
     lol.esportswiki's url API looking for the pick/ban data corresponding to the specified sections and subsections. This response is then
-    pruned and formatted into a list of dictionaries. Each dictionary corresponds to the pick/ban phase of an LCS game with the following keys:
+    pruned and formatted into a list of dictionaries. Specified sections and subsections should combine into a unique identifying string
+    for a specific tournament and queryWiki() will return all games for that tournament. For example, if we are interested in the regular
+    season of the 2017 European Summer Split we would call:
+    queryWiki("League_Championship_Series", "Europe", "2017_Season", "Summer_Season")
+
+    Each dictionary corresponds to the pick/ban phase of an LCS game with the following keys:
         "region":
         "season":
         "split":
-        "bans": {"blue":, "red"}
+        "bans": {"blue":, "red":}
         "blue_team":
         "red_team":
         "game_number":
+        "tourn_game_id":
         "picks": {"blue":, "red":}
 
     Args:
@@ -57,7 +63,7 @@ def queryWiki(head,*args):
     pageKeys = [k for k in pageKeys if int(k)>=0] # Filter out "invalid page" and "missing page" responses
 
     formattedData = []
-    gameId = 0
+    tournGameId = 0
     for page in pageKeys:
         # Get the raw text of the most recent revision of the current page
         rawText = pageData[page]["revisions"][0]["*"]
@@ -98,13 +104,13 @@ def queryWiki(head,*args):
             bansPerGame = len(blueBans)//numGamesOnPage
 
             for k in range(numGamesOnPage):
-                gameId += 1
+                tournGameId += 1
                 bans = {"blue": blueBans[bansPerGame*k:bansPerGame*(k+1)], "red":redBans[bansPerGame*k:bansPerGame*(k+1)]}
                 picks = {"blue": bluePicks[picksPerGame*k:picksPerGame*(k+1)], "red":redPicks[picksPerGame*k:picksPerGame*(k+1)]}
                 gameData = {"region": region, "season":season, "split": split,
                             "blue_team": blueTeams[k], "red_team": redTeams[k],
                             "winning_team": winningTeams[k], "game_number": gameNumber[k],
-                            "bans": bans, "picks": picks, "game_id": gameId}
+                            "bans": bans, "picks": picks, "tourn_game_id": tournGameId}
                 formattedData.append(gameData)
 
     return formattedData

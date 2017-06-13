@@ -3,6 +3,7 @@ import json
 from queryWiki import queryWiki
 from championinfo import championIdFromName,championNameFromId
 import re
+import pandas as pd
 
 regionsDict = {"North_America":"NA", "Europe":"EU", "LCK":"LCK", "LPL":"LPL",
                 "LMS":"LMS"}
@@ -56,6 +57,7 @@ def getTournamentData(gameData):
     """
     getTournamentData cleans up and combines the region/season/split fields in gameData for entry into
     the game table. When combined with the game_id field it uniquely identifies the match played.
+    The format of tournamentData output is 'year/split/region_abbrv' (forward slash delimiters)
 
     Args:
         gameData (dict): dictonary output from queryWiki()
@@ -86,24 +88,23 @@ def insertGame(cursor, gameData):
         status (int): status = 1 if insert was successful, otherwise status = 0
     """
     status = 0
-    gameId = gameData["game_id"]
+    tournGameId = gameData["tourn_game_id"] # Which game this is within current split
     tournamentData = getTournamentData(gameData)
 
+    # Get blue and red team_ids
     cursor.execute("SELECT id FROM team WHERE display_name=?",(gameData["blue_team"],))
     blueTeamId = cursor.fetchone()
     cursor.execute("SELECT id FROM team WHERE display_name=?",(gameData["red_team"],))
     redTeamId = cursor.fetchone()
     if (blueTeamId is None) or (redTeamId is None):
-        print("*ERROR: When inserting-- team not found!")
+        print("*ERROR: When inserting game-- team not found!")
         return status
     else:
         blueTeamId = blueTeamId[0]
         redTeamId = redTeamId[0]
     winner = gameData["winning_team"]
-    vals = (tournamentData, gameId, blueTeamId, redTeamId, winner)
-    cursor.execute("INSERT INTO game(tournament, game_number, blue_teamid, red_teamid, winning_team) VALUES(?,?,?,?,?)", vals)
-    cursor.execute("SELECT * FROM game")
-    print(cursor.fetchone())
+    vals = (tournamentData, tournGameId, blueTeamId, redTeamId, winner)
+    cursor.execute("INSERT INTO game(tournament, tourn_game_id, blue_teamid, red_teamid, winning_team) VALUES(?,?,?,?,?)", vals)
     status = 1
     return status
 
@@ -119,6 +120,9 @@ def insertTeam(cursor, gameData):
         status (int): status = 1 if insert was successful, otherwise status = 0
     """
     status = 0
+    # We don't track all regions (i.e wildcard regions), but they can still appear at
+    # international tournaments. When this happens we will track the team, but list their
+    # region as NULL.
     if gameData["split"] is None:
         region = None
     else:
@@ -147,9 +151,11 @@ def insertBan(cursor, gameData):
     status = 0
     teams = ["blue", "red"]
     tournament = getTournamentData(gameData)
-    vals = (tournament,gameData["game_number"])
-    cursor.execute("SELECT id FROM game WHERE tournament=? AND game_number=?", vals)
+    vals = (tournament,gameData["tourn_game_id"])
+    cursor.execute("SELECT id FROM game WHERE tournament=? AND tourn_game_id=?", vals)
     gameId = cursor.fetchone()
+    if gameId is not None:
+        gameId = gameId[0]
     for k in range(len(teams)):
         bans = gameData["bans"][teams[k]]
         selectionOrder = 0
@@ -157,6 +163,7 @@ def insertBan(cursor, gameData):
         for ban in bans:
             selectionOrder += 1
             vals = (gameId,championIdFromName(ban),selectionOrder,side)
+            print(vals)
             cursor.execute("INSERT INTO ban(game_id, champion_id, selection_order, side_id) VALUES(?,?,?,?)", vals)
     status = 1
     return status
@@ -175,9 +182,11 @@ def insertPick(cursor, gameData):
     status = 0
     teams = ["blue", "red"]
     tournament = getTournamentData(gameData)
-    vals = (tournament,gameData["game_number"])
-    cursor.execute("SELECT id FROM game WHERE tournament=? AND game_number=?", vals)
+    vals = (tournament,gameData["tourn_game_id"])
+    cursor.execute("SELECT id FROM game WHERE tournament=? AND tourn_game_id=?", vals)
     gameId = cursor.fetchone()
+    if gameId is not None:
+        gameId = gameId[0]
     for k in range(len(teams)):
         picks = gameData["picks"][teams[k]]
         selectionOrder = 0
@@ -196,7 +205,7 @@ if __name__ == "__main__":
 
     columnInfo = []
     columnInfo.append(["id INTEGER PRIMARY KEY",
-                        "tournament TEXT","game_number INTEGER", "blue_teamid INTEGER NOT NULL",
+                        "tournament TEXT","tourn_game_id INTEGER", "blue_teamid INTEGER NOT NULL",
                         "red_teamid INTEGER NOT NULL", "winning_team INTEGER"])
     columnInfo.append(["id INTEGER PRIMARY KEY",
                         "game_id INTEGER", "champion_id INTEGER","position_id INTEGER",
@@ -221,6 +230,20 @@ if __name__ == "__main__":
     print("The championId for {} is {}".format(cname,cid))
     status = insertTeam(cur,game)
     status = insertGame(cur,game)
+    status = insertBan(cur,game)
+    status = insertPick(cur,game)
+
+    cur.execute("SELECT * FROM game")
+    print(cur.fetchone())
+    cur.execute("SELECT * FROM team")
+    print(cur.fetchone())
+    cur.execute("SELECT * FROM ban")
+    print(cur.fetchone())
+    cur.execute("SELECT * FROM pick")
+    print(cur.fetchone())
+
+    df = pd.read_sql_query("SELECT * FROM game LIMIT 5;", conn)
+    print(df)
 
     print("Committing changes to db..")
     conn.commit()
