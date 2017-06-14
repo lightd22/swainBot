@@ -32,7 +32,7 @@ def queryWiki(head,*args):
     urlRoot = "http://lol.esportswikis.com/w/api.php"
 
     # Semi-standardized page suffixes for pick/ban pages
-    pageSuffixes = ["", "/4-6", "/7-10", "/2-4", "Bracket_Stage"]
+    pageSuffixes = ["", "/4-6", "/7-10", "/2-4", "/Bracket_Stage"]
 
     # Grab region/season/split identifiers
     # If no args given then use head to identify and leave season/split empty
@@ -56,6 +56,7 @@ def queryWiki(head,*args):
               "prop":"revisions", "rvprop":"content", "format": "json"}
 
     response = requests.get(url=urlRoot, params=params)
+    print(response.url)
     data = json.loads(response.text)
     pageData = data['query']['pages']
     # Get list of page keys (actually a list of pageIds.. could be used to identify pages?)
@@ -66,7 +67,9 @@ def queryWiki(head,*args):
     tournGameId = 0
     for page in pageKeys:
         # Get the raw text of the most recent revision of the current page
-        rawText = pageData[page]["revisions"][0]["*"]
+        # Note that we remove all space characters from the raw text, including those
+        # in team or champion names.
+        rawText = pageData[page]["revisions"][0]["*"].replace(" ","")
 
         # string representation of blue and red teams, ordered by game
         blueTeams = parseRawText("(team1=\w+\s?\w+)",rawText)
@@ -86,16 +89,16 @@ def queryWiki(head,*args):
 
         # bans holds the string identifiers of submitted bans for each team in the parsed game
         # ex: bans[i]["blue"] = list of blue team bans for ith game on this page
-        blueBans = parseRawText("(blueban[0-9]=\w+\s?\w+)", rawText)
-        redBans = parseRawText("(redban[0-9]=\w+\s?\w+)", rawText)
+        blueBans = parseRawText("(blueban[0-9]=\w+[\s']?\w+)", rawText)
+        redBans = parseRawText("(redban[0-9]=\w+[\s']?\w+)", rawText)
 
         # picks holds the identifiers of submitted (pick, position) pairs for each team in the parsed game
         # string representation for the positions are converted to ints to match DraftState expectations:
-        bluePicks = parseRawText("(bluepick[0-9]=\w+\s?\w+)", rawText)
-        bluePickPos = parseRawText("(bluepick[0-9]role=\w+\s?\w+)", rawText)
+        bluePicks = parseRawText("(bluepick[0-9]=\w+[\s']?\w+)", rawText)
+        bluePickPos = parseRawText("(bluepick[0-9]role=\w+[\s']?\w+)", rawText)
         bluePicks = list(zip(bluePicks, positionStringToId(bluePickPos)))
-        redPicks = parseRawText("(redpick[0-9]=\w+\s?\w+)", rawText)
-        redPickPos = parseRawText("(redpick[0-9]role=\w+\s?\w+)", rawText)
+        redPicks = parseRawText("(redpick[0-9]=\w+[\s']?\w+)", rawText)
+        redPickPos = parseRawText("(redpick[0-9]role=\w+[\s']?\w+)", rawText)
         redPicks = list(zip(redPicks, positionStringToId(redPickPos)))
 
         numGamesOnPage = len(winningTeams)
@@ -187,5 +190,5 @@ if __name__ == "__main__":
     print("Number of games found: {}".format(len(gameData)))
     print("**********************************************")
     print("**********************************************")
-    for game in gameData:
-        print(json.dumps(game, indent=4, sort_keys=True))
+#    for game in gameData:
+#        print(json.dumps(game, indent=4, sort_keys=True))
