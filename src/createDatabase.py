@@ -1,7 +1,7 @@
 import sqlite3
 import json
 from queryWiki import queryWiki
-from championinfo import championIdFromName,championNameFromId
+from championinfo import championIdFromName,championNameFromId, convertChampionAlias, AliasException
 import re
 import pandas as pd
 
@@ -208,8 +208,16 @@ def insertBan(cursor, gameData):
                 selectionOrder = 0
                 side = k
                 for ban in bans:
+                    if ban == "none":
+                        # Special case if no ban was submitted in game
+                        banId = None
+                    else:
+                        banId = championIdFromName(ban)
+                        # If no such champion name is found, try looking for an alias
+                        if banId is None:
+                            banId = championIdFromName(convertChampionAlias(ban))
                     selectionOrder += 1
-                    vals = (gameId,championIdFromName(ban),selectionOrder,side)
+                    vals = (gameId,banId,selectionOrder,side)
                     cursor.execute("INSERT INTO ban(game_id, champion_id, selection_order, side_id) VALUES(?,?,?,?)", vals)
     status = 1
     return status
@@ -243,8 +251,17 @@ def insertPick(cursor, gameData):
                 selectionOrder = 0
                 side = k
                 for (pick,position) in picks:
+                    if pick == "none":
+                        # Special case if no pick was submitted to game (not really sure what that would mean)
+                        # but being consistent with insertPick()
+                        pickId = None
+                    else:
+                        pickId = championIdFromName(pick)
+                        # If no such champion name is found, try looking for an alias
+                        if pickId is None:
+                            pickId = championIdFromName(convertChampionAlias(pick))
                     selectionOrder += 1
-                    vals = (gameId,championIdFromName(pick),position,selectionOrder,side)
+                    vals = (gameId,pickId,position,selectionOrder,side)
                     cursor.execute("INSERT INTO pick(game_id, champion_id, position_id, selection_order, side_id) VALUES(?,?,?,?,?)", vals)
     status = 1
     return status
@@ -304,10 +321,18 @@ if __name__ == "__main__":
     df = pd.read_sql_query(query, conn)
     print(df)
 
-    query =(
-    "SELECT *  FROM pick LIMIT 20"
-    )
-    db = pd.read_sql_query(query, conn)
+    query = ("SELECT game.tourn_game_id, blue.team, red.team, ban.side_id,"
+             "       ban.champion_id AS champ, ban.selection_order AS ord"
+             "  FROM (game "
+             "       JOIN (SELECT id, display_name as team FROM team) AS blue"
+             "         ON game.blue_teamid = blue.id)"
+             "       JOIN (SELECT id, display_name as team FROM team) AS red"
+             "         ON game.red_teamid = red.id"
+             "  LEFT JOIN (SELECT game_id, side_id, champion_id, selection_order FROM ban) AS ban"
+             "         ON game.id = ban.game_id"
+             "  WHERE game.id IN (SELECT game_id FROM ban WHERE champion_id IS ?)")
+    params = (None,)
+    db = pd.read_sql_query(query, conn, params=params)
     print(db)
 
     print("Closing db..")

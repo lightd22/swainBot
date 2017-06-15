@@ -190,5 +190,23 @@ if __name__ == "__main__":
     print("Number of games found: {}".format(len(gameData)))
     print("**********************************************")
     print("**********************************************")
+    for game in gameData:
+        team1 = game["blue_team"]
+        picks = game["picks"]["blue"]
+        bluePicks = []
+        for (pick,pos) in picks:
+            bluePicks.append(pick)
+        s = "|team1picks=" + ", ".join(bluePicks)
+        print("blue team = {}".format(team1))
+
+        team2 = game["red_team"]
+        picks = game["picks"]["red"]
+        redPicks = []
+        for (pick,pos) in picks:
+            redPicks.append(pick)
+        s = s + "|team2picks=" + ", ".join(redPicks)
+        print("red team = {}".format(team2))
+        print(s)
+        print("***")
 #    for game in gameData:
 #        print(json.dumps(game, indent=4, sort_keys=True))

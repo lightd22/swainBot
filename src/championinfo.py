@@ -12,6 +12,51 @@ __m = Box()
 __m.championNameFromId = None
 __m.championIdFromName = None
 __m.validChampionIds = None
+__m.championAliases = {
+"blitz": "blitzcrank",
+"gp": "gangplank",
+"jarvan": "jarvaniv",
+"cait": "caitlyn",
+"lb": "leblanc",
+"cass": "cassiopiea",
+"ori": "orianna",
+"lee": "leesin",
+"vlad": "vladimir",
+"j4": "jarvaniv",
+"as": "aurelionsol" # who the fuck thinks this is unique?
+}
+class AliasException(Exception):
+    def __init__(self, message, errors):
+        super().__init__(message)
+        self.errors = errors
+        self.message = message
+
+def convertChampionAlias(alias):
+    """
+    Args:
+        alias (string): lowercase and pruned string alias for a champion
+    Returns:
+        name (string): lowercase and pruned string name for champion
+
+    convertChampionAlias converts a given champion alias (ie "blitz")
+    and returns the version of that champions proper name which is suitable for passing to
+    championIdFromName(). If no such alias can be found, this raises an AliasException.
+
+    Example: name = convertChampionAlias("blitz") will yield name = "blitzcrank"
+    """
+    if (alias == "none"):
+        return None
+    try:
+        if (alias in __m.championAliases):
+            return __m.championAliases[alias]
+        else:
+            raise AliasException("Champion alias not found!", alias)
+    except AliasException as e:
+        print("*****")
+        print(e.message)
+        print("Offending alias: {}".format(e.errors))
+        print("*****")
+        raise
 
 def championNameFromId(championId):
     """
