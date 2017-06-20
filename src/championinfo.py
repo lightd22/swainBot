@@ -18,12 +18,17 @@ __m.championAliases = {
 "jarvan": "jarvaniv",
 "cait": "caitlyn",
 "lb": "leblanc",
-"cass": "cassiopiea",
+"cass": "cassiopeia",
 "ori": "orianna",
 "lee": "leesin",
 "vlad": "vladimir",
 "j4": "jarvaniv",
-"as": "aurelionsol" # who the fuck thinks this is unique?
+"as": "aurelionsol", # who the fuck thinks this is unique?
+"kass": "kassadin",
+"tk": "tahmkench",
+"malz": "malzahar",
+"sej": "sejuani",
+"nid": "nidalee"
 }
 class AliasException(Exception):
     def __init__(self, message, errors):

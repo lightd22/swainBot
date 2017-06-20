@@ -33,10 +33,10 @@ class DraftState:
     invalidStates = [BAN_SELECTED, DUPLICATE_ROLE, DUPLICATE_SELECTION]
 
     DRAFT_COMPLETE = 1
-    #TODO (Devin): For 'BAN' draft mode,
     DRAFT_MODE = 'BAN'
     BLUE_TEAM = 0
     RED_TEAM = 1
+    NUM_BANS = 10 # Total number of bans in draft
 
     def __init__(self, whichTeam, champIds, numPositions = 5):
         #TODO (Devin): This should make sure that numChampions >= numPositions
@@ -67,7 +67,7 @@ class DraftState:
     def getStateIndex(self,champid):
         """
         getStateIndex returns the state index corresponding to the given champion ID. Since champion IDs are not contiguously defined or even necessarily ordered,
-        this mapping be non-trivial. If champid is invalid, returns -1.
+        this mapping is non-trivial. If champid is invalid, returns -1.
         Args:
             champid (int): id of champion to look up
         Returns
@@ -91,26 +91,35 @@ class DraftState:
         """
         Format input action into the corresponding tuple (champid, position) which indexes the state array.
         Args:
-            action (int): Action to be interpreted as an index into the state array.
+            action (int): Action to be interpreted as an index into the flattened state array.
         Returns:
             (championId, position) (tuple of ints): Tuple of integer values which may be passed as arguments to either
             self.addPick() or self.addBan() depending on the value of position. If position = -1 -> action is a ban otherwise action
             is a pick.
         """
-        #print("incoming action= {}".format(action))
-        #print("championNameFromId(action) = {}".format(championNameFromId(int(action))))
-        #(champIds,positions) = np.unravel_index(action,self.state.shape,order='F')
-        #champId = champIds[0]
-        #pos = positions[0]
-        #champId += 1
-        #pos -= 1
+        (stateIndex, positionIndex) = np.unravel_index(action,self.state.shape)
+        position = positionIndex-1
+        champId = self.getChampId(stateIndex)
+        return (champId,position)
 
-        #TODO(Devin): Right now network only predicts bans which means that the input action is already a stateIndex and pos = -1.
-        # In the future the action will be a more complicated recommendation including stateIndex and position so we'll need to make this more elaborate
-        # (it will probably look like something above) but for now, let's just do it in the most simple way
-        pos = -1
-        champId = self.getChampId(action)
-        return (champId,pos)
+    def getAction(self, championId, position):
+        """
+        Given a (championId, position) submission pair. Return the corresponding action index in the flattened state array.
+        Args:
+            championId (int): Valid id of a champion to be picked/banned.
+            position (int): Position of champion to be selected. The value of position determines if championId is interpreted as a pick or ban:
+                position = -1 -> champion ban submitted.
+                position = 0 -> champion selection submitted by the opposing team.
+                0 < position <= numPositions -> champion selection submitted by our team for pos = position
+        Returns:
+            action (int): Action to be interpreted as index into the flattened state vector. If no such action can be found, returns -1
+        """
+        stateIndex = self.getStateIndex(championId)
+        if ((stateIndex==-1) or (position+1 not in range(self.state.shape[1]))):
+            return -1
+        pos = position+1
+        action = np.ravel_multi_index((stateIndex,pos),self.state.shape)
+        return action
 
     def updateState(self, championId, position):
         """
@@ -123,15 +132,9 @@ class DraftState:
                 position = 0 -> champion selection submitted by the opposing team.
                 0 < position <= numPositions -> champion selection submitted by our team for pos = position
         """
-        #TODO: Currently getRewards() does not work correctly if invalid picks are blocked from selection. This should be fixed later.
-        #if(not self.canPick(championId) or (position < -1) or (position > self.numPositions)):
-        #    return False
-
-        # Devin: As is, our input formatting of championId & position allows for submitted ally picks
-        # of the form (champId, pos) to correspond with the selection champion = championId in position = pos. However, this is *not* how they are stored in the state
-        # array. Furthermore this also forces bans to be given pos = -1 and enemy picks pos = 0. Finally this doesn't match indexing used for state array and action vector indexing
-        # (which follow state indexing).
-
+        # Submitted ally picks of the form (champId, pos) to correspond with the selection champion = championId in position = pos.
+        # However, this is *not* how they are stored in the state array. This forces bans to be given pos = -1 and enemy picks pos = 0.
+        # Finally this doesn't match indexing used for state array and action vector indexing (which follow state indexing).
         if((position < -1) or (position > self.numPositions) or (not validChampionId(championId))):
             return False
 
@@ -194,7 +197,8 @@ class DraftState:
         if((position < 0) or (position > self.numPositions) or (not validChampionId(championId))):
             return False
         self.picks.append(championId)
-        self.state[championId-1,position+1] = True
+        index = self.getStateIndex(chapmionId)
+        self.state[index,position+1] = True
         return True
 
     def addBan(self, championId):
@@ -210,7 +214,8 @@ class DraftState:
         if(not validChampionId(championId)):
             return False
         self.bans.append(championId)
-        self.state[championId-1,0] = True
+        index = self.getStateIndex(chapmionId)
+        self.state[index,0] = True
         return True
 
     def evaluateState(self):
@@ -238,10 +243,8 @@ class DraftState:
         # State is valid, check if draft is complete
         numEnemyPicks = np.sum(self.state[:,1])
         numAllyPicks = np.sum(self.state[:,2:])
-        if(numAllyPicks == self.numPositions and numEnemyPicks == self.numPositions):
+        if(numAllyPicks == self.numPositions and numEnemyPicks == self.numPositions and len(self.bans) == DraftState.NUM_BANS):
             return DraftState.DRAFT_COMPLETE # Draft is valid and complete
-        if(DraftState.DRAFT_MODE == 'BAN' and len(self.bans) == 6):
-            return DraftState.DRAFT_COMPLETE # For ban-only drafts, stop once the bans are registered.
 
         # Draft is valid, but not complete
         return 0

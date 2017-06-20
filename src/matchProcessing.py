@@ -6,6 +6,9 @@ from championinfo import getChampionIds, championNameFromId
 from rewards import getReward
 from copy import deepcopy
 
+import sqlite3
+import draftDbOps as dbo
+
 def buildMatchQueue(numMatches):
     """
     Args:
@@ -19,107 +22,126 @@ def buildMatchQueue(numMatches):
     #TODO (Devin): This will be responsible for building the queue of matchids that we will use during learning
     # eventually it should recursively look through high mmr player match histories and build up a database of match references.
     matchQueue = queue.Queue(maxsize=numMatches)
-    summoner = riotapi.get_summoner_by_name("DOCTOR LIGHT")
-    for matchRef in summoner.match_list()[0:numMatches]:
-        matchQueue.put(matchRef)
+    #summoner = riotapi.get_summoner_by_name("DOCTOR LIGHT")
+    #for matchRef in summoner.match_list()[0:numMatches]:
+    #    matchQueue.put(matchRef)
+    # Pull games from db and convert to match dicts.
+    dbName = "competitiveGameData.db"
+    conn = sqlite3.connect("tmp/"+dbName)
+    cur = conn.cursor()
+    tournament = "2017/Summer_Season/EU"
+    gameIds = dbo.getGameIdsByTournament(cur, tournament)
+    for game in  gameIds[0:numMatches]:
+        match = dbo.getMatchData(cur, game)
+        matchQueue.put(match)
     return matchQueue
 
-def processMatch(matchRef, team, mode):
+def processMatch(match, team):
     """
-    processMatch takes an input Cassiopiea match reference and breaks each incremental pick down the draft into experiences (aka "memories").
+    processMatch takes an input match and breaks each incremental pick and ban down the draft into experiences (aka "memories").
 
     Args:
-        matchRef (cassiopiea matchReference): Cassiopiea match reference returned by summoner.match_list
-        team (DraftState.BLUE_TEAM or DraftState.RED_TEAM): Which team perspective is used to process match
-        mode (string): mode = "ban" -> process bans, "draft" -> process champion draft
+        match (dict): match dictionary with pick and ban data for a single game.
+        team (DraftState.BLUE_TEAM or DraftState.RED_TEAM): The team perspective that is used to process match
+            The selected team has the positions for each pick explicitly included with the experience while the
+            "opposing" team has the assigned positions for its champion picks masked.
     Returns:
-        experiences ( list(tuple) ): list of experience tuples. Each experience is assumed to be of the form (s, a, r, s') where:
-            - s and s' are before and after DraftState states
-            - a is stateIndex of selected champion 
-            - r is the integer reward obtained from selecting that champion
+        experiences ( list(tuple) ): list of experience tuples. Each experience is of the form (s, a, r, s') where:
+            - s and s' are DraftState states before and after a single action
+            - a is the (stateIndex, position) tuple of selected champion to be banned or picked. position = 0 for submissions
+                by the opposing team
+            - r is the integer reward obtained from submitting the action a
 
-    NOTE: processMatch() can take **EITHER** side of the draft to parse for memories. This means we can ultimately sample from both winning and losing drafts when training
-    using ExperienceBuffer.sample(). 
-    
-    *** CURRENTLY ONLY PULLS BANS FROM MATCHES BECAUSE CHAMPION PICK ORDER IS UNAVAILABLE IN RIOT'S API ***
+    processMatch() can take the vantage from both sides of the draft to parse for memories. This means we can ultimately sample from
+    both winning drafts (positive reinforcement) and losing drafts (negative reinforcement) when training.
     """
     experiences = []
     validChampIds = getChampionIds()
-    match = matchRef.match()
-
-    # We can only do ban phases (for now..)
-    if mode != "ban":
-        print("From matchProcessing.processMatch(): Returning empty experiences list!")
-        return experiences
-
-    # Pull pick queue from match reference
-    pickQueue = buildPickQueue(match, mode = "ban")
+    # Build queue of actions from match reference
+    actionQueue = buildActionQueue(match)
 
     # Set up draft state
     draft = DraftState(team,validChampIds)
 
-    waitForPick = False
-    while not pickQueue.empty():
+    finishMemory = False
+    while not actionQueue.empty():
         # Get next pick from queue
-        (currentTeam, nextPick) = pickQueue.get()
+        (submittingTeam, nextPick, position) = actionQueue.get()
 
-        # Memory starts when the next pick belongs to designated team
-        if currentTeam == team:
+        # There are two conditions under which we want to finalize a memory:
+        # 1. Non-designated team has finished submitting picks for this phase (ie next submission belongs to the designated team)
+        # 2. Draft is complete (no further picks in the draft)
+        if submittingTeam == team:
+            if finishMemory:
+                # This is case 1 to store memory
+                r = getReward(draft, match)
+                sNext = deepcopy(draft)
+                memory = (s, a, r, sNext)
+                experiences.append(memory)
+                finishMemory = False
+            # Memory starts when upcoming pick belongs to designated team
             s = deepcopy(draft)
-            # Convert action from championId to stateIndex for storage
-            a = draft.champIdToStateIndex[nextPick]
-            waitForPick = True
+            # Store action = (champIndex, pos)
+            a = (nextPick, position)
+            finishMemory = True
+        else:
+            # Mask the positions for non-ban selections belonging to the non-designated team
+            if position != -1:
+                position = 0
 
-        draft.updateState(nextPick,-1)
+        draft.updateState(nextPick, position)
 
-        # There are two conditions under which we want to store a memory:
-        # 1. Team has made a pick and we're waiting for opposing pick (which has just been submitted)
-        # 2. Last pick finishes the draft (eg no further picks in the draft)
-        # NOTE: 2. only occurs for red side's final pick.
-        if(waitForPick and (currentTeam != team or draft.evaluateState() == DraftState.DRAFT_COMPLETE)):
-            r = getReward(draft, match)
-            sNext = deepcopy(draft)
-            memory = (s, a, r, sNext)
-            experiences.append(memory)
-            waitForPick = False
+    # Once the queue is empty, store last memory. This is case 2 above.
+    # There is always be an outstanding memory at the completion of the draft.
+    # RED_TEAM always gets last pick. Therefore:
+    #   if team = DraftState.BLUE_TEAM -> There is an outstanding memory from last RED_TEAM submission
+    #   if team = DraftState.RED_TEAM -> Memory is open from just before our last submission
+    if(draft.evaluateState() == DraftState.DRAFT_COMPLETE):
+        assert finishMemory == True
+        r = getReward(draft, match)
+        sNext = deepcopy(draft)
+        memory = (s, a, r, sNext)
+        experiences.append(memory)
 
     return experiences
 
-def buildPickQueue(match, mode):
+def buildActionQueue(match):
     """
     Builds queue of champion picks or bans (depending on mode) in selection order. If mode = 'ban' this produces a queue of tuples
     Args:
-        match (cassiopiea match): Cassiopiea match structure to be parsed
-        mode (string): mode = 'ban' -> process bans, 'draft' -> process champion draft
+        match (dict): dictonary structure of match data to be parsed
     Returns:
-        pickQueue (Queue(tuple)): Queue of pick tuples of the form (team, championId). pickQueue is produced in selection order.
-
-    *** CURRENTLY ONLY PRODUCES BAN MODE SELECTIONS SINCE CHAMPION PICK ORDER ISNT AVAILABLE THROUGH RIOT'S API ***
+        actionQueue (Queue(tuple)): Queue of pick tuples of the form (side_id, champion_id, position_id).
+            actionQueue is produced in selection order.
     """
-    pickQueue = queue.Queue()
+    winner = match["winner"]
+    actionQueue = queue.Queue()
+    phases = {0:{"phaseType":"bans", "pickOrder":["blue", "red", "blue", "red", "blue", "red"]}, # phase 1 bans
+              1:{"phaseType":"picks", "pickOrder":["blue", "red", "red", "blue", "blue", "red"]}, # phase 1 picks
+              2:{"phaseType":"bans", "pickOrder":["red", "blue", "red", "blue"]}, # phase 2 bans
+              3:{"phaseType":"picks","pickOrder":["red", "blue", "blue", "red"]}} # phase 2 picks
+    banIndex = 0
+    pickIndex = 0
+    for phase in range(4):
+        phaseType = phases[phase]["phaseType"]
+        pickOrder = phases[phase]["pickOrder"]
 
-    # Bans are currently made in ABABAB format
-    if (mode == "ban"):
-        #TODO (Devin): clean this up to be more readable. Maybe interpret actual character strings (eg ABABAB as above) as pick order?
-        selectionOrder = [DraftState.BLUE_TEAM, DraftState.RED_TEAM, DraftState.BLUE_TEAM, DraftState.RED_TEAM, DraftState.BLUE_TEAM, DraftState.RED_TEAM]
-        redBans = queue.Queue()
-        blueBans = queue.Queue()
-        for ban in match.red_team.bans:
-            redBans.put(ban.champion.id)
-        for ban in match.blue_team.bans:
-            blueBans.put(ban.champion.id)
-
-        for team in selectionOrder:
-            if team == DraftState.BLUE_TEAM:
-                pickQueue.put((team,blueBans.get()))
+        numActions = len(pickOrder)
+        for pickNum in range(numActions):
+            side = pickOrder[pickNum]
+            if side == "blue":
+                sideId = DraftState.BLUE_TEAM
             else:
-                pickQueue.put((team,redBans.get()))
-    # Champion selections are made in ABBAABBAAB format
-    #TODO (Devin): When we include actions corresponding to champion selection, we will have to expand actions to include an encoding of
-    # 1. Champion banned (this is handled above)
-    # 2. Enemy team pick (champion selection, but no role information)
-    # 3. Ally team pick (champion selection + role)
-    # This will likely take the form of something like actionId = roleId*numChampion + champId
-    # (+1 to avoid issues with championId = 0)
+                sideId = DraftState.RED_TEAM
+            if phaseType == "bans":
+                positionId = -1
+                index = banIndex
+                banIndex += pickNum%2 # Order matters here. index needs to be updated *after* use
+            else:
+                positionId = match[side][phaseType][pickIndex][1]
+                index = pickIndex
+                pickIndex += pickNum%2 # Order matters here. index needs to be updated *after* use
+            action = (sideId, match[side][phaseType][index][0], positionId)
+            actionQueue.put(action)
 
-    return pickQueue
+    return actionQueue

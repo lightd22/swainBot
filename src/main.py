@@ -12,6 +12,9 @@ import qNetwork
 import trainNetwork as tn
 import tensorflow as tf
 
+import sqlite3
+import draftDbOps as dbo
+
 class Team(object):
     win = False
     def __init__(self):
@@ -35,52 +38,71 @@ summoner = riotapi.get_summoner_by_name("DOCTOR LIGHT")
 matchRef = summoner.match_list()[0] # Most recent ranked game
 match = matchRef.match()
 team = DraftState.RED_TEAM if match.red_team.win else DraftState.BLUE_TEAM # We always win!
+dbName = "competitiveGameData.db"
+conn = sqlite3.connect("tmp/"+dbName)
+cur = conn.cursor()
+tournament = "2017/Summer_Season/EU"
+gameIds = dbo.getGameIdsByTournament(cur, tournament)
+game = gameIds[0]
+match = dbo.getMatchData(cur, game)
+team = match["winner"]
+bluePicks = match["blue"]["picks"]
+blueBans = match["blue"]["bans"]
+redPicks = match["red"]["picks"]
+redBans = match["red"]["bans"]
+print("blue side selections:")
+print("   picks:")
+for pick in bluePicks:
+    print("         {}, position={}".format(cinfo.championNameFromId(pick[0]),pick[1]))
+print("    bans:")
+for ban in blueBans:
+    print("         {}".format(cinfo.championNameFromId(ban[0]),ban[1]))
+print("")
+print("red side selections:")
+for pick in redPicks:
+    print("         {}, position={}".format(cinfo.championNameFromId(pick[0]),pick[1]))
+print("    bans:")
+for ban in redBans:
+    print("         {}".format(cinfo.championNameFromId(ban[0]),ban[1]))
+print("the winner of this game was: {}".format(match["winner"]))
 
-experiences = mp.processMatch(matchRef,team,mode="ban")
-expReplay = er.ExperienceBuffer(3)
+experiences = mp.processMatch(match,team)
+expReplay = er.ExperienceBuffer(10) # just enough buffer to store the first game's experience
 expReplay.store(experiences)
-
-blankState,_,_,_ = expReplay.buffer[0]
-for i in range(3):
-    _,a,r,_ = expReplay.buffer[i]
-    cid = blankState.getChampId(a)
-    print("{act} \t {rew}   ".format(act=cinfo.championNameFromId(cid), rew=r))
-
-
-# Let's try learning from some of my most recent games
-inputSize = len(blankState.formatState())
-outputSize = len(validChampIds)
+count = 0
+for exp in expReplay.buffer:
+    count+=1
+    s,a,r,sNew = exp
+    (champIndex, pos) = a
+    cid = s.getChampId(champIndex)
+    print("For the {}th selection:".format(count))
+    if pos==-1:
+        print("  we banned: {}->{}".format(cid,cinfo.championNameFromId(cid)))
+    else:
+        print("  we selected: {}->{} for position: {}".format(cid,cinfo.championNameFromId(cid), pos))
+    print("  we recieved a reward of {} for this selection".format(r))
+    print("")
+print(cinfo.championIdFromName("thresh"))
+print(cinfo.championNameFromId(128))
+state = DraftState(team,validChampIds)
+inputSize = len(state.formatState())
+outputSize = inputSize
 layerSize = (536,536)
 learningRate = 0.001
 print("Qnet input size: {}".format(inputSize))
 print("Qnet output size: {}".format(outputSize))
 print("Using two layers of size: {}".format(layerSize))
 print("Using learning rate: {}".format(learningRate))
-
 Qnet = qNetwork.Qnetwork(inputSize, outputSize, layerSize, learningRate)
-tn.trainNetwork(Qnet,100,10,30,False)
+tn.trainNetwork(Qnet,10,10,10,False)
 
-# Now if we want to predict what bans we should make..
-myState,nextBan,_,_ = expReplay.buffer[0]
+# Now if we want to predict what decisions we should make..
+myState,action,_,_ = expReplay.buffer[0]
 print("")
 print("The state we are predicting from is:")
 myState.displayState()
 
-print("")
-print("**************")
-print("Sanity check:")
-blankState,_,_,_ = expReplay.buffer[0]
-
-banId = blankState.getChampId(nextBan)
-print("  champion to ban: {}".format(cinfo.championNameFromId(banId)))
-print("  championId to ban:  {}".format(banId))
-print("  state row index of this championId:  {}".format(nextBan))
-roleId = 0
-act = nextBan
-print("  action index of banning this champion:  {}".format(act))
-print("**************")
-
-# Print out ANN's predicted Q-values for myState after training.
+# Print out learner's predicted Q-values for myState after training.
 with tf.Session() as sess:
     Qnet.saver.restore(sess,"tmp/model.ckpt")
     print("qNetwork restored")
@@ -88,14 +110,23 @@ with tf.Session() as sess:
     inputState = np.vstack([myState.formatState()])
     action = sess.run(Qnet.prediction,feed_dict={Qnet.input:inputState})
     pred_Q = sess.run(Qnet.outQ,feed_dict={Qnet.input:inputState})
+    print(pred_Q.shape)
     pred_action = np.argmax(pred_Q, axis=1)
     print("We should be taking action a = {}".format(pred_action[0]))
-    print("actionid \t championid \t championName \t \t qValue")
+    print("actionid \t championid \t championName \t position \t qValue")
     print("*****************************************************************")
-    for i in range(len(validChampIds)):
+    for i in range(pred_Q.size):
         (cid,pos) = myState.formatAction(i)
         qVal = pred_Q[0,i]
-        print("{} \t \t {} \t \t {:12} \t \t {:.4f}".format(i, cid, cinfo.championNameFromId(cid),qVal))
+        print("{} \t \t {} \t \t {:12} \t {} \t \t {:.4f}".format(i, cid, cinfo.championNameFromId(cid),pos,qVal))
+
+print("Closing DB connection..")
+conn.close()
+###
+print("**************************************")
+print("MOST OF THE STUFF BELOW THIS WONT WORK")
+print("**************************************")
+###
 
 (r_ChampId,r_Pos) = myState.formatAction(action[0])
 print("The champion our network has chosen was: {}".format(cinfo.championNameFromId(r_ChampId)))

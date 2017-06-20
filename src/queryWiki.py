@@ -38,7 +38,11 @@ def queryWiki(head,*args):
     # If no args given then use head to identify and leave season/split empty
     (region, season, split) = (head, None, None)
     if args:
-        (region, season, split) = args
+        if len(args) == 2:
+            region = head
+            (season, split) = args
+        else:
+            (region, season, split) = args
 
     # Build list of titles of pages to query
     titleRoot = [head]

@@ -12,7 +12,7 @@ class Qnetwork():
     A simple Q-network class which is responsible for holding and updating the weights and biases used in predicing Q-values for a given state. This Q-network will consist of
     the following layers:
     1) Input- a DraftState state s (an array of bool) representing the current state reshaped into a vector of length inputSize.
-    2-3) Two fully connected tanh-activated hidden layers
+    2-3) Two fully connected relu-activated hidden layers
     4) Output- linearly activated estimations for Q-values Q(s,a) for each of the outputSize actions a available from state s.
 
     """
@@ -61,7 +61,7 @@ class Qnetwork():
 
         # Loss function and optimization:
         # The inputs self.target and self.actions are indexed by training example. If
-        # s[i] = starting state for ith training example (recall that each s is described by a vector so this will be a matrix)
+        # s[i] = starting state for ith training example (recall that input state s is described by a vector so this will be a matrix)
         # a*[i] = action taken from state s[i] during this training sample
         # Q*(s[i],a*[i]) = the actual value observed from taking action a*[i] from state s[i]
         # Then we can write the inputs as
