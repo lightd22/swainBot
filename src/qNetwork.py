@@ -8,6 +8,7 @@ class Qnetwork():
         layerSizes (tuple of 2 ints): number of nodes in each of the two hidden layers. Defaults to (280,280).
         learningRate (float): network's willingness to change current weights given new example
         discountFactor (float): factor by which future reward after next action is taken are discounted
+        regularization (float): strength of weights regularization term in loss function
 
     A simple Q-network class which is responsible for holding and updating the weights and biases used in predicing Q-values for a given state. This Q-network will consist of
     the following layers:
@@ -17,8 +18,9 @@ class Qnetwork():
 
     """
 
-    def __init__(self, inputSize, outputSize, layerSizes = (280,280), learningRate = 0.001 , discountFactor = 0.9):
+    def __init__(self, inputSize, outputSize, layerSizes = (280,280), learningRate = 0.001 , discountFactor = 0.9, regularizationCoeff = 0.01):
         self.discountFactor = discountFactor
+        self.regularizationCoeff = regularizationCoeff
         # Input is shape [None, inputSize]. The 'None' means the input tensor will flex
         # with the number of training examples (aka batch size). Each training example will be a row vector of length inputSize.
 
@@ -31,9 +33,9 @@ class Qnetwork():
 #            "out": tf.Variable(tf.random_normal([layerSizes[1],outputSize]))
 #        }
         self.weights = {
-            "layer1": tf.Variable(tf.random_uniform([inputSize,layerSizes[0]],0,0.1)),
-            "layer2": tf.Variable(tf.random_uniform([layerSizes[0],layerSizes[1]],0,0.1)),
-            "out": tf.Variable(tf.random_uniform([layerSizes[1],outputSize],0,0.1))
+            "layer1": tf.Variable(tf.multiply(tf.random_uniform([inputSize,layerSizes[0]],0,0.1), tf.sqrt(2.0/inputSize))),
+            "layer2": tf.Variable(tf.multiply(tf.random_uniform([layerSizes[0],layerSizes[1]],0,0.1), tf.sqrt(2.0/layerSizes[0]))),
+            "out": tf.Variable(tf.multiply(tf.random_uniform([layerSizes[1],outputSize],0,0.1), tf.sqrt(2.0/layerSizes[1])))
         }
 
 #        self.biases = {
@@ -41,10 +43,10 @@ class Qnetwork():
 #            "layer2": tf.Variable(tf.random_normal([layerSizes[1]])),
 #            "out": tf.Variable(tf.random_normal([outputSize]))
 #        }
-        self.biases = {
-            "layer1": tf.Variable(tf.random_uniform([layerSizes[0]],0,0.1)),
-            "layer2": tf.Variable(tf.random_uniform([layerSizes[1]],0,0.1)),
-            "out": tf.Variable(tf.random_uniform([outputSize],0,0.1))
+        self.biases = { # biases can be initialized to zero
+            "layer1": tf.Variable(tf.zeros([layerSizes[0]])),
+            "layer2": tf.Variable(tf.zeros([layerSizes[1]])),
+            "out": tf.Variable(tf.zeros([outputSize]))
         }
 
         # First hidden layer.
@@ -64,6 +66,7 @@ class Qnetwork():
         # s[i] = starting state for ith training example (recall that input state s is described by a vector so this will be a matrix)
         # a*[i] = action taken from state s[i] during this training sample
         # Q*(s[i],a*[i]) = the actual value observed from taking action a*[i] from state s[i]
+        # outQ[i,-] = estimated values for all actions from state s[i]
         # Then we can write the inputs as
         # self.target[i] = Q*(s[i],a*[i])
         # self.actions[i] = a*[i]
@@ -72,11 +75,13 @@ class Qnetwork():
         self.actions = tf.placeholder(tf.int32, shape=[None])
 
         # Since the Qnet outputs a vector Q(s,-) of  predicted values for every possible action that can be taken from state s,
-        # we need to connect each self.target value with the appropriate predicted Q(s,a*). This is done with a one_hot representation of
-        # self.action. Each row in actionsOneHot[i,:] is a one hot vector encoded by a*[i].
-        self.actionsOneHot = tf.one_hot(self.actions, outputSize, dtype=tf.float32)
-        self.Q = tf.reduce_sum(tf.mul(self.outQ, self.actionsOneHot), 1) # Vector of predicted Q(s[i],a*[i]) values
-
+        # we need to connect each target value with the appropriate predicted Q(s,a*) = Qout[i,a*[i]].
+        # For some reason this isn't easy for tensorflow to do. So we must manually form the list of
+        # [i, actions[i]] index pairs for outQ..
+        self.ind = tf.stack([tf.range(tf.shape(self.actions)[0]),self.actions],axis=1)
+        # and then "gather" them.
+        self.Q = tf.gather_nd(self.outQ, self.ind)
+        
         # Simple sum-of-squares loss (error) function
         self.loss = tf.reduce_sum(tf.square(self.target-self.Q))
 

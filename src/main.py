@@ -89,15 +89,18 @@ inputSize = len(state.formatState())
 outputSize = inputSize
 layerSize = (536,536)
 learningRate = 0.001
+regularizationCoeff = 0.01
 print("Qnet input size: {}".format(inputSize))
 print("Qnet output size: {}".format(outputSize))
 print("Using two layers of size: {}".format(layerSize))
 print("Using learning rate: {}".format(learningRate))
-Qnet = qNetwork.Qnetwork(inputSize, outputSize, layerSize, learningRate)
-tn.trainNetwork(Qnet,10,10,10,False)
+print("Using regularization strength: {}".format(regularizationCoeff))
+Qnet = qNetwork.Qnetwork(inputSize, outputSize, layerSize, learningRate, regularizationCoeff)
+tn.trainNetwork(Qnet,3,10,10,False)
 
 # Now if we want to predict what decisions we should make..
-myState,action,_,_ = expReplay.buffer[0]
+print("buffer length={}".format(len(expReplay.buffer)))
+myState,action,_,_ = expReplay.buffer[9]
 print("")
 print("The state we are predicting from is:")
 myState.displayState()
