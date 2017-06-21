@@ -80,10 +80,14 @@ class Qnetwork():
         # [i, actions[i]] index pairs for outQ..
         self.ind = tf.stack([tf.range(tf.shape(self.actions)[0]),self.actions],axis=1)
         # and then "gather" them.
-        self.Q = tf.gather_nd(self.outQ, self.ind)
-        
-        # Simple sum-of-squares loss (error) function
-        self.loss = tf.reduce_sum(tf.square(self.target-self.Q))
+        self.estimatedQ = tf.gather_nd(self.outQ, self.ind)
+
+        # Simple sum-of-squares loss (error) function with regularization. Note that biases do not
+        # need to be regularized since they are (generally) not subject to overfitting.
+        self.loss = (tf.reduce_mean(tf.square(self.target-self.estimatedQ))+
+                    self.regularizationCoeff*(tf.nn.l2_loss(self.weights["layer1"])+
+                    tf.nn.l2_loss(self.weights["layer2"])+
+                    tf.nn.l2_loss(self.weights["out"])))
 
         self.trainer = tf.train.GradientDescentOptimizer(learning_rate = learningRate)
         self.updateModel = self.trainer.minimize(self.loss)

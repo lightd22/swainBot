@@ -107,12 +107,6 @@ def trainNetwork(Qnet, numEpisodes, batchSize, bufferSize, loadModel):
                     # Experience replay stores action = (champion_id, position) pairs
                     # these need to be converted into the corresponding index of the input vector to the Qnet
                     actions = np.array([startState.getAction(exp[1][0],exp[1][1]) for exp in trainingBatch])
-                    print(actions)
-                    s = sess.run(tf.reduce_min(Qnet.Qdiff),
-                                 feed_dict={Qnet.input:np.vstack([exp[0].formatState() for exp in trainingBatch]),
-                                            Qnet.actions:actions,
-                                            Qnet.target:targetQ})
-                    print("min diff={}".format(s))
                     _ = sess.run(Qnet.updateModel,
                                  feed_dict={Qnet.input:np.vstack([exp[0].formatState() for exp in trainingBatch]),
                                             Qnet.actions:actions,
