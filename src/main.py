@@ -100,7 +100,7 @@ tn.trainNetwork(Qnet,3,10,10,False)
 
 # Now if we want to predict what decisions we should make..
 print("buffer length={}".format(len(expReplay.buffer)))
-myState,action,_,_ = expReplay.buffer[9]
+myState,action,_,_ = expReplay.buffer[0]
 print("")
 print("The state we are predicting from is:")
 myState.displayState()
@@ -123,27 +123,17 @@ with tf.Session() as sess:
         qVal = pred_Q[0,i]
         print("{} \t \t {} \t \t {:12} \t {} \t \t {:.4f}".format(i, cid, cinfo.championNameFromId(cid),pos,qVal))
 
+    (r_ChampId,r_Pos) = myState.formatAction(action[0])
+    print("The champion our network has chosen was: {}".format(cinfo.championNameFromId(r_ChampId)))
+    print("The position it recommended was: {}".format(r_Pos))
+
 print("Closing DB connection..")
 conn.close()
-###
-print("**************************************")
-print("MOST OF THE STUFF BELOW THIS WONT WORK")
-print("**************************************")
-###
-
-(r_ChampId,r_Pos) = myState.formatAction(action[0])
-print("The champion our network has chosen was: {}".format(cinfo.championNameFromId(r_ChampId)))
-print("The position it recommended was: {}".format(r_Pos))
-
 
 print("{name} is a level {level} summoner on the NA server.".format(name=summoner.name, level=summoner.level))
 champions = riotapi.get_champions()
 random_champion = random.choice(champions)
 print("He enjoys playing LoL on all different champions, like {name}.".format(name=random_champion.name))
-
-#challenger_league = riotapi.get_challenger()
-#best_na = challenger_league[0].summoner
-#print("He's much better at writing Python code than he is at LoL. He'll never be as good as {name}.".format(name=best_na.name))
 
 print("")
 print("********************************")

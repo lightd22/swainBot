@@ -92,5 +92,5 @@ class Qnetwork():
         self.trainer = tf.train.GradientDescentOptimizer(learning_rate = learningRate)
         self.updateModel = self.trainer.minimize(self.loss)
 
-        self.init = tf.initialize_all_variables()
+        self.init = tf.global_variables_initializer()
         self.saver = tf.train.Saver()

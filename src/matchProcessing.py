@@ -1,4 +1,3 @@
-import numpy as np
 from cassiopeia import riotapi
 import queue
 from draftstate import DraftState
@@ -8,6 +7,8 @@ from copy import deepcopy
 
 import sqlite3
 import draftDbOps as dbo
+
+import random
 
 def buildMatchQueue(numMatches):
     """
@@ -26,13 +27,21 @@ def buildMatchQueue(numMatches):
     #for matchRef in summoner.match_list()[0:numMatches]:
     #    matchQueue.put(matchRef)
     # Pull games from db and convert to match dicts.
+
     dbName = "competitiveGameData.db"
     conn = sqlite3.connect("tmp/"+dbName)
     cur = conn.cursor()
-    tournament = "2017/Summer_Season/EU"
-    gameIds = dbo.getGameIdsByTournament(cur, tournament)
-    for game in  gameIds[0:numMatches]:
-        match = dbo.getMatchData(cur, game)
+    tournaments = ["2017/Summer_Season/EU", "2017/Summer_Season/NA", "2017/Summer_Season/LCK",
+                    "2017/Summer_Season/LPL"]
+    matchPool = []
+    for tournament in tournaments:
+        gameIds = dbo.getGameIdsByTournament(cur, tournament)
+        for game in gameIds:
+            match = dbo.getMatchData(cur, game)
+            matchPool.append(match)
+    assert numMatches <= len(matchPool), "Not enough matches found to sample!"
+    selectedMatches = random.sample(matchPool, numMatches)
+    for match in selectedMatches:
         matchQueue.put(match)
     return matchQueue
 
