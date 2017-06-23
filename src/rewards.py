@@ -25,10 +25,15 @@ def getWinningTeam(match):
     Args:
         match (dict): match dictionary with pick and ban data for a single game.
     Returns:
-        val (int): Integer representing which team won the match. val = DraftState.RED_TEAM if the red team won or val = DraftState.BLUE_TEAM otherwise.
+        val (int): Integer representing which team won the match.
+          val = DraftState.RED_TEAM if the red team won
+          val = DraftState.BLUE_TEAM if blue team won
+          val = None if match does not have data for winning team
 
     getWinningTeam returns the winning team of the input match encoded as an integer according to DraftState.
     """
-    if match["winner"]==1:
+    if match["winner"]==0:
+        return ds.BLUE_TEAM
+    elif match["winner"]==1:
         return ds.RED_TEAM
-    return ds.BLUE_TEAM
+    return None

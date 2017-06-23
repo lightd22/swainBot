@@ -116,6 +116,9 @@ class DraftState:
         """
         stateIndex = self.getStateIndex(championId)
         if ((stateIndex==-1) or (position+1 not in range(self.state.shape[1]))):
+            print("Invalid stateIndex or position out of range!")
+            print("cid = {}".format(championId))
+            print("pos = {}".format(position))
             return -1
         pos = position+1
         action = np.ravel_multi_index((stateIndex,pos),self.state.shape)
@@ -243,8 +246,12 @@ class DraftState:
         # State is valid, check if draft is complete
         numEnemyPicks = np.sum(self.state[:,1])
         numAllyPicks = np.sum(self.state[:,2:])
-        if(numAllyPicks == self.numPositions and numEnemyPicks == self.numPositions and len(self.bans) == DraftState.NUM_BANS):
-            return DraftState.DRAFT_COMPLETE # Draft is valid and complete
+        if(numAllyPicks == self.numPositions and numEnemyPicks == self.numPositions):
+            # Draft is valid and complete. Note that technically it isn't necessary
+            # to have the full number of bans to register a complete draft. This is
+            # because teams can be forced to forefit bans due to disciplinary factor (rare)
+            # or they can just elect to not submit a ban (this hasn't happened)
+            return DraftState.DRAFT_COMPLETE
 
         # Draft is valid, but not complete
         return 0

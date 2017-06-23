@@ -32,13 +32,14 @@ def buildMatchQueue(numMatches):
     conn = sqlite3.connect("tmp/"+dbName)
     cur = conn.cursor()
     tournaments = ["2017/Summer_Season/EU", "2017/Summer_Season/NA", "2017/Summer_Season/LCK",
-                    "2017/Summer_Season/LPL"]
+                    "2017/Summer_Season/LPL", "2017/Summer_Season/LMS"]
     matchPool = []
     for tournament in tournaments:
         gameIds = dbo.getGameIdsByTournament(cur, tournament)
         for game in gameIds:
             match = dbo.getMatchData(cur, game)
             matchPool.append(match)
+    print("Number of available matches for training={}".format(len(matchPool)))
     assert numMatches <= len(matchPool), "Not enough matches found to sample!"
     selectedMatches = random.sample(matchPool, numMatches)
     for match in selectedMatches:
@@ -91,8 +92,11 @@ def processMatch(match, team):
             # Memory starts when upcoming pick belongs to designated team
             s = deepcopy(draft)
             # Store action = (champIndex, pos)
-            a = (nextPick, position)
-            finishMemory = True
+            if nextPick is not None:
+                # The only time the next pick is None is when a team is forced to
+                # forefit a ban due to disciplinary action. We won't allow null bans.
+                a = (nextPick, position)
+                finishMemory = True
         else:
             # Mask the positions for non-ban selections belonging to the non-designated team
             if position != -1:

@@ -82,8 +82,6 @@ for exp in expReplay.buffer:
         print("  we selected: {}->{} for position: {}".format(cid,cinfo.championNameFromId(cid), pos))
     print("  we recieved a reward of {} for this selection".format(r))
     print("")
-print(cinfo.championIdFromName("thresh"))
-print(cinfo.championNameFromId(128))
 state = DraftState(team,validChampIds)
 inputSize = len(state.formatState())
 outputSize = inputSize
@@ -96,10 +94,9 @@ print("Using two layers of size: {}".format(layerSize))
 print("Using learning rate: {}".format(learningRate))
 print("Using regularization strength: {}".format(regularizationCoeff))
 Qnet = qNetwork.Qnetwork(inputSize, outputSize, layerSize, learningRate, regularizationCoeff)
-tn.trainNetwork(Qnet,3,10,10,False)
+tn.trainNetwork(Qnet,5,100,10,100,False)
 
 # Now if we want to predict what decisions we should make..
-print("buffer length={}".format(len(expReplay.buffer)))
 myState,action,_,_ = expReplay.buffer[0]
 print("")
 print("The state we are predicting from is:")
