@@ -5,7 +5,7 @@ from championinfo import championIdFromName,championNameFromId, convertChampionA
 regionsDict = {"North_America":"NA", "Europe":"EU", "LCK":"LCK", "LPL":"LPL",
                 "LMS":"LMS"}
 internationalEventsDict = {"Mid-Season_Invitational":"MSI",
-                    "Rift_Rivals":"RR","Season_World_Championship":"WRLDS"}
+                    "Rift_Rivals":"RR","World_Championship":"WRLDS"}
 def getGameIdsByTournament(cursor, tournament):
     """
     getMatchIdsByTournament queries the connected db for game ids which match the

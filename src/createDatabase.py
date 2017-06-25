@@ -56,14 +56,18 @@ if __name__ == "__main__":
     tableNames = ["game", "pick", "ban", "team"]
 
     columnInfo = []
+    # Game table columns
     columnInfo.append(["id INTEGER PRIMARY KEY",
                         "tournament TEXT","tourn_game_id INTEGER", "blue_teamid INTEGER NOT NULL",
                         "red_teamid INTEGER NOT NULL", "winning_team INTEGER"])
+    # Pick table columns
     columnInfo.append(["id INTEGER PRIMARY KEY",
                         "game_id INTEGER", "champion_id INTEGER","position_id INTEGER",
                         "selection_order INTEGER", "side_id INTEGER"])
+    # Ban table columns
     columnInfo.append(["id INTEGER PRIMARY KEY",
                         "game_id INTEGER", "champion_id INTEGER", "selection_order INTEGER", "side_id INTEGER"])
+    # Team table columns
     columnInfo.append(["id INTEGER PRIMARY KEY",
                         "region TEXT", "display_name TEXT"])
 
@@ -72,27 +76,17 @@ if __name__ == "__main__":
     print("Creating tables..")
     createTables(cur, tableNames, columnInfo, clobber = False)
 
-    regions = ["LCK", "LPL", "LMS"]
-    lcsRegions = ["Europe", "North_America"]
-    if False:
-        for region in lcsRegions:
-            gameData = queryWiki("League_Championship_Series", region, "2017_Season", "Summer_Season")
-            print("Attempting to insert {} games..".format(len(gameData)))
-            status = dbo.insertTeam(cur,gameData)
-            status = dbo.insertGame(cur,gameData)
-            status = dbo.insertBan(cur,gameData)
-            status = dbo.insertPick(cur,gameData)
-            print("Committing changes to db..")
-            conn.commit()
-        for region in regions:
-            gameData = queryWiki(region, "2017_Season", "Summer_Season")
-            print("Attempting to insert {} games..".format(len(gameData)))
-            status = dbo.insertTeam(cur,gameData)
-            status = dbo.insertGame(cur,gameData)
-            status = dbo.insertBan(cur,gameData)
-            status = dbo.insertPick(cur,gameData)
-            print("Committing changes to db..")
-            conn.commit()
+    regions = ["LCK", "LPL", "LMS", "EU_LCS", "NA_LCS"]
+    for region in regions:
+        gameData = queryWiki("2017", region, "Summer_Split")
+        print("Attempting to insert {} games..".format(len(gameData)))
+        status = dbo.insertTeam(cur,gameData)
+        status = dbo.insertGame(cur,gameData)
+        status = dbo.insertBan(cur,gameData)
+        status = dbo.insertPick(cur,gameData)
+        print("Committing changes to db..")
+        conn.commit()
+
 #    print(json.dumps(game, indent=4, sort_keys=True))
 
     query = (

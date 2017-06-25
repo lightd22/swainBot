@@ -1,6 +1,7 @@
 import json # JSON tools
 import requests # URL api tools
 import re # regex tools
+from championinfo import convertChampionAlias, championIdFromName
 
 def queryWiki(year, region, tournament):
     """
@@ -18,11 +19,10 @@ def queryWiki(year, region, tournament):
     Each dictionary corresponds to the pick/ban phase of an LCS game with the following keys:
         "region":
         "season":
-        "split":
+        "tournament":
         "bans": {"blue":, "red":}
         "blue_team":
         "red_team":
-        "game_number":
         "tourn_game_id":
         "picks": {"blue":, "red":}
 
@@ -38,9 +38,10 @@ def queryWiki(year, region, tournament):
 
     # Semi-standardized page suffixes for pick/ban pages
     numWeeks = 12
-    pageSuffixes = ["", "/Knockout_Stage"]
+    pageSuffixes = [""]
     for i in range(numWeeks):
         pageSuffixes.append("/Week_"+str(i+1))
+    pageSuffixes.append("/Knockout_Stage")
     groups = ["A", "B", "C", "D"]
     for group in groups:
         pageSuffixes.append("/Group_Stage/"+group)
@@ -58,7 +59,6 @@ def queryWiki(year, region, tournament):
     for suffix in pageSuffixes:
         titleList.append(titleRoot+suffix)
     formattedTitleList = "|".join(titleList) # Parameter string to pass to API
-
     params = {"action": "query", "titles": formattedTitleList,
               "prop":"revisions", "rvprop":"content", "format": "json"}
 
@@ -67,9 +67,8 @@ def queryWiki(year, region, tournament):
     data = json.loads(response.text)
     pageData = data['query']['pages']
     # Get list of page keys (actually a list of pageIds.. could be used to identify pages?)
-    pageKeys = list(pageData.keys())
+    pageKeys = list(sorted(pageData.keys()))
     pageKeys = [k for k in pageKeys if int(k)>=0] # Filter out "invalid page" and "missing page" responses
-
     formattedData = []
     tournGameId = 0
     for page in pageKeys:
@@ -77,7 +76,6 @@ def queryWiki(year, region, tournament):
         # Note that we remove all space characters from the raw text, including those
         # in team or champion names.
         rawText = pageData[page]["revisions"][0]["*"].replace(" ","")
-        print(rawText)
 
         # string representation of blue and red teams, ordered by game
         blueTeams = parseRawText("(team1=\w+\s?\w+)",rawText)
@@ -88,33 +86,48 @@ def queryWiki(year, region, tournament):
         # winner = 2 -> second team won (i.e red team)
         winningTeams = parseRawText("(winner=[0-9])",rawText)
         winningTeams = [int(i)-1 for i in winningTeams] # Convert string response to int
-
-        # bans holds the string identifiers of submitted bans for each team in the parsed game
-        # ex: bans[i]["blue"] = list of blue team bans for ith game on this page
-        blueBans = parseRawText("(team1bans=[\w\s',]+)", rawText)
-        print(blueBans)
-        blueBans = [item.split(",") for item in blueBans]
-        redBans = parseRawText("(team2bans=[\w\s',]+)", rawText)
-        redBans = [item.split(",") for item in redBans]
-
-        # picks holds the identifiers of submitted (pick, position) pairs for each team in the parsed game
-        # string representation for the positions are converted to ints to match DraftState expectations:
-        bluePicks = parseRawText("(bluepick[0-9]=\w+[\s']?\w+)", rawText)
-        bluePickPos = parseRawText("(bluepick[0-9]role=\w+[\s']?\w+)", rawText)
-        bluePicks = list(zip(bluePicks, positionStringToId(bluePickPos)))
-        redPicks = parseRawText("(redpick[0-9]=\w+[\s']?\w+)", rawText)
-        redPickPos = parseRawText("(redpick[0-9]role=\w+[\s']?\w+)", rawText)
-        redPicks = list(zip(redPicks, positionStringToId(redPickPos)))
-
         numGamesOnPage = len(winningTeams)
-        if numGamesOnPage > 0: # At least one game found on current page
-            picksPerGame = len(bluePicks)//numGamesOnPage
-            bansPerGame = len(blueBans)//numGamesOnPage
 
+        if numGamesOnPage > 0: # At least one game found on current page
+            # bans holds the string identifiers of submitted bans for each team in the parsed game
+            # ex: bans[i]["blue"] = list of blue team bans for ith game on this page
+            blueBans = parseRawText("(team1bans=[\w\s',]+)", rawText)
+            blueBans = [item.split(",") for item in blueBans]
+            redBans = parseRawText("(team2bans=[\w\s',]+)", rawText)
+            redBans = [item.split(",") for item in redBans]
+
+            # bluePicks[i][:] = list of picks for ith game by blue team in selection order
+            bluePicks = parseRawText("(team1picks=[\w\s',]+)", rawText)
+            bluePicks = [item.split(",") for item in bluePicks]
+            # bluePicksInLcsOrder[:] = list of all picks made by all blue teams in games on this page
+            bluePicksInLcsOrder = parseRawText("(blue[0-9]champion=[\w\s']+)", rawText)
+
+            redPicks = parseRawText("(team2picks=[\w\s',]+)", rawText)
+            redPicks = [item.split(",") for item in redPicks]
+            redPicksInLcsOrder = parseRawText("(purple[0-9]champion=[\w\s']+)", rawText)
+
+            picksPerGame = len(bluePicksInLcsOrder)//numGamesOnPage
+            bansPerGame = len(blueBans)//numGamesOnPage
             for k in range(numGamesOnPage):
+                # picks holds the identifiers of submitted (pick, position) pairs for each team in the parsed game
+                # string representation for the positions are converted to ints to match DraftState expectations
+                picks = cleanChampionNames(bluePicks[k][:])
+                picksInLcsOrder = cleanChampionNames(bluePicksInLcsOrder[k*picksPerGame:(k+1)*picksPerGame])
+                positions = {pick:convertLcsPositions(pos) for pos,pick in enumerate(picksInLcsOrder)}
+                print(blueTeams[k])
+                print(redTeams[k])
+                print(picks)
+                print(picksInLcsOrder)
+                bluePickPos = [(pick, positions[pick]) for pick in picks]
+
+                picks = cleanChampionNames(redPicks[k][:])
+                picksInLcsOrder = cleanChampionNames(redPicksInLcsOrder[k*picksPerGame:(k+1)*picksPerGame])
+                positions = {pick:convertLcsPositions(pos) for pos,pick in enumerate(picksInLcsOrder)}
+                redPickPos = [(pick, positions[pick]) for pick in picks]
+
                 tournGameId += 1
                 bans = {"blue": blueBans[k], "red":redBans[k]}
-                picks = {"blue": bluePicks[picksPerGame*k:picksPerGame*(k+1)], "red":redPicks[picksPerGame*k:picksPerGame*(k+1)]}
+                picks = {"blue": bluePickPos, "red":redPickPos}
                 gameData = {"region": region, "year":year, "tournament": tournament,
                             "blue_team": blueTeams[k], "red_team": redTeams[k],
                             "winning_team": winningTeams[k],
@@ -186,9 +199,42 @@ def splitIdStrings(rawStrings):
         out.append(re.sub("[^A-Za-z0-9,]+", "", rightHandString))  # Remove special chars
     return out
 
+def convertLcsPositions(index):
+    """
+    Given the index of a pick in LCS order, returns the position id corresponding
+    to that index.
+
+    LCS picks are submitted in the following order
+    Index | Role | Position
+    0       Top    3
+    1       Jng    4
+    2       Mid    2
+    3       Adc    1
+    4       Sup    5
+    """
+    lcsOrderToPos = {i:j for i,j in enumerate([3,4,2,1,5])}
+    return lcsOrderToPos[index]
+
+def cleanChampionNames(names):
+    """
+    Takes a list of champion names and standarizes them by looking for possible aliases
+    if necessary.
+    Args:
+        names (list(string)): list of champion names to be standardized
+    Returns:
+        cleanedNames (list(string)): list of standardized champion names
+    """
+    cleanedNames = []
+    for name in names:
+        if championIdFromName(name) is None:
+            name = convertChampionAlias(name)
+        cleanedNames.append(name)
+    return cleanedNames
+
 if __name__ == "__main__":
-    gameData = queryWiki("2017", "EU_LCS", "Summer_Split")
-    #gameData = queryWiki("2016_Season_World_Championship")
+    #gameData = queryWiki("2017", "EU_LCS", "Summer_Split")
+    #gameData = queryWiki("2016", "International", "World_Championship")
+    gameData = queryWiki("2017", "International", "Mid-Season_Invitational")
     print("**********************************************")
     print("**********************************************")
     print("Testing queryWiki:")
@@ -203,7 +249,6 @@ if __name__ == "__main__":
         bluebans = []
         for ban in bans:
             bluebans.append(ban)
-            print(ban)
         for (pick,pos) in picks:
             bluePicks.append(pick)
         s = "|team1picks=" + ", ".join(bluePicks)
