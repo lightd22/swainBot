@@ -71,14 +71,16 @@ if __name__ == "__main__":
     columnInfo.append(["id INTEGER PRIMARY KEY",
                         "region TEXT", "display_name TEXT"])
 
-    conn = sqlite3.connect("tmp/"+dbName)
+    conn = sqlite3.connect("/tmp/"+dbName)
     cur = conn.cursor()
     print("Creating tables..")
     createTables(cur, tableNames, columnInfo, clobber = False)
 
-    regions = ["LCK", "LPL", "LMS", "EU_LCS", "NA_LCS"]
+    regions = ["LPL", "LMS", "EU_LCS", "NA_LCS","LCK"]
+    split = "Summer_Split"
     for region in regions:
-        gameData = queryWiki("2017", region, "Summer_Split")
+        print("Querying: {}".format("2017/"+region+"/"+split))
+        gameData = queryWiki("2017", region, split)
         print("Attempting to insert {} games..".format(len(gameData)))
         status = dbo.insertTeam(cur,gameData)
         status = dbo.insertGame(cur,gameData)

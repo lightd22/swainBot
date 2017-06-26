@@ -111,13 +111,10 @@ def queryWiki(year, region, tournament):
             for k in range(numGamesOnPage):
                 # picks holds the identifiers of submitted (pick, position) pairs for each team in the parsed game
                 # string representation for the positions are converted to ints to match DraftState expectations
+                print("{} vs {}".format(blueTeams[k],redTeams[k]))
                 picks = cleanChampionNames(bluePicks[k][:])
                 picksInLcsOrder = cleanChampionNames(bluePicksInLcsOrder[k*picksPerGame:(k+1)*picksPerGame])
                 positions = {pick:convertLcsPositions(pos) for pos,pick in enumerate(picksInLcsOrder)}
-                print(blueTeams[k])
-                print(redTeams[k])
-                print(picks)
-                print(picksInLcsOrder)
                 bluePickPos = [(pick, positions[pick]) for pick in picks]
 
                 picks = cleanChampionNames(redPicks[k][:])

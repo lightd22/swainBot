@@ -2,8 +2,8 @@ import sqlite3
 import re
 from championinfo import championIdFromName,championNameFromId, convertChampionAlias, AliasException
 
-regionsDict = {"North_America":"NA", "Europe":"EU", "LCK":"LCK", "LPL":"LPL",
-                "LMS":"LMS"}
+regionsDict = {"NA_LCS":"NA", "EU_LCS":"EU", "LCK":"LCK", "LPL":"LPL",
+                "LMS":"LMS", "International":"INTL"}
 internationalEventsDict = {"Mid-Season_Invitational":"MSI",
                     "Rift_Rivals":"RR","World_Championship":"WRLDS"}
 def getGameIdsByTournament(cursor, tournament):
@@ -13,7 +13,7 @@ def getGameIdsByTournament(cursor, tournament):
 
     Args:
         cursor (sqlite cursor): cursor used to execute commmands
-        tournament (string): id string for tournament (ie "2017/Summer_Season/EU")
+        tournament (string): id string for tournament (ie "2017/EU/Summer_Split")
     Returns:
         gameIds (list(int)): list of gameIds
     """
@@ -70,25 +70,26 @@ def getMatchData(cursor, gameId):
 
 def getTournamentData(gameData):
     """
-    getTournamentData cleans up and combines the region/season/split fields in gameData for entry into
+    getTournamentData cleans up and combines the region/year/tournament fields in gameData for entry into
     the game table. When combined with the game_id field it uniquely identifies the match played.
-    The format of tournamentData output is 'year/split/region_abbrv' (forward slash delimiters)
+    The format of tournamentData output is 'year/region_abbrv/tournament' (forward slash delimiters)
 
     Args:
         gameData (dict): dictonary output from queryWiki()
     Returns:
-        tournamentData (string): formatted and cleaned region/season/split data
+        tournamentData (string): formatted and cleaned region/year/split data
     """
-    if gameData["season"] is None:
-        year = re.search("([0-9]+)",gameData["region"]).group(0)
-    else:
-        year = re.search("([0-9]+)",gameData["season"]).group(0)
-
-    if gameData["split"] is None:
-        tournamentData = internationalEventsDict["".join(re.split("_?[0-9]+_?",gameData["region"]))]
-    else:
-        tournamentData = "/".join([gameData["split"],regionsDict[gameData["region"]]])
-    tournamentData = "/".join([year,tournamentData])
+    tournamentData = "/".join([gameData["year"], gameData["region"], gameData["tournament"]])
+#    if gameData["season"] is None:
+#        year = re.search("([0-9]+)",gameData["region"]).group(0)
+#    else:
+#        year = re.search("([0-9]+)",gameData["season"]).group(0)
+#
+#    if gameData["split"] is None:
+#        tournamentData = internationalEventsDict["".join(re.split("_?[0-9]+_?",gameData["region"]))]
+#    else:
+#        tournamentData = "/".join([gameData["split"],regionsDict[gameData["region"]]])
+#    tournamentData = "/".join([year,tournamentData])
     return tournamentData
 
 def getGameId(cursor,gameData):
@@ -178,13 +179,15 @@ def insertTeam(cursor, gameData):
         # We don't track all regions (i.e wildcard regions), but they can still appear at
         # international tournaments. When this happens we will track the team, but list their
         # region as NULL.
-        if game["split"] is None:
+        if game["region"] is "Inernational":
             region = None
         else:
             region = regionsDict[game["region"]]
         teams = [game["blue_team"], game["red_team"]]
         for team in teams:
             vals = (region,team)
+            # This only looks for matching display names.. what happens if theres a
+            # NA TSM and and EU TSM?
             cursor.execute("SELECT * FROM team WHERE display_name=?", (team,))
             result = cursor.fetchone()
             if result is None:
@@ -221,10 +224,11 @@ def insertBan(cursor, gameData):
                 selectionOrder = 0
                 side = k
                 for ban in bans:
-                    if ban == "none":
+                    if ban in ["lossofban","none"]:
                         # Special case if no ban was submitted in game
                         banId = None
                     else:
+#                        print("ban={}".format(ban))
                         banId = championIdFromName(ban)
                         # If no such champion name is found, try looking for an alias
                         if banId is None:
@@ -264,7 +268,7 @@ def insertPick(cursor, gameData):
                 selectionOrder = 0
                 side = k
                 for (pick,position) in picks:
-                    if pick == "none":
+                    if pick in ["lossofpick","none"]:
                         # Special case if no pick was submitted to game (not really sure what that would mean
                         # but being consistent with insertPick())
                         pickId = None
@@ -272,7 +276,6 @@ def insertPick(cursor, gameData):
                         pickId = championIdFromName(pick)
                         # If no such champion name is found, try looking for an alias
                         if pickId is None:
-                            #print(json.dumps(game, indent=4, sort_keys=True))
                             pickId = championIdFromName(convertChampionAlias(pick))
                     selectionOrder += 1
                     vals = (gameId,pickId,position,selectionOrder,side)
