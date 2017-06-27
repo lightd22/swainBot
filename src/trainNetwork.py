@@ -136,7 +136,7 @@ def trainNetwork(Qnet, numEpochs, numEpisodes, batchSize, bufferSize, loadModel)
                     # Reduce chance of random actions over time
                     epsilon -= 1./numEpisodes
         # Once training is complete, save the updated network
-        outPath = Qnet.saver.save(sess,"tmp/model.ckpt")
+        outPath = Qnet.saver.save(sess,"/tmp/model.ckpt")
         print("qNet model is saved in file: {}".format(outPath))
     print("***")
     return None

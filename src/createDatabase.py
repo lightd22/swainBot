@@ -71,7 +71,7 @@ if __name__ == "__main__":
     columnInfo.append(["id INTEGER PRIMARY KEY",
                         "region TEXT", "display_name TEXT"])
 
-    conn = sqlite3.connect("/tmp/"+dbName)
+    conn = sqlite3.connect("tmp/"+dbName)
     cur = conn.cursor()
     print("Creating tables..")
     createTables(cur, tableNames, columnInfo, clobber = True)

@@ -10,6 +10,8 @@ import draftDbOps as dbo
 
 import random
 
+import json
+
 def buildMatchQueue(numMatches):
     """
     Args:
@@ -18,7 +20,6 @@ def buildMatchQueue(numMatches):
         matchQueue (Queue of match references): Python Queue structure containing matchIds  to be processed
 
     This will be responsible for building the queue of matchids that we will use during learning phase.
-    *** CURRENTLY ONLY PULLS MY RANKED MATCH HISTORY ***
     """
     #TODO (Devin): This will be responsible for building the queue of matchids that we will use during learning
     # eventually it should recursively look through high mmr player match histories and build up a database of match references.
@@ -31,8 +32,8 @@ def buildMatchQueue(numMatches):
     dbName = "competitiveGameData.db"
     conn = sqlite3.connect("tmp/"+dbName)
     cur = conn.cursor()
-    tournaments = ["2017/Summer_Season/EU", "2017/Summer_Season/NA", "2017/Summer_Season/LCK",
-                    "2017/Summer_Season/LPL", "2017/Summer_Season/LMS"]
+    tournaments = ["2017/EU/Summer_Season", "2017/NA/Summer_Season", "2017/LCK/Summer_Season",
+                    "2017/LPL/Summer_Season", "2017/LMS/Summer_Season"]
     matchPool = []
     for tournament in tournaments:
         gameIds = dbo.getGameIdsByTournament(cur, tournament)
@@ -77,7 +78,6 @@ def processMatch(match, team):
     while not actionQueue.empty():
         # Get next pick from queue
         (submittingTeam, nextPick, position) = actionQueue.get()
-
         # There are two conditions under which we want to finalize a memory:
         # 1. Non-designated team has finished submitting picks for this phase (ie next submission belongs to the designated team)
         # 2. Draft is complete (no further picks in the draft)

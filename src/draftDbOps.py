@@ -79,17 +79,7 @@ def getTournamentData(gameData):
     Returns:
         tournamentData (string): formatted and cleaned region/year/split data
     """
-    tournamentData = "/".join([gameData["year"], gameData["region"], gameData["tournament"]])
-#    if gameData["season"] is None:
-#        year = re.search("([0-9]+)",gameData["region"]).group(0)
-#    else:
-#        year = re.search("([0-9]+)",gameData["season"]).group(0)
-#
-#    if gameData["split"] is None:
-#        tournamentData = internationalEventsDict["".join(re.split("_?[0-9]+_?",gameData["region"]))]
-#    else:
-#        tournamentData = "/".join([gameData["split"],regionsDict[gameData["region"]]])
-#    tournamentData = "/".join([year,tournamentData])
+    tournamentData = "/".join([gameData["year"], regionsDict[gameData["region"]], gameData["tournament"]])
     return tournamentData
 
 def getGameId(cursor,gameData):
