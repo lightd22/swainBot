@@ -30,7 +30,8 @@ __m.championAliases = {
 "sej": "sejuani",
 "nid": "nidalee",
 "aurelion": "aurelionsol",
-"mundo": "drmundo"
+"mundo": "drmundo",
+"tahm": "tahmkench"
 }
 class AliasException(Exception):
     def __init__(self, message, errors):

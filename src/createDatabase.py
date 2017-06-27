@@ -74,13 +74,17 @@ if __name__ == "__main__":
     conn = sqlite3.connect("/tmp/"+dbName)
     cur = conn.cursor()
     print("Creating tables..")
-    createTables(cur, tableNames, columnInfo, clobber = False)
+    createTables(cur, tableNames, columnInfo, clobber = True)
 
-    regions = ["LPL", "LMS", "EU_LCS", "NA_LCS","LCK"]
-    split = "Summer_Split"
+    regions = ["LPL","LMS","EU_LCS","NA_LCS","LCK"]
+    split = "Summer_Season"
     for region in regions:
         print("Querying: {}".format("2017/"+region+"/"+split))
         gameData = queryWiki("2017", region, split)
+        for game in gameData:
+            print("{} v {}".format(game["blue_team"], game["red_team"]))
+            print(game["bans"]["blue"])
+            print(game["bans"]["red"])
         print("Attempting to insert {} games..".format(len(gameData)))
         status = dbo.insertTeam(cur,gameData)
         status = dbo.insertGame(cur,gameData)

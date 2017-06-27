@@ -76,11 +76,11 @@ def queryWiki(year, region, tournament):
         # Get the raw text of the most recent revision of the current page
         # Note that we remove all space characters from the raw text, including those
         # in team or champion names.
-        rawText = pageData[page]["revisions"][0]["*"].replace(" ","")
+        rawText = pageData[page]["revisions"][0]["*"].replace(" ","").replace("\\n"," ")
 
         # string representation of blue and red teams, ordered by game
-        blueTeams = parseRawText("(team1=\w+\s?\w+)",rawText)
-        redTeams = parseRawText("(team2=\w+\s?\w+)",rawText)
+        blueTeams = parseRawText("(team1=\w+\s?\w*)",rawText)
+        redTeams = parseRawText("(team2=\w+\s?\w*)",rawText)
 
         blueScores = parseRawText("(team1score=[0-9])",rawText)
         redScores = parseRawText("(team2score=[0-9])",rawText)
@@ -94,26 +94,30 @@ def queryWiki(year, region, tournament):
 
         # bans holds the string identifiers of submitted bans for each team in the parsed game
         # ex: bans[k] = kth ban on the page
-        blueBans = parseRawText("(blueban[0-9]=[\w\s']+)", rawText)
-        redBans = parseRawText("(redban[0-9]=[\w\s']+)", rawText)
+        blueBans = parseRawText("(blueban[0-9]=\w[\w\s'.]+)", rawText)
+        redBans = parseRawText("(redban[0-9]=\w[\w\s'.]+)", rawText)
 
         # bluePicks[i] = ith pick on the page
-        bluePicks = parseRawText("(bluepick[0-9]=[\w\s']+)", rawText)
-        redPicks = parseRawText("(redpick[0-9]=[\w\s']+)", rawText)
+        bluePicks = parseRawText("(bluepick[0-9]=\w[\w\s'.]+)", rawText)
+        redPicks = parseRawText("(redpick[0-9]=\w[\w\s'.]+)", rawText)
 
         # bluePickPositions[k] = position associated with kth pick on the page
-        bluePickPositions = parseRawText("(bluepick[0-9]role=[\w\s']+)",rawText)
-        redPickPositions = parseRawText("(redpick[0-9]role=[\w\s']+)",rawText)
+        bluePickPositions = parseRawText("(bluepick[0-9]role=[\w\s'.]+)",rawText)
+        redPickPositions = parseRawText("(redpick[0-9]role=[\w\s'.]+)",rawText)
 
-        print("Found {} games on this page.".format(numGamesOnPage))
+        print("Total number of games found: {}".format(numGamesOnPage))
+        print("There should be {} bans. We found {} blue bans and {} red bans".format(numGamesOnPage*5,len(blueBans),len(redBans)))
+        print("There should be {} picks. We found {} blue picks and {} red picks".format(numGamesOnPage*5,len(bluePicks),len(redPicks)))
+        assert len(redBans)==len(blueBans), "Bans don't match!"
+        assert len(redPicks)==len(bluePicks), "Picks don't match!"
         if numGamesOnPage > 0: # At least one game found on current page
             picksPerGame = len(bluePicks)//numGamesOnPage
             bansPerGame = len(blueBans)//numGamesOnPage
-
+            print("This means we're looking for {} bans per game".format(bansPerGame))
             for k in range(numGamesOnPage):
                 # picks holds the identifiers of submitted (pick, position) pairs for each team in the parsed game
                 # string representation for the positions are converted to ints to match DraftState expectations
-                print("{} vs {}".format(blueTeams[k],redTeams[k]))
+                print("Game {}: {} vs {}".format(k,blueTeams[k],redTeams[k]))
                 picks = cleanChampionNames(bluePicks[k*picksPerGame:(k+1)*picksPerGame])
                 positions = positionStringToId(bluePickPositions[k*picksPerGame:(k+1)*picksPerGame])
                 bluePickPos = [(picks[k], positions[k]) for k in range(picksPerGame)]
@@ -123,7 +127,6 @@ def queryWiki(year, region, tournament):
                 redPickPos = [(picks[k], positions[k]) for k in range(picksPerGame)]
 
                 tournGameId += 1
-                print(blueBans[k*picksPerGame:(k+1)*picksPerGame])
                 bans = {"blue": blueBans[k*bansPerGame:(k+1)*bansPerGame], "red":redBans[k*bansPerGame:(k+1)*bansPerGame]}
                 picks = {"blue": bluePickPos, "red":redPickPos}
                 gameData = {"region": region, "year":year, "tournament": tournament,
