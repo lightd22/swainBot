@@ -73,8 +73,8 @@ count = 0
 for exp in expReplay.buffer:
     count+=1
     s,a,r,sNew = exp
-    (champIndex, pos) = a
-    cid = s.getChampId(champIndex)
+    (cid, pos) = a
+    #cid = s.getChampId(champIndex)
     print("For the {}th selection:".format(count))
     if pos==-1:
         print("  we banned: {}->{}".format(cid,cinfo.championNameFromId(cid)))
@@ -94,7 +94,7 @@ print("Using two layers of size: {}".format(layerSize))
 print("Using learning rate: {}".format(learningRate))
 print("Using regularization strength: {}".format(regularizationCoeff))
 Qnet = qNetwork.Qnetwork(inputSize, outputSize, layerSize, learningRate, regularizationCoeff)
-tn.trainNetwork(Qnet,5,100,10,100,False)
+tn.trainNetwork(Qnet,10,100,20,100,False)
 
 # Now if we want to predict what decisions we should make..
 myState,action,_,_ = expReplay.buffer[0]
@@ -124,13 +124,16 @@ with tf.Session() as sess:
     print("The champion our network has chosen was: {}".format(cinfo.championNameFromId(r_ChampId)))
     print("The position it recommended was: {}".format(r_Pos))
 
+    for exp in expReplay.buffer:
+        state,a,r,nextState = exp
+        print("Predicting from state:")
+        state.displayState()
+        print("")
+        predictedAction = sess.run(Qnet.prediction, feed_dict={Qnet.input:[state.formatState()]})
+        (cid,pos) = state.formatAction(predictedAction[0])
+        print("Network predicts: {}, {}".format(cinfo.championNameFromId(cid),pos))
 print("Closing DB connection..")
 conn.close()
-
-print("{name} is a level {level} summoner on the NA server.".format(name=summoner.name, level=summoner.level))
-champions = riotapi.get_champions()
-random_champion = random.choice(champions)
-print("He enjoys playing LoL on all different champions, like {name}.".format(name=random_champion.name))
 
 print("")
 print("********************************")

@@ -66,22 +66,25 @@ def trainNetwork(Qnet, numEpochs, numEpisodes, batchSize, bufferSize, loadModel)
                 # Process this match into individual experiences
                 experiences = mp.processMatch(match, team)
                 for experience in experiences:
-                    if(random.random() < epsilon):
-                        # Let the network predict the next action, if the action leads
-                        # to an invalid state replace the original experience with the
-                        # negatively reinforced result. Ideally we would like to let the network
-                        # predict a random action and evaluate the reward for the resulting state,
-                        # but it's not clear how to generate a reward for an action which was not
-                        # produced by geniune match data.
-                        state = experience[0]
-                        a = sess.run(Qnet.prediction,
-                                    feed_dict={Qnet.input:[state.formatState()]})
-                        (cid,pos) = state.formatAction(a[0])
-                        nextState = deepcopy(state)
-                        nextState.updateState(cid,pos)
-                        if nextState.evaluateState in DraftState.invalidStates:
-                            r = getReward(nextState, blankMatch)
-                            experience = (state, a, r, nextState)
+#                    if(random.random() < epsilon):
+                    # Let the network predict the next action, if the action leads
+                    # to an invalid state replace the original experience with the
+                    # negatively reinforced result. This has the effect of making it more important to
+                    # learn to make legal predictions first before learning pick/ban structue.
+                    # Ideally we would like to let the network
+                    # predict a random action and evaluate the reward for the resulting state,
+                    # but it's not clear how to generate a reward for an action which was not
+                    # produced by geniune match data.
+                    state = experience[0]
+                    a = sess.run(Qnet.prediction,
+                                feed_dict={Qnet.input:[state.formatState()]})
+                    (cid,pos) = state.formatAction(a[0])
+                    nextState = deepcopy(state)
+                    nextState.updateState(cid,pos)
+                    if nextState.evaluateState() in DraftState.invalidStates:
+                        print("overwriting experience!")
+                        r = getReward(nextState, blankMatch)
+                        experience = (state, state.formatAction(a[0]), r, nextState)
                     experienceReplay.store([experience])
                     totalSteps += 1
 
@@ -116,13 +119,13 @@ def trainNetwork(Qnet, numEpochs, numEpisodes, batchSize, bufferSize, loadModel)
                         # Make sure targetQ shape is correct (sometimes np.array likes to return array of shape (batchSize,1))
                         targetQ.shape = (batchSize,)
                         # Uncomment this section to get a live look at valuation update
-    #                    estQ = sess.run(Qnet.outQ,
-    #                                    feed_dict={Qnet.input:np.vstack([exp[0].formatState() for exp in trainingBatch])})
-    #                    print("Current estimates for Q(s,-) for this experience's initial state..")
-    #                    print("a \t \t Q(s,a)")
-    #                    print("************************")
-    #                    for i in range(estQ.shape[1]):
-    #                        print("{} \t \t {}".format(i,estQ[0,i]))
+#                        estQ = sess.run(Qnet.outQ,
+#                                        feed_dict={Qnet.input:np.vstack([exp[0].formatState() for exp in trainingBatch])})
+#                        print("Current estimates for Q(s,-) for this experience's initial state..")
+#                        print("a \t \t Q(s,a)")
+#                        print("************************")
+#                        for i in range(estQ.shape[1]):
+#                            print("{} \t \t {}".format(i,estQ[0,i]))
 
                         # Update Qnet using target Q
                         # Experience replay stores action = (champion_id, position) pairs
@@ -132,11 +135,11 @@ def trainNetwork(Qnet, numEpochs, numEpisodes, batchSize, bufferSize, loadModel)
                                      feed_dict={Qnet.input:np.vstack([exp[0].formatState() for exp in trainingBatch]),
                                                 Qnet.actions:actions,
                                                 Qnet.target:targetQ})
-                if(epsilon > 0.1):
-                    # Reduce chance of random actions over time
-                    epsilon -= 1./numEpisodes
+#                if(epsilon > 0.1):
+#                    # Reduce chance of random actions over time
+#                    epsilon -= 1./numEpisodes
         # Once training is complete, save the updated network
-        outPath = Qnet.saver.save(sess,"/tmp/model.ckpt")
+        outPath = Qnet.saver.save(sess,"tmp/model.ckpt")
         print("qNet model is saved in file: {}".format(outPath))
     print("***")
     return None

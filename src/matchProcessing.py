@@ -115,7 +115,6 @@ def processMatch(match, team):
         sNext = deepcopy(draft)
         memory = (s, a, r, sNext)
         experiences.append(memory)
-
     return experiences
 
 def buildActionQueue(match):

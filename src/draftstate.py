@@ -155,16 +155,17 @@ class DraftState:
         print("There are {numPicks} picks and {numBans} bans completed in this draft. \n".format(numPicks=len(self.picks),numBans=len(self.bans)))
 
         print("Banned Champions: {0}".format(list(map(championNameFromId, self.bans))))
-        enemyDraftIds = [x+1 for x in np.where(self.state[:,1])] # Convert index locations in state to correct championIds
-        print("Enemy Draft: {0}".format(list(map(championNameFromId,enemyDraftIds[0]))))
+        enemyDraftIds = list(map(self.getChampId, list(np.where(self.state[:,1])[0])))
+        #[self.getChampId(x[0]) for x in np.where(self.state[:,1])] # Convert index locations in state to correct championIds
+        print("Enemy Draft: {0}".format(list(map(championNameFromId,enemyDraftIds))))
 
-        print("Our Draft:")
-        for posIndex in range(2,len(self.state[0,:])): # Iterate through each position column in state
-            champ = np.where(self.state[:,posIndex])[0] # Find non-zero index
-            if not champ.size: # No pick is found for this position, create a filler string
+        print("Ally Draft:")
+        for posIndex in range(2,len(self.state[0,:])): # Iterate through each position columns in state
+            champIndex = np.where(self.state[:,posIndex])[0] # Find non-zero index
+            if not champIndex.size: # No pick is found for this position, create a filler string
                 draftName = "--"
             else:
-                draftName = championNameFromId(int(champ[0])+1)
+                draftName = championNameFromId(self.getChampId(champIndex[0]))
             print("Position {p}: {c}".format(p=posIndex-1,c=draftName))
         print("=== End Draft State ===")
 
@@ -233,16 +234,25 @@ class DraftState:
                 value = DUPLICATE_SELECTION -> state has a champion drafted which is already part of the opposing team.
                 value = DUPLICATE_ROLE -> state has a champion selected for multiple roles (champion selected more than once).
         """
+        # Check for champions that appear multiple times in the state
         for champIndex in range(len(self.state[:,0])):
             loc = np.argwhere(self.state[champIndex,:])
-            if(len(loc)>1): # State is invalid, check where problem is
-                errIndex = int(loc[0]) # Location of first non-zero index fo
+            if(len(loc)>1): # State is invalid, find where problem is
+                errIndex = int(loc[0]) # Location of first non-zero index
                 if(errIndex==0):
-                    return DraftState.BAN_SELECTED # Invalid state includes an already banned champion
-                elif(errIndex==1):
-                    return DraftState.DUPLICATE_SELECTION # Invalid state includes a champion which was selected for the other team
+                    # Invalid state includes an already banned champion
+                    return DraftState.BAN_SELECTED
                 else:
-                    return DraftState.DUPLICATE_ROLE # Invalid state includes a champion which has been selected for multiple roles
+                    # Invalid state either includes a champion which has already been selected by
+                    # the other team, or it includes a single champion drafted for multiple roles
+                    return DraftState.DUPLICATE_SELECTION
+        # Check for different champions that have been submitted for the same role
+        for pos in range(2,self.numPositions+2):
+            loc = np.argwhere(self.state[:,pos])
+            if(len(loc)>1):
+                # Invalid state includes multiple champions intended for the same role.
+                return DraftState.DUPLICATE_ROLE
+
         # State is valid, check if draft is complete
         numEnemyPicks = np.sum(self.state[:,1])
         numAllyPicks = np.sum(self.state[:,2:])
