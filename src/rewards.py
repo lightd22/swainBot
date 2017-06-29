@@ -15,10 +15,10 @@ def getReward(state, match):
     """
     status = state.evaluateState()
     if (status in ds.invalidStates):
-        return -100.
+        return -50.
     elif (state.team == getWinningTeam(match)):
         return 100.
-    return 10.
+    return 0.
 
 def getWinningTeam(match):
     """

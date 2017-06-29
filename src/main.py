@@ -94,7 +94,7 @@ print("Using two layers of size: {}".format(layerSize))
 print("Using learning rate: {}".format(learningRate))
 print("Using regularization strength: {}".format(regularizationCoeff))
 Qnet = qNetwork.Qnetwork(inputSize, outputSize, layerSize, learningRate, regularizationCoeff)
-tn.trainNetwork(Qnet,10,100,20,100,False)
+tn.trainNetwork(Qnet,20,200,100,400,False)
 
 # Now if we want to predict what decisions we should make..
 myState,action,_,_ = expReplay.buffer[0]

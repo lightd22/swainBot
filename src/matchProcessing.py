@@ -92,13 +92,10 @@ def processMatch(match, team):
             # Memory starts when upcoming pick belongs to designated team
             s = deepcopy(draft)
             # Store action = (champIndex, pos)
-            if nextPick is not None:
-                # The only time the next pick is None is when a team is forced to
-                # forefit a ban due to disciplinary action. We won't allow null bans.
-                a = (nextPick, position)
-                finishMemory = True
+            a = (nextPick, position)
+            finishMemory = True
         else:
-            # Mask the positions for non-ban selections belonging to the non-designated team
+            # Mask the positions for pick submissions belonging to the non-designated team
             if position != -1:
                 position = 0
 
@@ -115,6 +112,16 @@ def processMatch(match, team):
         sNext = deepcopy(draft)
         memory = (s, a, r, sNext)
         experiences.append(memory)
+    else:
+        print(draft.evaluateState())
+        draft.displayState()
+        print("{} vs {}".format(match["blue_team"],match["red_team"]))
+        print(len(experiences))
+        for experience in experiences:
+            _,a,_,_ = experience
+            print(a)
+        raise
+
     return experiences
 
 def buildActionQueue(match):
@@ -134,6 +141,7 @@ def buildActionQueue(match):
               3:{"phaseType":"picks","pickOrder":["red", "blue", "blue", "red"]}} # phase 2 picks
     banIndex = 0
     pickIndex = 0
+    completedActions = 0
     for phase in range(4):
         phaseType = phases[phase]["phaseType"]
         pickOrder = phases[phase]["pickOrder"]
@@ -155,5 +163,10 @@ def buildActionQueue(match):
                 pickIndex += pickNum%2 # Order matters here. index needs to be updated *after* use
             action = (sideId, match[side][phaseType][index][0], positionId)
             actionQueue.put(action)
+            completedActions += 1
 
+    if(completedActions != 20):
+        print("Found a match with missing actions!")
+        print("numActions = {}".format(numActions))
+        print(json.dumps(match, indent=2, sort_keys=True))
     return actionQueue

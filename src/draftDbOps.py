@@ -37,7 +37,7 @@ def getMatchData(cursor, gameId):
     Returns:
         match (dict): formatted pick/ban phase data for game
     """
-    match = {"winner": None, "blue":{}, "red":{}}
+    match = {"winner": None, "blue":{}, "red":{}, "blue_team":None, "red_team":None}
     # Get winning team
     query = "SELECT winning_team FROM game WHERE id=?"
     params = (gameId,)
@@ -65,6 +65,16 @@ def getMatchData(cursor, gameId):
     params = (gameId,1)
     cursor.execute(query, params)
     match["red"]["picks"] = list(cursor.fetchall())
+
+    query = "SELECT display_name FROM team JOIN game ON team.id = blue_teamid WHERE game.id = ?"
+    params = (gameId,)
+    cursor.execute(query, params)
+    match["blue_team"] = cursor.fetchone()[0]
+
+    query = "SELECT display_name FROM team JOIN game ON team.id = red_teamid WHERE game.id = ?"
+    params = (gameId,)
+    cursor.execute(query, params)
+    match["red_team"] = cursor.fetchone()[0]
 
     return match
 

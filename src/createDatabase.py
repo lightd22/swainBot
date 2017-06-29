@@ -74,7 +74,7 @@ if __name__ == "__main__":
     conn = sqlite3.connect("tmp/"+dbName)
     cur = conn.cursor()
     print("Creating tables..")
-    createTables(cur, tableNames, columnInfo, clobber = True)
+    createTables(cur, tableNames, columnInfo, clobber = False)
 
     regions = ["LPL","LMS","EU_LCS","NA_LCS","LCK"]
     split = "Summer_Season"
@@ -82,9 +82,36 @@ if __name__ == "__main__":
         print("Querying: {}".format("2017/"+region+"/"+split))
         gameData = queryWiki("2017", region, split)
         for game in gameData:
+            seen_bans = set()
             print("{} v {}".format(game["blue_team"], game["red_team"]))
-            print(game["bans"]["blue"])
-            print(game["bans"]["red"])
+#            print("blue bans: {}".format(game["bans"]["blue"]))
+#            print("red bans: {}".format(game["bans"]["red"]))
+            bans = game["bans"]["blue"] + game["bans"]["red"]
+            for ban in bans:
+                if ban not in seen_bans:
+                    seen_bans.add(ban)
+                else:
+                    print(" Duplicate ban found! {}".format(ban))
+                    print(seen_bans)
+
+            seen_picks = set()
+            for side in ["blue", "red"]:
+                seen_positions = set()
+                for pick in game["picks"][side]:
+                    (p,pos) = pick
+                    if p not in seen_picks:
+                        seen_picks.add(p)
+                    else:
+                        print("  Duplicate pick found! {}".format(p))
+                        print(seen_picks)
+
+                    if pos not in seen_positions:
+                        seen_positions.add(pos)
+                    else:
+                        print("   Duplicate pos found! {}".format(pos))
+                        print(seen_positions)
+
+
         print("Attempting to insert {} games..".format(len(gameData)))
         status = dbo.insertTeam(cur,gameData)
         status = dbo.insertGame(cur,gameData)
