@@ -74,7 +74,7 @@ if __name__ == "__main__":
     conn = sqlite3.connect("tmp/"+dbName)
     cur = conn.cursor()
     print("Creating tables..")
-    createTables(cur, tableNames, columnInfo, clobber = False)
+    createTables(cur, tableNames, columnInfo, clobber = True)
 
     regions = ["LPL","LMS","EU_LCS","NA_LCS","LCK"]
     split = "Summer_Season"
@@ -84,8 +84,6 @@ if __name__ == "__main__":
         for game in gameData:
             seen_bans = set()
             print("{} v {}".format(game["blue_team"], game["red_team"]))
-#            print("blue bans: {}".format(game["bans"]["blue"]))
-#            print("red bans: {}".format(game["bans"]["red"]))
             bans = game["bans"]["blue"] + game["bans"]["red"]
             for ban in bans:
                 if ban not in seen_bans:

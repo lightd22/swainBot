@@ -148,7 +148,7 @@ def trainNetwork(Qnet, numEpochs, numEpisodes, batchSize, bufferSize, loadModel)
 #                    # Reduce chance of random actions over time
 #                    epsilon -= 1./numEpisodes
             print("Epoch complete.. some stats:")
-            print("  total memories = {}".format(totalSteps))
+            print("  total memories = {}".format(totalSteps+nullActionCount))
             print("  overwritten memories = {}".format(invalidActionCount))
         # Once training is complete, save the updated network
         outPath = Qnet.saver.save(sess,"tmp/model.ckpt")
