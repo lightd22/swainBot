@@ -70,30 +70,31 @@ def trainNetwork(Qnet, numEpochs, numEpisodes, batchSize, bufferSize, loadModel)
                     # Some experiences include NULL submissions (exclusively bans)
                     # We don't allow the learner to submit NULL picks so skip adding these
                     # to the replay buffer.
-                    state,a,_,_ = experience
+                    state,a,rew,_ = experience
                     (cid,pos) = a
                     if cid is None:
                         nullActionCount += 1
                         continue
-#                    if(random.random() < epsilon):
-                    # Let the network predict the next action, if the action leads
-                    # to an invalid state add a negatively reinforced experience to the replay buffer.
-                    # It is more important to learn to make legal predictions first before learning pick/ban structure.
-                    # Ideally we would like to let the network
-                    # predict a random action and evaluate the reward for the resulting state,
-                    # but it's not clear how to generate a reward for an action which was not
-                    # produced by geniune match data.
-                    a = sess.run(Qnet.prediction,
-                                feed_dict={Qnet.input:[state.formatState()]})
-                    (cid,pos) = state.formatAction(a[0])
-                    nextState = deepcopy(state)
-                    nextState.updateState(cid,pos)
-                    if nextState.evaluateState() in DraftState.invalidStates:
-                        #print("overwriting experience!")
-                        invalidActionCount += 1
-                        r = getReward(nextState, blankMatch)
-                        negative_experience = (state, state.formatAction(a[0]), r, nextState)
-                        experienceReplay.store([negative_experience])
+                    if(i >= 0):
+                        if(random.random() < epsilon):
+                            # Let the network predict the next action, if the action leads
+                            # to an invalid state add a negatively reinforced experience to the replay buffer.
+                            # It is more important to learn to make legal predictions first before learning pick/ban structure.
+                            # Ideally we would like to let the network
+                            # predict a random action and evaluate the reward for the resulting state,
+                            # but it's not clear how to generate a reward for an action which was not
+                            # produced by geniune match data.
+                            a = sess.run(Qnet.prediction,
+                                        feed_dict={Qnet.input:[state.formatState()]})
+                            (cid,pos) = state.formatAction(a[0])
+                            nextState = deepcopy(state)
+                            nextState.updateState(cid,pos)
+                            if nextState.evaluateState() in DraftState.invalidStates:
+                                #print("overwriting experience!")
+                                invalidActionCount += 1
+                                r = getReward(nextState, blankMatch)
+                                negative_experience = (state, state.formatAction(a[0]), r, nextState)
+                                experienceReplay.store([negative_experience])
                     experienceReplay.store([experience])
                     totalSteps += 1
 
@@ -144,9 +145,9 @@ def trainNetwork(Qnet, numEpochs, numEpisodes, batchSize, bufferSize, loadModel)
                                      feed_dict={Qnet.input:np.vstack([exp[0].formatState() for exp in trainingBatch]),
                                                 Qnet.actions:actions,
                                                 Qnet.target:targetQ})
-#                if(epsilon > 0.1):
-#                    # Reduce chance of random actions over time
-#                    epsilon -= 1./numEpisodes
+                if(epsilon > 0.1):
+                    # Reduce chance of random actions over time
+                    epsilon -= 1./numEpisodes
             print("Epoch complete.. some stats:")
             print("  total memories = {}".format(totalSteps+nullActionCount))
             print("  overwritten memories = {}".format(invalidActionCount))

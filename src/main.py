@@ -83,18 +83,21 @@ for exp in expReplay.buffer:
     print("  we recieved a reward of {} for this selection".format(r))
     print("")
 state = DraftState(team,validChampIds)
+nPos = 7 # Positions 1-5 + ban + enemy selection
 inputSize = len(state.formatState())
-outputSize = inputSize
+outputSize = inputSize*(nPos-1)//(nPos) # Output from network won't include selecting for other team
 layerSize = (536,536)
 learningRate = 0.001
 regularizationCoeff = 0.01
+discountFactor = 0.2
 print("Qnet input size: {}".format(inputSize))
 print("Qnet output size: {}".format(outputSize))
 print("Using two layers of size: {}".format(layerSize))
 print("Using learning rate: {}".format(learningRate))
+print("Using discountFactor: {}".format(discountFactor))
 print("Using regularization strength: {}".format(regularizationCoeff))
-Qnet = qNetwork.Qnetwork(inputSize, outputSize, layerSize, learningRate, regularizationCoeff)
-tn.trainNetwork(Qnet,20,200,100,400,False)
+Qnet = qNetwork.Qnetwork(inputSize, outputSize, layerSize, learningRate, discountFactor, regularizationCoeff)
+tn.trainNetwork(Qnet,20,300,40,200,False)
 
 # Now if we want to predict what decisions we should make..
 myState,action,_,_ = expReplay.buffer[0]
@@ -132,6 +135,16 @@ with tf.Session() as sess:
         predictedAction = sess.run(Qnet.prediction, feed_dict={Qnet.input:[state.formatState()]})
         (cid,pos) = state.formatAction(predictedAction[0])
         print("Network predicts: {}, {}".format(cinfo.championNameFromId(cid),pos))
+
+    inputState = [state.formatState()]
+    pred_Q = sess.run(Qnet.outQ,feed_dict={Qnet.input:inputState})
+    print("actionid \t championid \t championName \t position \t qValue")
+    print("*****************************************************************")
+    for i in range(pred_Q.size):
+        (cid,pos) = myState.formatAction(i)
+        qVal = pred_Q[0,i]
+        print("{} \t \t {} \t \t {:12} \t {} \t \t {:.4f}".format(i, cid, cinfo.championNameFromId(cid),pos,qVal))
+
 print("Closing DB connection..")
 conn.close()
 
