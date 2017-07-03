@@ -127,15 +127,22 @@ class DraftState:
         """
         Format input action into the corresponding tuple (champid, position) which describes the input action.
         Args:
-            action (int): Action to be interpreted. Assumed to be generated as output of ANN. action may be interpreted as the index
+            action (int): Action to be interpreted. Assumed to be generated as output of ANN. action is the index
                           of the flattened 'actionable state' matrix
         Returns:
             (championId, position) (tuple of ints): Tuple of integer values which may be passed as arguments to either
             self.addPick() or self.addBan() depending on the value of position. If position = -1 -> action is a ban otherwise action
             is a pick.
+
+        Note: formatAction() explicitly indexes into 'actionable state' matrix which excludes the portion of the state
+        matrix corresponding to opponent team submission. In practice this means that (cid, pos) = formatAction(a) will
+        never output pos = 0.
         """
-        # T'actionable state' is the state matrix with 'enemy picks' column removed.
-        (stateIndex, positionIndex) = np.unravel_index(action,self.state.shape[:,1:])
+        # 'actionable state' is the sub-state of the state matrix with 'enemy picks' column removed.
+        actionableState = self.state[:,1:]
+        if(action not in range(actionableState.size)):
+            raise "Invalid action to formatAction()!"
+        (stateIndex, positionIndex) = np.unravel_index(action,actionableState.shape)
         # Action corresponds to a submission that we are allowed to make, ie. a pick or a ban.
         # We can't make submissions to the enemy team, so the indicies corresponding to these actions are removed.
         # positionIndex needs to be shifted by 1 in order to correctly index into full state array
@@ -155,15 +162,22 @@ class DraftState:
                 0 < position <= numPositions -> champion selection submitted by our team for pos = position
         Returns:
             action (int): Action to be interpreted as index into the flattened state vector. If no such action can be found, returns -1
+
+        Note: getAction() explicitly indexes into 'actionable state' matrix which excludes the portion of the state
+        matrix corresponding to opponent team submission. In practice this means that a = formatAction(cid,pos) will
+        produce an invalid action for pos = 0.
         """
         stateIndex = self.getStateIndex(championId)
         posIndex = self.getPositionIndex(position)
-        if ((stateIndex==-1) or (posIndex not in range(self.state.shape[1]))):
+        if ((stateIndex==-1) or (posIndex not in range(1,self.state.shape[1]))):
             print("Invalid stateIndex or position out of range!")
             print("cid = {}".format(championId))
             print("pos = {}".format(position))
             return -1
-        action = np.ravel_multi_index((stateIndex,posIndex),self.state.shape)
+        # Convert position index for full state matrix into index for actionable state
+        posIndex -= 1
+        actionableState = self.state[:,1:]
+        action = np.ravel_multi_index((stateIndex,posIndex),actionableState.shape)
         return action
 
     def updateState(self, championId, position):
