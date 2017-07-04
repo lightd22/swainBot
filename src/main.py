@@ -89,7 +89,7 @@ outputSize = inputSize*(nPos-1)//(nPos) # Output from network won't include sele
 layerSize = (536,536)
 learningRate = 0.001
 regularizationCoeff = 0.01
-discountFactor = 0.2
+discountFactor = 0.0
 print("Qnet input size: {}".format(inputSize))
 print("Qnet output size: {}".format(outputSize))
 print("Using two layers of size: {}".format(layerSize))
