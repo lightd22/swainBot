@@ -74,13 +74,14 @@ if __name__ == "__main__":
     conn = sqlite3.connect("tmp/"+dbName)
     cur = conn.cursor()
     print("Creating tables..")
-    createTables(cur, tableNames, columnInfo, clobber = True)
+    createTables(cur, tableNames, columnInfo, clobber = False)
 
-    regions = ["LPL","LMS","EU_LCS","NA_LCS","LCK"]
-    split = "Summer_Season"
+    year = "2017"
+    regions = ["EU_LCS","NA_LCS","LCK","LPL","LMS"]
+    tournament = "Summer_Season"
     for region in regions:
-        print("Querying: {}".format("2017/"+region+"/"+split))
-        gameData = queryWiki("2017", region, split)
+        print("Querying: {}".format(year+"/"+region+"/"+tournament))
+        gameData = queryWiki(year, region, tournament)
         for game in gameData:
             seen_bans = set()
             print("{} v {}".format(game["blue_team"], game["red_team"]))
@@ -90,7 +91,7 @@ if __name__ == "__main__":
                     seen_bans.add(ban)
                 else:
                     print(" Duplicate ban found! {}".format(ban))
-                    print(seen_bans)
+                    print("  ".format(seen_bans))
 
             seen_picks = set()
             for side in ["blue", "red"]:
@@ -101,14 +102,13 @@ if __name__ == "__main__":
                         seen_picks.add(p)
                     else:
                         print("  Duplicate pick found! {}".format(p))
-                        print(seen_picks)
+                        print("  ".format(seen_picks))
 
                     if pos not in seen_positions:
                         seen_positions.add(pos)
                     else:
                         print("   Duplicate pos found! {}".format(pos))
-                        print(seen_positions)
-
+                        print("  ".format(seen_positions))
 
         print("Attempting to insert {} games..".format(len(gameData)))
         status = dbo.insertTeam(cur,gameData)
@@ -119,6 +119,48 @@ if __name__ == "__main__":
         conn.commit()
 
 #    print(json.dumps(game, indent=4, sort_keys=True))
+
+    year = "2017"
+    region = "International"
+    tournaments = ["RR/BLUE",
+                  "RR/PURPLE"]
+    for tournament in tournaments:
+        print("Querying: {}".format("/".join([year, region, tournament])))
+        gameData = queryWiki(year, region, tournament)
+        for game in gameData:
+            seen_bans = set()
+            print("{} v {}".format(game["blue_team"], game["red_team"]))
+            bans = game["bans"]["blue"] + game["bans"]["red"]
+            for ban in bans:
+                if ban not in seen_bans:
+                    seen_bans.add(ban)
+                else:
+                    print(" Duplicate ban found! {}".format(ban))
+                    print("  ".format(seen_bans))
+
+            seen_picks = set()
+            for side in ["blue", "red"]:
+                seen_positions = set()
+                for pick in game["picks"][side]:
+                    (p,pos) = pick
+                    if p not in seen_picks:
+                        seen_picks.add(p)
+                    else:
+                        print("  Duplicate pick found! {}".format(p))
+                        print("  ".format(seen_picks))
+
+                    if pos not in seen_positions:
+                        seen_positions.add(pos)
+                    else:
+                        print("   Duplicate pos found! {}".format(pos))
+                        print("  ".format(seen_positions))
+        print("Attempting to insert {} games..".format(len(gameData)))
+        status = dbo.insertTeam(cur,gameData)
+        status = dbo.insertGame(cur,gameData)
+        status = dbo.insertBan(cur,gameData)
+        status = dbo.insertPick(cur,gameData)
+        print("Committing changes to db..")
+        conn.commit()
 
     query = (
     "SELECT game_id, champion_id, selection_order, side_id"

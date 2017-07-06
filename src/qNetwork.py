@@ -17,48 +17,46 @@ class Qnetwork():
     4) Output- linearly activated estimations for Q-values Q(s,a) for each of the outputSize actions a available from state s.
 
     """
+    def weight_variable(shape):
+        initial = tf.multiply(tf.random_uniform(shape,0,0.1), tf.sqrt(2.0/shape[0]))
+        return tf.Variable(initial)
+
+    def bias_variable(shape):
+        initial = tf.constant(0.1, shape=shape)
+        return tf.Variable(initial)
 
     def __init__(self, inputSize, outputSize, layerSizes = (280,280), learningRate = 0.001 , discountFactor = 0.9, regularizationCoeff = 0.01):
         self.discountFactor = discountFactor
         self.regularizationCoeff = regularizationCoeff
-        # Input is shape [None, inputSize]. The 'None' means the input tensor will flex
+        # Input is shape [None, inputSize]. 'None' means the input tensor will flex
         # with the number of training examples (aka batch size). Each training example will be a row vector of length inputSize.
 
         self.input = tf.placeholder(tf.float32, [None, inputSize])
-
-        # Set weight and bias dictonaries.
-#        self.weights = {
-#            "layer1": tf.Variable(tf.random_normal([inputSize,layerSizes[0]])),
-#            "layer2": tf.Variable(tf.random_normal([layerSizes[0],layerSizes[1]])),
-#            "out": tf.Variable(tf.random_normal([layerSizes[1],outputSize]))
-#        }
+        self.n_hidden_layers = len(layerSizes)
+        self.n_layers = self.n_hidden_layers + 2
+        # Initialize weight and bias dictonaries.
         self.weights = {
-            "layer1": tf.Variable(tf.multiply(tf.random_uniform([inputSize,layerSizes[0]],0,0.1), tf.sqrt(2.0/inputSize))),
-            "layer2": tf.Variable(tf.multiply(tf.random_uniform([layerSizes[0],layerSizes[1]],0,0.1), tf.sqrt(2.0/layerSizes[0]))),
-            "out": tf.Variable(tf.multiply(tf.random_uniform([layerSizes[1],outputSize],0,0.1), tf.sqrt(2.0/layerSizes[1])))
+            1: Qnetwork.weight_variable([inputSize,layerSizes[0]]),
+            2: Qnetwork.weight_variable([layerSizes[0],layerSizes[1]]),
+            3: Qnetwork.weight_variable([layerSizes[1],outputSize])
         }
 
-#        self.biases = {
-#            "layer1": tf.Variable(tf.random_normal([layerSizes[0]])),
-#            "layer2": tf.Variable(tf.random_normal([layerSizes[1]])),
-#            "out": tf.Variable(tf.random_normal([outputSize]))
-#        }
-        self.biases = { # biases can be initialized to zero
-            "layer1": tf.Variable(tf.zeros([layerSizes[0]])),
-            "layer2": tf.Variable(tf.zeros([layerSizes[1]])),
-            "out": tf.Variable(tf.zeros([outputSize]))
+        self.biases = {
+            1: Qnetwork.bias_variable([layerSizes[0]]),
+            2: Qnetwork.bias_variable([layerSizes[1]]),
+            3: Qnetwork.bias_variable([outputSize])
         }
 
         # First hidden layer.
-        self.layer1 = tf.add(tf.matmul(self.input, self.weights["layer1"]), self.biases["layer1"])
+        self.layer1 = tf.add(tf.matmul(self.input, self.weights[1]), self.biases[1])
         self.layer1 = tf.nn.relu(self.layer1)
 
         # Second hidden layer.
-        self.layer2 = tf.add(tf.matmul(self.layer1, self.weights["layer2"]), self.biases["layer2"])
+        self.layer2 = tf.add(tf.matmul(self.layer1, self.weights[2]), self.biases[2])
         self.layer2 = tf.nn.relu(self.layer2)
 
         # Output layer.
-        self.outQ = tf.matmul(self.layer2,self.weights["out"])+self.biases["out"]
+        self.outQ = tf.matmul(self.layer2,self.weights[3])+self.biases[3]
         self.prediction = tf.argmax(self.outQ, dimension=1) # Predicted optimal action
 
         # Loss function and optimization:
@@ -85,11 +83,11 @@ class Qnetwork():
         # Simple sum-of-squares loss (error) function with regularization. Note that biases do not
         # need to be regularized since they are (generally) not subject to overfitting.
         self.loss = (tf.reduce_mean(tf.square(self.target-self.estimatedQ))+
-                    self.regularizationCoeff*(tf.nn.l2_loss(self.weights["layer1"])+
-                    tf.nn.l2_loss(self.weights["layer2"])+
-                    tf.nn.l2_loss(self.weights["out"])))
+                    self.regularizationCoeff*(tf.nn.l2_loss(self.weights[1])+
+                    tf.nn.l2_loss(self.weights[2])+
+                    tf.nn.l2_loss(self.weights[3])))
 
-        self.trainer = tf.train.GradientDescentOptimizer(learning_rate = learningRate)
+        self.trainer = tf.train.AdamOptimizer(learning_rate = learningRate)
         self.updateModel = self.trainer.minimize(self.loss)
 
         self.init = tf.global_variables_initializer()

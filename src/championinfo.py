@@ -1,6 +1,7 @@
 import numpy as np
 from cassiopeia import riotapi
 import re
+from myRiotApiKey import api_key
 
 # Box is a vacant class with no initial members. This will be used to hold the championId list and championId <-> name dictionaries.
 
@@ -135,7 +136,7 @@ def populateChampionDictionary():
     Populates the module dictionary whose keys are champion Ids and values are strings of the corresponding champion's name.
     """
     riotapi.set_region("NA")
-    riotapi.set_api_key("71ab791f-d5fe-45b3-8b3a-0368ce261cbe")
+    riotapi.set_api_key(api_key)
     champions = riotapi.get_champions()
     __m.championNameFromId = {champion.id: champion.name for champion in champions}
     __m.championIdFromName = {re.sub("[^A-Za-z0-9]+", "", champion.name.lower()): champion.id for champion in champions}

@@ -46,6 +46,7 @@ def trainNetwork(Qnet, numEpochs, numEpisodes, batchSize, bufferSize, loadModel)
         # Open saved model (if flagged)
         if loadModel:
             Qnet.saver.restore(sess,"tmp/model.ckpt")
+            print("Checkpoint loaded..")
         else:
             # Otherwise, initialize tensorflow variables
             sess.run(Qnet.init)
@@ -57,13 +58,20 @@ def trainNetwork(Qnet, numEpochs, numEpisodes, batchSize, bufferSize, loadModel)
             # Queue of competitive games from db.
             matchQueue = mp.buildMatchQueue(numEpisodes)
             totalSteps = 0
-            invalidActionCount = 0
+            bad_state_counts = {DraftState.BAN_SELECTED:0,
+                                DraftState.DUPLICATE_SELECTION:0,
+                                DraftState.DUPLICATE_ROLE:0,
+                                DraftState.INVALID_SUBMISSION:0}
             nullActionCount = 0
             for episode in range(numEpisodes):
                 # Get next match from queue
                 match = matchQueue.get()
+                if random.random() < 0.5:
+                    team = DraftState.BLUE_TEAM
+                else:
+                    team = DraftState.RED_TEAM
 
-                team = DraftState.RED_TEAM if match["winner"]==1 else DraftState.BLUE_TEAM # For now only learn from winning team
+                #team = DraftState.RED_TEAM if match["winner"]==1 else DraftState.BLUE_TEAM # For now only learn from winning team
                 # Process this match into individual experiences
                 experiences = mp.processMatch(match, team)
                 for experience in experiences:
@@ -76,7 +84,7 @@ def trainNetwork(Qnet, numEpochs, numEpisodes, batchSize, bufferSize, loadModel)
                         nullActionCount += 1
                         continue
                     if(i >= 0):
-                        if(random.random() < epsilon):
+                        if(True):#if(random.random() < epsilon):
                             # Let the network predict the next action, if the action leads
                             # to an invalid state add a negatively reinforced experience to the replay buffer.
                             # It is more important to learn to make legal predictions first before learning pick/ban structure.
@@ -89,9 +97,9 @@ def trainNetwork(Qnet, numEpochs, numEpisodes, batchSize, bufferSize, loadModel)
                             (cid,pos) = state.formatAction(a[0])
                             nextState = deepcopy(state)
                             nextState.updateState(cid,pos)
-                            if nextState.evaluateState() in DraftState.invalidStates:
-                                #print("overwriting experience!")
-                                invalidActionCount += 1
+                            state_code = nextState.evaluateState()
+                            if state_code in DraftState.invalidStates:
+                                bad_state_counts[state_code] += 1
                                 r = getReward(nextState, blankMatch)
                                 negative_experience = (state, state.formatAction(a[0]), r, nextState)
                                 experienceReplay.store([negative_experience])
@@ -150,7 +158,11 @@ def trainNetwork(Qnet, numEpochs, numEpisodes, batchSize, bufferSize, loadModel)
                     epsilon -= 1./numEpisodes
             print("Epoch complete.. some stats:")
             print("  total memories = {}".format(totalSteps+nullActionCount))
-            print("  overwritten memories = {}".format(invalidActionCount))
+            invalidActionCount = sum([bad_state_counts[k] for k in bad_state_counts])
+            print("  negative memories added = {}".format(invalidActionCount))
+            print("  bad state distributions:")
+            for code in bad_state_counts:
+                print("   {} -> {} counts".format(code,bad_state_counts[code]))
         # Once training is complete, save the updated network
         outPath = Qnet.saver.save(sess,"tmp/model.ckpt")
         print("qNet model is saved in file: {}".format(outPath))

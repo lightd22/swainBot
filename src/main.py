@@ -34,10 +34,6 @@ validChampIds = cinfo.getChampionIds()
 print("Number of valid championIds: {}".format(len(validChampIds)))
 
 # Simple memory storage loop for this draft.
-summoner = riotapi.get_summoner_by_name("DOCTOR LIGHT")
-matchRef = summoner.match_list()[0] # Most recent ranked game
-match = matchRef.match()
-team = DraftState.RED_TEAM if match.red_team.win else DraftState.BLUE_TEAM # We always win!
 dbName = "competitiveGameData.db"
 conn = sqlite3.connect("tmp/"+dbName)
 cur = conn.cursor()
@@ -89,7 +85,7 @@ outputSize = inputSize*(nPos-1)//(nPos) # Output from network won't include sele
 layerSize = (536,536)
 learningRate = 0.001
 regularizationCoeff = 0.01
-discountFactor = 0.0
+discountFactor = 0.5
 print("Qnet input size: {}".format(inputSize))
 print("Qnet output size: {}".format(outputSize))
 print("Using two layers of size: {}".format(layerSize))
@@ -97,7 +93,7 @@ print("Using learning rate: {}".format(learningRate))
 print("Using discountFactor: {}".format(discountFactor))
 print("Using regularization strength: {}".format(regularizationCoeff))
 Qnet = qNetwork.Qnetwork(inputSize, outputSize, layerSize, learningRate, discountFactor, regularizationCoeff)
-tn.trainNetwork(Qnet,20,300,40,200,False)
+tn.trainNetwork(Qnet,500,350,100,300,True)
 
 # Now if we want to predict what decisions we should make..
 myState,action,_,_ = expReplay.buffer[0]
@@ -144,6 +140,7 @@ with tf.Session() as sess:
         (cid,pos) = myState.formatAction(i)
         qVal = pred_Q[0,i]
         print("{} \t \t {} \t \t {:12} \t {} \t \t {:.4f}".format(i, cid, cinfo.championNameFromId(cid),pos,qVal))
+    print("We should be taking action a = {}".format(predictedAction[0]))
 
 print("Closing DB connection..")
 conn.close()

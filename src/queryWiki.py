@@ -42,13 +42,22 @@ def queryWiki(year, region, tournament):
     pageSuffixes = ["", "/Bracket_Stage"]
 
     formattedRegions = {"NA_LCS":"League_Championship_Series/North_America",
-               "EU_LCS":"League_Championship_Series/Europe",
-               "LCK":"LCK",
-               "LPL":"LPL",
-               "LMS":"LMS"}
+                        "EU_LCS":"League_Championship_Series/Europe",
+                        "LCK":"LCK",
+                        "LPL":"LPL",
+                        "LMS":"LMS"}
+
+    formattedInternationalTournaments = {
+                        "WRLDS": "Season_World_Championship",
+                        "RR/BLUE": "Rift_Rivals/Blue_Rift",
+                        "RR/PURPLE": "Rift_Rivals/Purple_Rift",
+                        "RR/RED": "Rift_Rivals/Red_Rift",
+                        "RR/YELLOW": "Rift_Rivals/Yellow_Rift",
+                        "RR/GREEN": "Rift_Rivals/Green_Rift"
+    }
     # Build list of titles of pages to query
     if region == "International":
-        titleRoot = ["_".join([year,tournament])]
+        titleRoot = ["_".join([year,formattedInternationalTournaments[tournament]])]
     else:
         formattedRegion = formattedRegions[region]
         formattedYear = "_".join([year,"Season"])

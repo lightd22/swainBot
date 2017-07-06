@@ -296,8 +296,8 @@ class DraftState:
                 value = DRAFT_COMPLETE -> state is valid and complete.
             Invalid codes:
                 value = BAN_SELECTED -> state has a banned champion selected for draft.
-                value = DUPLICATE_SELECTION -> state has a champion drafted which is already part of the opposing team.
-                value = DUPLICATE_ROLE -> state has a champion selected for multiple roles (champion selected more than once).
+                value = DUPLICATE_SELECTION -> state has a champion drafted which is already part of the opposing team or has already been selected by our team.
+                value = DUPLICATE_ROLE -> state has multiple champions selected for a single role
                 value = INVALID_SUBMISSION -> state has a submission that was included out of the draft phase order (ex pick during ban phase / ban during pick phase)
         """
         # Check for champions that appear multiple times in the state
