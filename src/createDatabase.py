@@ -123,7 +123,8 @@ if __name__ == "__main__":
     year = "2017"
     region = "International"
     tournaments = ["RR/BLUE",
-                  "RR/PURPLE"]
+                  "RR/PURPLE",
+                  "MSI"]
     for tournament in tournaments:
         print("Querying: {}".format("/".join([year, region, tournament])))
         gameData = queryWiki(year, region, tournament)

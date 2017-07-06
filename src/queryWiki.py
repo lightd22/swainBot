@@ -53,7 +53,8 @@ def queryWiki(year, region, tournament):
                         "RR/PURPLE": "Rift_Rivals/Purple_Rift",
                         "RR/RED": "Rift_Rivals/Red_Rift",
                         "RR/YELLOW": "Rift_Rivals/Yellow_Rift",
-                        "RR/GREEN": "Rift_Rivals/Green_Rift"
+                        "RR/GREEN": "Rift_Rivals/Green_Rift",
+                        "MSI": "Mid-Season_Invitational"
     }
     # Build list of titles of pages to query
     if region == "International":
