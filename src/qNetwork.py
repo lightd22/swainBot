@@ -1,4 +1,5 @@
 import tensorflow as tf
+import numpy as np
 
 class Qnetwork():
     """
@@ -28,36 +29,70 @@ class Qnetwork():
     def __init__(self, inputSize, outputSize, layerSizes = (280,280), learningRate = 0.001 , discountFactor = 0.9, regularizationCoeff = 0.01):
         self.discountFactor = discountFactor
         self.regularizationCoeff = regularizationCoeff
-        # Input is shape [None, inputSize]. 'None' means the input tensor will flex
-        # with the number of training examples (aka batch size). Each training example will be a row vector of length inputSize.
 
+        # Each incoming state matrix is of size inputSize = (nChampions, nPos+2)
+        # 'None' here means the input tensor will flex with the number of training
+        # examples (aka batch size).
         self.input = tf.placeholder(tf.float32, [None, inputSize])
+        # Reshape input for conv layer to be a tensor of shape [None, nChampions, nPos+2, 1]
+        self.input_layer_shape = [None]
+        self.input_layer_shape.extend(inputSize + (1,))
+        self.input_layer = tf.reshape(self.input, self.input_layer_shape)
         self.n_hidden_layers = len(layerSizes)
         self.n_layers = self.n_hidden_layers + 2
-        # Initialize weight and bias dictonaries.
-        self.weights = {
-            1: Qnetwork.weight_variable([inputSize,layerSizes[0]]),
-            2: Qnetwork.weight_variable([layerSizes[0],layerSizes[1]]),
-            3: Qnetwork.weight_variable([layerSizes[1],outputSize])
-        }
 
-        self.biases = {
-            1: Qnetwork.bias_variable([layerSizes[0]]),
-            2: Qnetwork.bias_variable([layerSizes[1]]),
-            3: Qnetwork.bias_variable([outputSize])
-        }
+        # First convolutional layer:
+        #  32 filters of 3x3 stencil, step size 1, RELu activation, and padding to
+        #  keep output spatial shape the same as the input shape
+        self.conv1 = tf.layers.conv2d(
+                        inputs=self.input_layer),
+                        filters=32,
+                        kernel_size=[3,3],
+                        padding="SAME",
+                        activation=tf.nn.relu,
+                        use_bias=True,
+                        bias_initializer=tf.constant_initializer(0.1))
 
-        # First hidden layer.
-        self.layer1 = tf.add(tf.matmul(self.input, self.weights[1]), self.biases[1])
-        self.layer1 = tf.nn.relu(self.layer1)
+        # First pooling layer:
+        #  2x2 max pooling with stride 2. Cuts spatial dimensions in half.
+        #  Uses padding when input dimensions are odd.
+        self.pool1 = tf.layers.max_pooling_2d(
+                        inputs=self.conv1,
+                        pool_size=[2,2],
+                        strides=2,
+                        padding="SAME")
 
-        # Second hidden layer.
-        self.layer2 = tf.add(tf.matmul(self.layer1, self.weights[2]), self.biases[2])
-        self.layer2 = tf.nn.relu(self.layer2)
+        # Second convolutional layer:
+        #   64 filters of 3x3 stencil, stride 1, RELu activation, and padding to keep
+        #   spatial dimensions unchanged
+        self.conv2 = tf.layers.conv2d(
+                        inputs=self.pool1,
+                        filters=64,
+                        kernel_size=[3,3],
+                        padding="SAME",
+                        activation=tf.nn.relu,
+                        use_bias=True,
+                        bias_initializer=tf.constant_initializer(0.1))
 
-        # Output layer.
-        self.outQ = tf.matmul(self.layer2,self.weights[3])+self.biases[3]
-        self.prediction = tf.argmax(self.outQ, dimension=1) # Predicted optimal action
+        # Second pooling layer. Identical parameterization to first pooling layer.
+        self.pool2 = tf.layers.max_pooling_2d(
+                        inputs=self.conv2,
+                        pool_size=[2,2],
+                        strides=2,
+                        padding="SAME")
+
+        # Fully connected (FC) output layer:
+        # Flatten input feature map (pool2) to be shape [-1, features]
+        # If pool2 has shape = [-1, nx, ny, nf] then feature_size = nx*ny*nf
+        self.pool2_shape = tf.shape(self.pool2)
+        self.fc_input_size = np.prod(self.pool2_shape[1:])
+        self.pool2_flat = tf.reshape(self.pool2, [-1, self.fc_input_size])
+        self.fc_weights = Qnetwork.weight_variable([self.fc_input_size,outputSize])
+        self.fc_biases = Qnetwork.bias_variable([outputSize])
+        self.outQ = tf.add(tf.matmul(self.pool2_flat, self.fc_weights), self.fc_biases)
+
+        # Predicted optimal action
+        self.prediction = tf.argmax(self.outQ, dimension=1)
 
         # Loss function and optimization:
         # The inputs self.target and self.actions are indexed by training example. If
@@ -83,9 +118,7 @@ class Qnetwork():
         # Simple sum-of-squares loss (error) function with regularization. Note that biases do not
         # need to be regularized since they are (generally) not subject to overfitting.
         self.loss = (tf.reduce_mean(tf.square(self.target-self.estimatedQ))+
-                    self.regularizationCoeff*(tf.nn.l2_loss(self.weights[1])+
-                    tf.nn.l2_loss(self.weights[2])+
-                    tf.nn.l2_loss(self.weights[3])))
+                    self.regularizationCoeff*(tf.nn.l2_loss(self.fc_weights))
 
         self.trainer = tf.train.AdamOptimizer(learning_rate = learningRate)
         self.updateModel = self.trainer.minimize(self.loss)

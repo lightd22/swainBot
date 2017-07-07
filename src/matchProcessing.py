@@ -33,7 +33,7 @@ def buildMatchQueue(numMatches):
     conn = sqlite3.connect("tmp/"+dbName)
     cur = conn.cursor()
     tournaments = ["2017/EU/Summer_Season", "2017/NA/Summer_Season", "2017/LCK/Summer_Season",
-                    "2017/LPL/Summer_Season", "2017/LMS/Summer_Season"]
+                    "2017/LPL/Summer_Season", "2017/LMS/Summer_Season", "2017/INTL/MSI"]
     matchPool = []
     for tournament in tournaments:
         gameIds = dbo.getGameIdsByTournament(cur, tournament)

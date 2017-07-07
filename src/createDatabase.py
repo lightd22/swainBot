@@ -74,7 +74,7 @@ if __name__ == "__main__":
     conn = sqlite3.connect("tmp/"+dbName)
     cur = conn.cursor()
     print("Creating tables..")
-    createTables(cur, tableNames, columnInfo, clobber = False)
+    createTables(cur, tableNames, columnInfo, clobber = True)
 
     year = "2017"
     regions = ["EU_LCS","NA_LCS","LCK","LPL","LMS"]
