@@ -85,7 +85,7 @@ inputSize = state.formatState().shape
 outputSize = state.numActions
 layerSize = (881,536)
 learningRate = 0.001
-regularizationCoeff = 0.01
+regularizationCoeff = 0.
 discountFactor = 0.5
 print("Qnet input size: {}".format(inputSize))
 print("Qnet output size: {}".format(outputSize))
@@ -94,7 +94,20 @@ print("Using learning rate: {}".format(learningRate))
 print("Using discountFactor: {}".format(discountFactor))
 print("Using regularization strength: {}".format(regularizationCoeff))
 Qnet = qNetwork.Qnetwork(inputSize, outputSize, layerSize, learningRate, discountFactor, regularizationCoeff)
-tn.trainNetwork(Qnet,10,400,200,400,False)
+
+# Grab a single match
+dbName = "competitiveGameData.db"
+conn = sqlite3.connect("tmp/"+dbName)
+cur = conn.cursor()
+tournament = "2017/EU/Summer_Season"
+gameIds = dbo.getGameIdsByTournament(cur, tournament)
+game = gameIds[0]
+training_match = [dbo.getMatchData(cur, game)]
+
+nEpoch = 100
+batchSize = 10
+bufferSize = 10*len(training_match)
+tn.trainNetwork(Qnet,training_match,nEpoch,batchSize,bufferSize,False)
 
 # Now if we want to predict what decisions we should make..
 myState,action,_,_ = expReplay.buffer[0]
@@ -107,7 +120,7 @@ with tf.Session() as sess:
     Qnet.saver.restore(sess,"tmp/model.ckpt")
     print("qNetwork restored")
 
-    inputState = np.vstack([myState.formatState()])
+    inputState = [myState.formatState()]
     action = sess.run(Qnet.prediction,feed_dict={Qnet.input:inputState})
     pred_Q = sess.run(Qnet.outQ,feed_dict={Qnet.input:inputState})
     print(pred_Q.shape)

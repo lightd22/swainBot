@@ -47,7 +47,7 @@ class Qnetwork():
         #  keep output spatial shape the same as the input shape
         self.conv1 = tf.layers.conv2d(
                         inputs=self.conv_input,
-                        filters=32,
+                        filters=8,
                         kernel_size=[3,3],
                         padding="SAME",
                         activation=tf.nn.relu,
@@ -68,7 +68,7 @@ class Qnetwork():
         #   spatial dimensions unchanged
         self.conv2 = tf.layers.conv2d(
                         inputs=self.pool1,
-                        filters=32,
+                        filters=16,
                         kernel_size=[3,3],
                         padding="SAME",
                         activation=tf.nn.relu,
