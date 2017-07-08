@@ -80,8 +80,9 @@ for exp in expReplay.buffer:
     print("")
 state = DraftState(team,validChampIds)
 nPos = 7 # Positions 1-5 + ban + enemy selection
-inputSize = len(state.formatState())
-outputSize = inputSize*(nPos-1)//(nPos) # Output from network won't include selecting for other team
+inputSize = state.formatState().shape
+# Output from network won't include selecting for other team
+outputSize = state.numActions
 layerSize = (881,536)
 learningRate = 0.001
 regularizationCoeff = 0.01
@@ -93,7 +94,7 @@ print("Using learning rate: {}".format(learningRate))
 print("Using discountFactor: {}".format(discountFactor))
 print("Using regularization strength: {}".format(regularizationCoeff))
 Qnet = qNetwork.Qnetwork(inputSize, outputSize, layerSize, learningRate, discountFactor, regularizationCoeff)
-tn.trainNetwork(Qnet,10,400,200,400,True)
+tn.trainNetwork(Qnet,10,400,200,400,False)
 
 # Now if we want to predict what decisions we should make..
 myState,action,_,_ = expReplay.buffer[0]

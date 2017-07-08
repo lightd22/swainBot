@@ -44,6 +44,7 @@ class DraftState:
         #TODO (Devin): This should make sure that numChampions >= numPositions
         self.numChampions = len(champIds)
         self.numPositions = numPositions
+        self.numActions = (self.numPositions+1)*self.numChampions
         self.stateIndexToChampId = {i:k for i,k in zip(range(self.numChampions),champIds)}
         self.champIdToStateIndex = {k:i for i,k in zip(range(self.numChampions),champIds)}
         self.state = np.zeros((self.numChampions, self.numPositions+2), dtype=bool)
@@ -121,7 +122,8 @@ class DraftState:
         Returns:
             A copy of self.state reshaped as a numpy vector of length numChampions*(numPositions+2)
         """
-        return np.reshape(self.state,self.numChampions*(self.numPositions+2))
+        #return np.reshape(self.state,self.numChampions*(self.numPositions+2))
+        return self.state
 
     def formatAction(self,action):
         """
