@@ -12,41 +12,30 @@ import random
 
 import json
 
-def buildMatchPool(numMatches):
+def buildMatchPool(num_matches):
     """
     Args:
-        numMatches (int): Number of matches to include in the queue (0 indicates to use the maximum number of matches available)
+        num_matches (int): Number of matches to include in the queue (0 indicates to use the maximum number of matches available)
     Returns:
-        selectedMatches (list of match references): list containing matchIds to be processed
+        selected_matches (list of match references): list containing matchIds to be processed
 
     This will be responsible for building the queue of matchids that we will use during learning phase.
     """
-    #TODO (Devin): This will be responsible for building the queue of matchids that we will use during learning
-    # eventually it should recursively look through high mmr player match histories and build up a database of match references.
-    matchQueue = queue.Queue(maxsize=numMatches)
-    #summoner = riotapi.get_summoner_by_name("DOCTOR LIGHT")
-    #for matchRef in summoner.match_list()[0:numMatches]:
-    #    matchQueue.put(matchRef)
-    # Pull games from db and convert to match dicts.
-
     dbName = "competitiveGameData.db"
     conn = sqlite3.connect("tmp/"+dbName)
     cur = conn.cursor()
     tournaments = ["2017/EU/Summer_Season", "2017/NA/Summer_Season", "2017/LCK/Summer_Season",
                     "2017/LPL/Summer_Season", "2017/LMS/Summer_Season", "2017/INTL/MSI"]
-    matchPool = []
+    match_pool = []
     for tournament in tournaments:
-        gameIds = dbo.getGameIdsByTournament(cur, tournament)
-        for game in gameIds:
+        game_ids = dbo.getGameIdsByTournament(cur, tournament)
+        for game in game_ids:
             match = dbo.getMatchData(cur, game)
-            matchPool.append(match)
-    print("Number of available matches for training={}".format(len(matchPool)))
-    assert numMatches <= len(matchPool), "Not enough matches found to sample!"
-    selectedMatches = random.sample(matchPool, numMatches)
-    return selectedMatches
-    #for match in selectedMatches:
-    #    matchQueue.put(match)
-    #return matchQueue
+            match_pool.append(match)
+    print("Number of available matches for training={}".format(len(match_pool)))
+    assert num_matches <= len(match_pool), "Not enough matches found to sample!"
+    selected_matches = random.sample(match_pool, num_matches)
+    return selected_matches
 
 def processMatch(match, team):
     """
@@ -68,39 +57,39 @@ def processMatch(match, team):
     both winning drafts (positive reinforcement) and losing drafts (negative reinforcement) when training.
     """
     experiences = []
-    validChampIds = getChampionIds()
+    valid_champ_ids = getChampionIds()
     # Build queue of actions from match reference
-    actionQueue = buildActionQueue(match)
+    action_queue = buildActionQueue(match)
 
     # Set up draft state
-    draft = DraftState(team,validChampIds)
+    draft = DraftState(team,valid_champ_ids)
 
-    finishMemory = False
-    while not actionQueue.empty():
+    finish_memory = False
+    while not action_queue.empty():
         # Get next pick from queue
-        (submittingTeam, nextPick, position) = actionQueue.get()
+        (submitting_team, next_pick, position) = action_queue.get()
         # There are two conditions under which we want to finalize a memory:
         # 1. Non-designated team has finished submitting picks for this phase (ie next submission belongs to the designated team)
         # 2. Draft is complete (no further picks in the draft)
-        if submittingTeam == team:
-            if finishMemory:
+        if submitting_team == team:
+            if finish_memory:
                 # This is case 1 to store memory
                 r = getReward(draft, match)
-                sNext = deepcopy(draft)
-                memory = (s, a, r, sNext)
+                s_next = deepcopy(draft)
+                memory = (s, a, r, s_next)
                 experiences.append(memory)
-                finishMemory = False
+                finish_memory = False
             # Memory starts when upcoming pick belongs to designated team
             s = deepcopy(draft)
             # Store action = (champIndex, pos)
-            a = (nextPick, position)
-            finishMemory = True
+            a = (next_pick, position)
+            finish_memory = True
         else:
             # Mask positions for pick submissions belonging to the non-designated team
             if position != -1:
                 position = 0
 
-        draft.updateState(nextPick, position)
+        draft.updateState(next_pick, position)
 
     # Once the queue is empty, store last memory. This is case 2 above.
     # There is always be an outstanding memory at the completion of the draft.
@@ -108,10 +97,10 @@ def processMatch(match, team):
     #   if team = DraftState.BLUE_TEAM -> There is an outstanding memory from last RED_TEAM submission
     #   if team = DraftState.RED_TEAM -> Memory is open from just before our last submission
     if(draft.evaluateState() == DraftState.DRAFT_COMPLETE):
-        assert finishMemory == True
+        assert finish_memory == True
         r = getReward(draft, match)
-        sNext = deepcopy(draft)
-        memory = (s, a, r, sNext)
+        s_next = deepcopy(draft)
+        memory = (s, a, r, s_next)
         experiences.append(memory)
     else:
         print(draft.evaluateState())
@@ -131,43 +120,43 @@ def buildActionQueue(match):
     Args:
         match (dict): dictonary structure of match data to be parsed
     Returns:
-        actionQueue (Queue(tuple)): Queue of pick tuples of the form (side_id, champion_id, position_id).
-            actionQueue is produced in selection order.
+        action_queue (Queue(tuple)): Queue of pick tuples of the form (side_id, champion_id, position_id).
+            action_queue is produced in selection order.
     """
     winner = match["winner"]
-    actionQueue = queue.Queue()
-    phases = {0:{"phaseType":"bans", "pickOrder":["blue", "red", "blue", "red", "blue", "red"]}, # phase 1 bans
-              1:{"phaseType":"picks", "pickOrder":["blue", "red", "red", "blue", "blue", "red"]}, # phase 1 picks
-              2:{"phaseType":"bans", "pickOrder":["red", "blue", "red", "blue"]}, # phase 2 bans
-              3:{"phaseType":"picks","pickOrder":["red", "blue", "blue", "red"]}} # phase 2 picks
-    banIndex = 0
-    pickIndex = 0
-    completedActions = 0
+    action_queue = queue.Queue()
+    phases = {0:{"phase_type":"bans", "pick_order":["blue", "red", "blue", "red", "blue", "red"]}, # phase 1 bans
+              1:{"phase_type":"picks", "pick_order":["blue", "red", "red", "blue", "blue", "red"]}, # phase 1 picks
+              2:{"phase_type":"bans", "pick_order":["red", "blue", "red", "blue"]}, # phase 2 bans
+              3:{"phase_type":"picks","pick_order":["red", "blue", "blue", "red"]}} # phase 2 picks
+    ban_index = 0
+    pick_index = 0
+    completed_actions = 0
     for phase in range(4):
-        phaseType = phases[phase]["phaseType"]
-        pickOrder = phases[phase]["pickOrder"]
+        phase_type = phases[phase]["phase_type"]
+        pick_order = phases[phase]["pick_order"]
 
-        numActions = len(pickOrder)
-        for pickNum in range(numActions):
-            side = pickOrder[pickNum]
+        num_actions = len(pick_order)
+        for pick_num in range(num_actions):
+            side = pick_order[pick_num]
             if side == "blue":
-                sideId = DraftState.BLUE_TEAM
+                side_id = DraftState.BLUE_TEAM
             else:
-                sideId = DraftState.RED_TEAM
-            if phaseType == "bans":
-                positionId = -1
-                index = banIndex
-                banIndex += pickNum%2 # Order matters here. index needs to be updated *after* use
+                side_id = DraftState.RED_TEAM
+            if phase_type == "bans":
+                position_id = -1
+                index = ban_index
+                ban_index += pick_num%2 # Order matters here. index needs to be updated *after* use
             else:
-                positionId = match[side][phaseType][pickIndex][1]
-                index = pickIndex
-                pickIndex += pickNum%2 # Order matters here. index needs to be updated *after* use
-            action = (sideId, match[side][phaseType][index][0], positionId)
-            actionQueue.put(action)
-            completedActions += 1
+                position_id = match[side][phase_type][pick_index][1]
+                index = pick_index
+                pick_index += pick_num%2 # Order matters here. index needs to be updated *after* use
+            action = (side_id, match[side][phase_type][index][0], position_id)
+            action_queue.put(action)
+            completed_actions += 1
 
-    if(completedActions != 20):
+    if(completed_actions != 20):
         print("Found a match with missing actions!")
-        print("numActions = {}".format(numActions))
+        print("num_actions = {}".format(num_actions))
         print(json.dumps(match, indent=2, sort_keys=True))
-    return actionQueue
+    return action_queue
