@@ -27,11 +27,11 @@ class DraftState:
         Position 5 -> Support (Primary support)
     """
     # State codes
-    BAN_SELECTED = 101
-    DUPLICATE_SELECTION = 102
+    BAN_AND_SUBMISSION = 101
+    DUPLICATE_SUBMISSION = 102
     DUPLICATE_ROLE = 103
     INVALID_SUBMISSION = 104
-    invalidStates = [BAN_SELECTED, DUPLICATE_ROLE, DUPLICATE_SELECTION, INVALID_SUBMISSION]
+    invalidStates = [BAN_AND_SUBMISSION, DUPLICATE_ROLE, DUPLICATE_SUBMISSION, INVALID_SUBMISSION]
 
     DRAFT_COMPLETE = 1
     BLUE_TEAM = 0
@@ -221,6 +221,7 @@ class DraftState:
         print("There are {numPicks} picks and {numBans} bans completed in this draft. \n".format(numPicks=len(self.picks),numBans=len(self.bans)))
 
         print("Banned Champions: {0}".format(list(map(championNameFromId, self.bans))))
+        print("Picked Champions: {0}".format(list(map(championNameFromId, self.picks))))
         posIndex = self.getPositionIndex(0)
         enemyDraftIds = list(map(self.getChampId, list(np.where(self.state[:,posIndex])[0])))
         print("Enemy Draft: {0}".format(list(map(championNameFromId,enemyDraftIds))))
@@ -297,23 +298,23 @@ class DraftState:
                 value = 0 -> state is valid but incomplete.
                 value = DRAFT_COMPLETE -> state is valid and complete.
             Invalid codes:
-                value = BAN_SELECTED -> state has a banned champion selected for draft.
-                value = DUPLICATE_SELECTION -> state has a champion drafted which is already part of the opposing team or has already been selected by our team.
+                value = BAN_AND_SUBMISSION -> state has a banned champion selected for draft. This will also appear if a ban is submitted which matches an previously submitted champion.
+                value = DUPLICATE_SUBMISSION -> state has a champion drafted which is already part of the opposing team or has already been selected by our team.
                 value = DUPLICATE_ROLE -> state has multiple champions selected for a single role
                 value = INVALID_SUBMISSION -> state has a submission that was included out of the draft phase order (ex pick during ban phase / ban during pick phase)
         """
-        # Check for champions that appear multiple times in the state
-        for champIndex in range(len(self.state[:,0])):
-            loc = np.argwhere(self.state[champIndex,:])
-            if(len(loc)>1): # State is invalid, find where problem is
-                errIndex = int(loc[0]) # Location of first non-zero index
-                if(errIndex==1):
-                    # Invalid state includes an already banned champion
-                    return DraftState.BAN_SELECTED
-                else:
-                    # Invalid state either includes a champion which has already been selected by
-                    # the other team, or it includes a single champion drafted for multiple roles
-                    return DraftState.DUPLICATE_SELECTION
+        # Check for duplicate submissions appearing in either picks or bans
+        duplicatePicks = set([cid for cid in self.picks if self.picks.count(cid)>1])
+        # Need to remove possible NULL bans as duplicates (since these may be legitimate)
+        duplicateBans = set([cid for cid in self.bans if self.bans.count(cid)>1]).difference(set([None]))
+        if(len(duplicatePicks)>0 or len(duplicateBans)>0):
+            return DraftState.DUPLICATE_SUBMISSION
+
+        # Check for submissions appearing in both picks and bans
+        if(len(set(self.picks).intersection(set(self.bans)))>0):
+            # Invalid state includes an already banned champion
+            return DraftState.BAN_AND_SUBMISSION
+
         # Check for different champions that have been submitted for the same role
         for pos in range(2,self.numPositions+2):
             loc = np.argwhere(self.state[:,pos])
@@ -321,15 +322,13 @@ class DraftState:
                 # Invalid state includes multiple champions intended for the same role.
                 return DraftState.DUPLICATE_ROLE
 
-        numEnemyPicks = np.sum(self.state[:,0])
-        numAllyPicks = np.sum(self.state[:,2:])
         # Check for out of phase submissions
         numBans = len(self.bans)
-        numPicks = numEnemyPicks+numAllyPicks
+        numPicks = len(self.picks)
         banCutoffs = [DraftState.BAN_PHASE_LENGTHS[0], DraftState.BAN_PHASE_LENGTHS[0]+DraftState.BAN_PHASE_LENGTHS[1]]
         pickCutoffs = [DraftState.PICK_PHASE_LENGTHS[0], DraftState.PICK_PHASE_LENGTHS[0]+DraftState.PICK_PHASE_LENGTHS[1]]
         # TODO (Devin): This is a litle sloppy but it gets the job done and is fairly
-        # understandable. However note that it assumes that ban phase always comes first (reasonable)
+        # understandable. However note that it assumes that ban phase always comes first
         if 0<numBans<banCutoffs[0]:
             if numPicks != 0:
                 # Pick submitted during first ban phase
@@ -347,6 +346,8 @@ class DraftState:
                 # Ban submitted during second pick phase
                 return DraftState.INVALID_SUBMISSION
         # State is valid, check if draft is complete
+        numEnemyPicks = np.sum(self.state[:,0])
+        numAllyPicks = np.sum(self.state[:,2:])
         if(numAllyPicks == self.numPositions and numEnemyPicks == self.numPositions):
             # Draft is valid and complete. Note that technically it isn't necessary
             # to have the full number of bans to register a complete draft. This is

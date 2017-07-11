@@ -21,7 +21,7 @@ class ExperienceBuffer():
         ExperienceBuffer.store stores the input list of experience tuples into the buffer. The expereince is stored in one of two ways:
         1) If the buffer has space remaining, the experience is appended to the end
         2) If the buffer is full, the input experience replaces the oldest experience in the buffer
-        
+
         Args:
             experiences ( list(tuple) ): each experience is a tuple of the form (s, a, r, s')
         Returns:
@@ -48,3 +48,8 @@ class ExperienceBuffer():
         """
         return random.sample(self.buffer,sampleSize)
 
+    def getBufferSize(self):
+        """
+        Returns length of the buffer.
+        """
+        return len(self.buffer)

@@ -60,8 +60,8 @@ def trainNetwork(Qnet, trainingMatches, numEpochs, batchSize, bufferSize, loadMo
             # Queue of competitive games from db.
             matchQueue = mp.buildMatchQueue(numEpisodes)
             totalSteps = 0
-            bad_state_counts = {DraftState.BAN_SELECTED:0,
-                                DraftState.DUPLICATE_SELECTION:0,
+            bad_state_counts = {DraftState.BAN_AND_SUBMISSION:0,
+                                DraftState.DUPLICATE_SUBMISSION:0,
                                 DraftState.DUPLICATE_ROLE:0,
                                 DraftState.INVALID_SUBMISSION:0}
             nullActionCount = 0
@@ -81,11 +81,11 @@ def trainNetwork(Qnet, trainingMatches, numEpochs, batchSize, bufferSize, loadMo
                     # to the replay buffer.
                     state,a,rew,_ = experience
                     (cid,pos) = a
-                    stateShape = state.formatState().shape
+
                     if cid is None:
                         nullActionCount += 1
                         continue
-                    if(False):#if(random.random() < epsilon):
+                    if(True):#if(random.random() < epsilon):
                         # Let the network predict the next action, if the action leads
                         # to an invalid state add a negatively reinforced experience to the replay buffer.
                         # It is more important to learn to make legal predictions first before learning pick/ban structure.
@@ -156,24 +156,44 @@ def trainNetwork(Qnet, trainingMatches, numEpochs, batchSize, bufferSize, loadMo
                 if(epsilon > 0.1):
                     # Reduce chance of random actions over time
                     epsilon -= 1./numEpisodes
-            print("Finished epoch {}/{}:")
+
             t1 = time.time()-t0
-            train_states = np.zeros((numEpisodes,)+)
-            train_actions = []
-            train_targets = []
+            training_er = er.ExperienceBuffer(10*len(trainingMatches))
             for match in trainingMatches:
                 team = DraftState.RED_TEAM if match["winner"]==1 else DraftState.BLUE_TEAM
                 # Process this match into individual experiences
                 experiences = mp.processMatch(match, team)
                 for exp in experiences:
-                    start,act,rew,finish = exp
+                    training_er.store([exp])
+            nExperiences = training_er.getBufferSize()
+            train_experiences = training_er.sample(nExperiences)
+            state,_,_,_ = train_experiences[0]
+            train_states = np.zeros((nExperiences,)+state.formatState().shape)
+            train_actions = np.zeros((nExperiences,))
+            train_targets = np.zeros((nExperiences,))
+            for n in range(nExperiences):
+                start,act,rew,finish = train_experiences[n]
+                train_states[n,:,:] = start.formatState()
+                (cid,pos) = act
+                train_actions[n] = start.getAction(cid,pos)
+                if finish.evaluateState() == DraftState.DRAFT_COMPLETE: # Action moves to terminal state
+                    train_targets[n] = rew
+                else:
+                    # Each row in predictedQ gives estimated Q(s',a) values for each possible action for the input state s'.
+                    predictedQ = sess.run(Qnet.outQ,
+                                          feed_dict={Qnet.input:[finish.formatState()]})
+                    # To get max_{a} Q(s',a) values take max along *rows* of predictedQ.
+                    maxQ = np.max(predictedQ,axis=1)[0]
+                    train_targets[n] = (rew + Qnet.discountFactor*maxQ)
 
-            #loss = sess.run(Qnet.loss,
-            #                feed_dict={Qnet.input:,
-            #                           Qnet.actions:,
-            #                           Qnet.target:})
-            print("  elapsed time={:.2f}".format(t1))
-            print("  total memories = {}".format(totalSteps+nullActionCount))
+            loss,pred_actions = sess.run([Qnet.loss, Qnet.prediction],
+                            feed_dict={Qnet.input:train_states,
+                                       Qnet.actions:train_actions,
+                                       Qnet.target:train_targets})
+            print(train_actions)
+            print(pred_actions)
+            train_accuracy = (nExperiences-np.count_nonzero(train_actions-pred_actions))/nExperiences
+            print("Finished epoch {}/{}: dt {:.2f}, mem {}, loss {:.6f}, train {:.6f}".format(i,numEpochs,t1,totalSteps+nullActionCount,loss,train_accuracy))
             invalidActionCount = sum([bad_state_counts[k] for k in bad_state_counts])
             print("  negative memories added = {}".format(invalidActionCount))
             print("  bad state distributions:")

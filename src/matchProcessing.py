@@ -95,7 +95,7 @@ def processMatch(match, team):
             a = (nextPick, position)
             finishMemory = True
         else:
-            # Mask the positions for pick submissions belonging to the non-designated team
+            # Mask positions for pick submissions belonging to the non-designated team
             if position != -1:
                 position = 0
 

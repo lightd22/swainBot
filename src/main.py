@@ -70,7 +70,6 @@ for exp in expReplay.buffer:
     count+=1
     s,a,r,sNew = exp
     (cid, pos) = a
-    #cid = s.getChampId(champIndex)
     print("For the {}th selection:".format(count))
     if pos==-1:
         print("  we banned: {}->{}".format(cid,cinfo.championNameFromId(cid)))
@@ -78,6 +77,20 @@ for exp in expReplay.buffer:
         print("  we selected: {}->{} for position: {}".format(cid,cinfo.championNameFromId(cid), pos))
     print("  we recieved a reward of {} for this selection".format(r))
     print("")
+
+exp = expReplay.buffer[4]
+initial,action,rew,final = exp
+(cid,pos) = action
+print("attempting to make submission:{}, pos={}".format(cinfo.championNameFromId(cid),pos))
+initial.updateState(cid,pos)
+print(initial.evaluateState())
+initial.displayState()
+
+print("attempting to make submission:{}, pos={}".format(cinfo.championNameFromId(cid),pos))
+initial.updateState(cid,pos)
+print(initial.evaluateState())
+initial.displayState()
+
 state = DraftState(team,validChampIds)
 nPos = 7 # Positions 1-5 + ban + enemy selection
 inputSize = state.formatState().shape
@@ -104,9 +117,9 @@ gameIds = dbo.getGameIdsByTournament(cur, tournament)
 game = gameIds[0]
 training_match = [dbo.getMatchData(cur, game)]
 
-nEpoch = 100
+nEpoch = 500
 batchSize = 10
-bufferSize = 10*len(training_match)
+bufferSize = 20*len(training_match)
 tn.trainNetwork(Qnet,training_match,nEpoch,batchSize,bufferSize,False)
 
 # Now if we want to predict what decisions we should make..
