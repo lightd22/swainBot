@@ -3,7 +3,7 @@ from cassiopeia import riotapi
 import re
 from myRiotApiKey import api_key
 
-# Box is a vacant class with no initial members. This will be used to hold the championId list and championId <-> name dictionaries.
+# Box is a vacant class with no initial members. This will be used to hold the champion_id list and champion_id <-> name dictionaries.
 
 #TODO (Devin): These members should really just be initialized whenever the storage class is created since the very first thing all of these functions
 # do is check if they are none or not..
@@ -67,52 +67,52 @@ def convertChampionAlias(alias):
         print("*****")
         raise
 
-def championNameFromId(championId):
+def championNameFromId(champion_id):
     """
     Args:
-        championId (int): Integer Id corresponding to the desired champion name.
+        champion_id (int): Integer Id corresponding to the desired champion name.
     Returns:
         name (string): String name of requested champion. If no such champion can be found, returns NULL
 
-    getChampionNameFromId takes a requested championId number and returns the string name of that champion using a championNameFromId dictionary.
+    getChampionNameFromId takes a requested champion_id number and returns the string name of that champion using a championNameFromId dictionary.
     If the dictonary has not yet been populated, this creates the dictionary using cassiopeia's interface to Riot's API.
     """
     if __m.championNameFromId is None:
        populateChampionDictionary()
 
-    if (championId in __m.championNameFromId):
-        return __m.championNameFromId[championId]
+    if (champion_id in __m.championNameFromId):
+        return __m.championNameFromId[champion_id]
     return None
 
-def championIdFromName(championName):
+def championIdFromName(champion_name):
     """
     Args:
-        championName (string): lowercase and pruned string label corresponding to the desired champion id.
+        champion_name (string): lowercase and pruned string label corresponding to the desired champion id.
     Returns:
         id (int): id of requested champion. If no such champion can be found, returns NULL
 
     getChampionIdFromName takes a requested champion name and returns the id label of that champion using a championIdFromName dictionary.
     If the dictonary has not yet been populated, this creates the dictionary using cassiopeia's interface to Riot's API.
-    Note that championName should be all lowercase and have any non-alphanumeric characters (including whitespace) removed.
+    Note that champion_name should be all lowercase and have any non-alphanumeric characters (including whitespace) removed.
     """
     if __m.championIdFromName is None:
        populateChampionDictionary()
 
-    if (championName in __m.championIdFromName):
-        return __m.championIdFromName[championName]
+    if (champion_name in __m.championIdFromName):
+        return __m.championIdFromName[champion_name]
     return None
 
-def validChampionId(championId):
+def validChampionId(champion_id):
     """
-    Checks to see if championId corresponds to a valid champion id code.
-    Returns: True if championId is valid. False otherwise.
+    Checks to see if champion_id corresponds to a valid champion id code.
+    Returns: True if champion_id is valid. False otherwise.
     Args:
-        championId (int): Id of champion to be verified.
+        champion_id (int): Id of champion to be verified.
     """
     if __m.championNameFromId is None:
        populateChampionDictionary()
 
-    return championId in __m.validChampionIds
+    return champion_id in __m.validChampionIds
 
 def getChampionIds():
     """
