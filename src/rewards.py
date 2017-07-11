@@ -14,7 +14,7 @@ def getReward(state, match):
         3) state is valid, but either incomplete or our team lost  -> reward = 0
     """
     status = state.evaluateState()
-    if (status in ds.invalidStates):
+    if (status in ds.invalid_states):
         return -10.
     elif (state.team == getWinningTeam(match)):
         return 10.

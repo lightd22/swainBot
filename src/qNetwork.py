@@ -4,18 +4,18 @@ import numpy as np
 class Qnetwork():
     """
     Args:
-        inputSize (tuple): tuple of inputs to network.
-        outputSize (int): number of output nodes for network.
-        filterSizes (tuple of 2 ints): number of filters in each of the two hidden layers. Defaults to (16,32).
-        learningRate (float): network's willingness to change current weights given new example
-        discountFactor (float): factor by which future reward after next action is taken are discounted
+        input_size (tuple): tuple of inputs to network.
+        output_size (int): number of output nodes for network.
+        filter_sizes (tuple of 2 ints): number of filters in each of the two hidden layers. Defaults to (16,32).
+        learning_rate (float): network's willingness to change current weights given new example
+        discount_factor (float): factor by which future reward after next action is taken are discounted
         regularization (float): strength of weights regularization term in loss function
 
     A simple Q-network class which is responsible for holding and updating the weights and biases used in predicing Q-values for a given state. This Q-network will consist of
     the following layers:
-    1) Input- a DraftState state s (an array of bool) representing the current state reshaped into a vector of length inputSize.
+    1) Input- a DraftState state s (an array of bool) representing the current state reshaped into a vector of length input_size.
     2-3) Two fully connected relu-activated hidden layers
-    4) Output- linearly activated estimations for Q-values Q(s,a) for each of the outputSize actions a available from state s.
+    4) Output- linearly activated estimations for Q-values Q(s,a) for each of the output_size actions a available from state s.
 
     """
     def weight_variable(shape):
@@ -26,11 +26,11 @@ class Qnetwork():
         initial = tf.constant(0.1, shape=shape)
         return tf.Variable(initial)
 
-    def __init__(self, inputShape, outputSize, filterSizes = (8,16), learningRate = 0.001 , discountFactor = 0.9, regularizationCoeff = 0.01):
-        self.discountFactor = discountFactor
-        self.regularizationCoeff = regularizationCoeff
+    def __init__(self, inputShape, output_size, filter_sizes = (8,16), learning_rate = 0.001 , discount_factor = 0.9, regularization_coeff = 0.01):
+        self.discount_factor = discount_factor
+        self.regularization_coeff = regularization_coeff
 
-        # Incoming state matrices are of size inputSize = (nChampions, nPos+2)
+        # Incoming state matrices are of size input_size = (nChampions, nPos+2)
         # 'None' here means the input tensor will flex with the number of training
         # examples (aka batch size).
         self.input = tf.placeholder(tf.float32, (None,)+inputShape)
@@ -39,7 +39,7 @@ class Qnetwork():
         # (normally color channels for an image).
         self.conv_input = tf.expand_dims(self.input,-1)
 
-        self.n_hidden_layers = len(filterSizes)
+        self.n_hidden_layers = len(filter_sizes)
         self.n_layers = self.n_hidden_layers + 2
 
         # First convolutional layer:
@@ -47,7 +47,7 @@ class Qnetwork():
         #  keep output spatial shape the same as the input shape
         self.conv1 = tf.layers.conv2d(
                         inputs=self.conv_input,
-                        filters=filterSizes[0],
+                        filters=filter_sizes[0],
                         kernel_size=[3,3],
                         padding="SAME",
                         activation=tf.nn.relu,
@@ -68,7 +68,7 @@ class Qnetwork():
         #   spatial dimensions unchanged
         self.conv2 = tf.layers.conv2d(
                         inputs=self.pool1,
-                        filters=filterSizes[1],
+                        filters=filter_sizes[1],
                         kernel_size=[3,3],
                         padding="SAME",
                         activation=tf.nn.relu,
@@ -87,8 +87,8 @@ class Qnetwork():
         # If pool2 has shape = [-1, nx, ny, nf] then feature_size = nx*ny*nf
         self.fc_input_size = int(np.prod(self.pool2.shape[1:]))
         self.pool2_flat = tf.reshape(self.pool2, [-1, self.fc_input_size])
-        self.fc_weights = Qnetwork.weight_variable([self.fc_input_size,outputSize])
-        self.fc_biases = Qnetwork.bias_variable([outputSize])
+        self.fc_weights = Qnetwork.weight_variable([self.fc_input_size,output_size])
+        self.fc_biases = Qnetwork.bias_variable([output_size])
         self.outQ = tf.add(tf.matmul(self.pool2_flat, self.fc_weights), self.fc_biases)
 
         # Predicted optimal action
@@ -118,9 +118,9 @@ class Qnetwork():
         # Simple sum-of-squares loss (error) function with regularization. Note that biases do not
         # need to be regularized since they are (generally) not subject to overfitting.
         self.loss = (tf.reduce_mean(tf.square(self.target-self.estimatedQ))+
-                    self.regularizationCoeff*(tf.nn.l2_loss(self.fc_weights)))
+                    self.regularization_coeff*(tf.nn.l2_loss(self.fc_weights)))
 
-        self.trainer = tf.train.AdamOptimizer(learning_rate = learningRate)
+        self.trainer = tf.train.AdamOptimizer(learning_rate = learning_rate)
         self.updateModel = self.trainer.minimize(self.loss)
 
         self.init = tf.global_variables_initializer()

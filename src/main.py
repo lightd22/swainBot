@@ -30,8 +30,8 @@ print("********************************")
 print("** Beginning Smart Draft Run! **")
 print("********************************")
 
-validChampIds = cinfo.getChampionIds()
-print("Number of valid championIds: {}".format(len(validChampIds)))
+valid_champ_ids = cinfo.getChampionIds()
+print("Number of valid championIds: {}".format(len(valid_champ_ids)))
 
 # Simple memory storage loop for this draft.
 dbName = "competitiveGameData.db"
@@ -63,10 +63,10 @@ for ban in redBans:
 print("the winner of this game was: {}".format(match["winner"]))
 
 experiences = mp.processMatch(match,team)
-expReplay = er.ExperienceBuffer(10) # just enough buffer to store the first game's experience
-expReplay.store(experiences)
+exp_replay = er.ExperienceBuffer(10) # just enough buffer to store the first game's experience
+exp_replay.store(experiences)
 count = 0
-for exp in expReplay.buffer:
+for exp in exp_replay.buffer:
     count+=1
     s,a,r,sNew = exp
     (cid, pos) = a
@@ -78,7 +78,7 @@ for exp in expReplay.buffer:
     print("  we recieved a reward of {} for this selection".format(r))
     print("")
 
-state = DraftState(team,validChampIds)
+state = DraftState(team,valid_champ_ids)
 nPos = 7 # Positions 1-5 + ban + enemy selection
 input_size = state.formatState().shape
 # Output from network won't include selecting for other team
@@ -102,7 +102,7 @@ for count in range(max_runs):
     print("{}/{}: val_acc: {:.5f}, learn_rate: {:.3e}, reg_coeff: {:.3e}".format(count+1,max_runs,val_acc,learning_rate,regularization_coeff))
 
 # Now if we want to predict what decisions we should make..
-myState,action,_,_ = expReplay.buffer[0]
+myState,action,_,_ = exp_replay.buffer[0]
 print("")
 print("The state we are predicting from is:")
 myState.displayState()
@@ -112,9 +112,9 @@ with tf.Session() as sess:
     Qnet.saver.restore(sess,"tmp/model.ckpt")
     print("qNetwork restored")
 
-    inputState = [myState.formatState()]
-    action = sess.run(Qnet.prediction,feed_dict={Qnet.input:inputState})
-    pred_Q = sess.run(Qnet.outQ,feed_dict={Qnet.input:inputState})
+    input_state = [myState.formatState()]
+    action = sess.run(Qnet.prediction,feed_dict={Qnet.input:input_state})
+    pred_Q = sess.run(Qnet.outQ,feed_dict={Qnet.input:input_state})
     print(pred_Q.shape)
     pred_action = np.argmax(pred_Q, axis=1)
     print("We should be taking action a = {}".format(pred_action[0]))
@@ -129,7 +129,7 @@ with tf.Session() as sess:
     print("The champion our network has chosen was: {}".format(cinfo.championNameFromId(r_ChampId)))
     print("The position it recommended was: {}".format(r_Pos))
 
-    for exp in expReplay.buffer:
+    for exp in exp_replay.buffer:
         state,a,r,nextState = exp
         print("Predicting from state:")
         state.displayState()
@@ -138,8 +138,8 @@ with tf.Session() as sess:
         (cid,pos) = state.formatAction(predictedAction[0])
         print("Network predicts: {}, {}".format(cinfo.championNameFromId(cid),pos))
 
-    inputState = [state.formatState()]
-    pred_Q = sess.run(Qnet.outQ,feed_dict={Qnet.input:inputState})
+    input_state = [state.formatState()]
+    pred_Q = sess.run(Qnet.outQ,feed_dict={Qnet.input:input_state})
     print("actionid \t championid \t championName \t position \t qValue")
     print("*****************************************************************")
     for i in range(pred_Q.size):
