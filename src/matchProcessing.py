@@ -12,12 +12,12 @@ import random
 
 import json
 
-def buildMatchQueue(numMatches):
+def buildMatchPool(numMatches):
     """
     Args:
         numMatches (int): Number of matches to include in the queue (0 indicates to use the maximum number of matches available)
     Returns:
-        matchQueue (Queue of match references): Python Queue structure containing matchIds  to be processed
+        selectedMatches (list of match references): list containing matchIds to be processed
 
     This will be responsible for building the queue of matchids that we will use during learning phase.
     """
@@ -43,9 +43,10 @@ def buildMatchQueue(numMatches):
     print("Number of available matches for training={}".format(len(matchPool)))
     assert numMatches <= len(matchPool), "Not enough matches found to sample!"
     selectedMatches = random.sample(matchPool, numMatches)
-    for match in selectedMatches:
-        matchQueue.put(match)
-    return matchQueue
+    return selectedMatches
+    #for match in selectedMatches:
+    #    matchQueue.put(match)
+    #return matchQueue
 
 def processMatch(match, team):
     """

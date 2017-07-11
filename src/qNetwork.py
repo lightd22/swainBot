@@ -6,7 +6,7 @@ class Qnetwork():
     Args:
         inputSize (tuple): tuple of inputs to network.
         outputSize (int): number of output nodes for network.
-        layerSizes (tuple of 2 ints): number of nodes in each of the two hidden layers. Defaults to (280,280).
+        filterSizes (tuple of 2 ints): number of filters in each of the two hidden layers. Defaults to (16,32).
         learningRate (float): network's willingness to change current weights given new example
         discountFactor (float): factor by which future reward after next action is taken are discounted
         regularization (float): strength of weights regularization term in loss function
@@ -26,7 +26,7 @@ class Qnetwork():
         initial = tf.constant(0.1, shape=shape)
         return tf.Variable(initial)
 
-    def __init__(self, inputShape, outputSize, layerSizes = (280,280), learningRate = 0.001 , discountFactor = 0.9, regularizationCoeff = 0.01):
+    def __init__(self, inputShape, outputSize, filterSizes = (8,16), learningRate = 0.001 , discountFactor = 0.9, regularizationCoeff = 0.01):
         self.discountFactor = discountFactor
         self.regularizationCoeff = regularizationCoeff
 
@@ -39,7 +39,7 @@ class Qnetwork():
         # (normally color channels for an image).
         self.conv_input = tf.expand_dims(self.input,-1)
 
-        self.n_hidden_layers = len(layerSizes)
+        self.n_hidden_layers = len(filterSizes)
         self.n_layers = self.n_hidden_layers + 2
 
         # First convolutional layer:
@@ -47,7 +47,7 @@ class Qnetwork():
         #  keep output spatial shape the same as the input shape
         self.conv1 = tf.layers.conv2d(
                         inputs=self.conv_input,
-                        filters=8,
+                        filters=filterSizes[0],
                         kernel_size=[3,3],
                         padding="SAME",
                         activation=tf.nn.relu,
@@ -68,7 +68,7 @@ class Qnetwork():
         #   spatial dimensions unchanged
         self.conv2 = tf.layers.conv2d(
                         inputs=self.pool1,
-                        filters=16,
+                        filters=filterSizes[1],
                         kernel_size=[3,3],
                         padding="SAME",
                         activation=tf.nn.relu,

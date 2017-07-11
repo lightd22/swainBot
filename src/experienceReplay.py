@@ -9,12 +9,12 @@ class ExperienceBuffer():
         r  = reward obtained for taking action a
         s' = ending state after taking action a
     Args:
-        maxBufferSize (int): maximum number of experiences to store in the buffer, default value is 300.
+        max_buffer_size (int): maximum number of experiences to store in the buffer, default value is 300.
     """
-    def __init__(self, maxBufferSize = 300):
+    def __init__(self, max_buffer_size = 300):
         self.buffer = []
-        self.bufferSize = maxBufferSize
-        self.oldestExperience = 0
+        self.buffer_size = max_buffer_size
+        self.oldest_experience = 0
 
     def store(self, experiences):
         """
@@ -28,25 +28,25 @@ class ExperienceBuffer():
             None
         """
         for experience in experiences:
-            if len(self.buffer) < self.bufferSize:
+            if len(self.buffer) < self.buffer_size:
                 self.buffer.append(experience)
             else:
-                self.buffer[self.oldestExperience] = experience
-                self.oldestExperience += 1
-                self.oldestExperience = self.oldestExperience % self.bufferSize
+                self.buffer[self.oldest_experience] = experience
+                self.oldest_experience += 1
+                self.oldest_experience = self.oldest_experience % self.buffer_size
         return None
 
-    def sample(self, sampleSize):
+    def sample(self, sample_size):
         """
-        ExperienceBuffer.sample samples the current buffer using random.sample to return a collection of sampleSize experiences from the replay buffer.
-        random.sample samples without replacement, so sampleSize must be no larger than the length of the current buffer.
+        ExperienceBuffer.sample samples the current buffer using random.sample to return a collection of sample_size experiences from the replay buffer.
+        random.sample samples without replacement, so sample_size must be no larger than the length of the current buffer.
 
         Args:
-            sampleSize (int): number of samples to take from buffer
+            sample_size (int): number of samples to take from buffer
         Returns:
-            sample (list(tuples)): list of experience replay samples. len(sample) = sampleSize.
+            sample (list(tuples)): list of experience replay samples. len(sample) = sample_size.
         """
-        return random.sample(self.buffer,sampleSize)
+        return random.sample(self.buffer,sample_size)
 
     def getBufferSize(self):
         """

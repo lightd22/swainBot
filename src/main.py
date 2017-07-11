@@ -78,49 +78,28 @@ for exp in expReplay.buffer:
     print("  we recieved a reward of {} for this selection".format(r))
     print("")
 
-exp = expReplay.buffer[4]
-initial,action,rew,final = exp
-(cid,pos) = action
-print("attempting to make submission:{}, pos={}".format(cinfo.championNameFromId(cid),pos))
-initial.updateState(cid,pos)
-print(initial.evaluateState())
-initial.displayState()
-
-print("attempting to make submission:{}, pos={}".format(cinfo.championNameFromId(cid),pos))
-initial.updateState(cid,pos)
-print(initial.evaluateState())
-initial.displayState()
-
 state = DraftState(team,validChampIds)
 nPos = 7 # Positions 1-5 + ban + enemy selection
-inputSize = state.formatState().shape
+input_size = state.formatState().shape
 # Output from network won't include selecting for other team
-outputSize = state.numActions
-layerSize = (881,536)
-learningRate = 0.001
-regularizationCoeff = 0.
-discountFactor = 0.5
-print("Qnet input size: {}".format(inputSize))
-print("Qnet output size: {}".format(outputSize))
-print("Using two layers of size: {}".format(layerSize))
-print("Using learning rate: {}".format(learningRate))
-print("Using discountFactor: {}".format(discountFactor))
-print("Using regularization strength: {}".format(regularizationCoeff))
-Qnet = qNetwork.Qnetwork(inputSize, outputSize, layerSize, learningRate, discountFactor, regularizationCoeff)
+output_size = state.num_actions
+filter_size = (8,16)
 
-# Grab a single match
-dbName = "competitiveGameData.db"
-conn = sqlite3.connect("tmp/"+dbName)
-cur = conn.cursor()
-tournament = "2017/EU/Summer_Season"
-gameIds = dbo.getGameIdsByTournament(cur, tournament)
-game = gameIds[0]
-training_match = [dbo.getMatchData(cur, game)]
-
-nEpoch = 500
-batchSize = 10
-bufferSize = 20*len(training_match)
-tn.trainNetwork(Qnet,training_match,nEpoch,batchSize,bufferSize,False)
+n_epoch = 20
+batch_size = 15
+buffer_size = 30
+n_matches = 100
+match_pool = mp.buildMatchPool(n_matches)
+training_matches = match_pool[:75]
+validation_matches = match_pool[75:]
+max_runs = 100
+for count in range(max_runs):
+    learning_rate = 10**np.random.uniform(-4.,-2.)#0.005
+    regularization_coeff = 10**np.random.uniform(-5.,0.)#0.01
+    discount_factor = 0.5
+    Qnet = qNetwork.Qnetwork(input_size, output_size, filter_size, learning_rate, discount_factor, regularization_coeff)
+    loss,val_acc = tn.trainNetwork(Qnet,training_matches,validation_matches,n_epoch,batch_size,buffer_size,False)
+    print("{}/{}: val_acc: {:.5f}, learn_rate: {:.3e}, reg_coeff: {:.3e}".format(count+1,max_runs,val_acc,learning_rate,regularization_coeff))
 
 # Now if we want to predict what decisions we should make..
 myState,action,_,_ = expReplay.buffer[0]
