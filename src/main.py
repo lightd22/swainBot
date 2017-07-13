@@ -15,6 +15,8 @@ import tensorflow as tf
 import sqlite3
 import draftDbOps as dbo
 
+import matplotlib.pyplot as plt
+
 class Team(object):
     win = False
     def __init__(self):
@@ -85,21 +87,30 @@ input_size = state.formatState().shape
 output_size = state.num_actions
 filter_size = (8,16)
 
-n_epoch = 20
+n_epoch = 50
 batch_size = 15
 buffer_size = 30
 n_matches = 100
 match_pool = mp.buildMatchPool(n_matches)
 training_matches = match_pool[:75]
 validation_matches = match_pool[75:]
-max_runs = 100
+max_runs = 50
+print("Beginning learning_rate/regularization optimization..")
+print("max_runs:{}, n_epoch:{}, n_matches:{}, b:{}, B:{}".format(max_runs,n_epoch,n_matches,batch_size,buffer_size))
 for count in range(max_runs):
-    learning_rate = 10**np.random.uniform(-4.,-2.)#0.005
-    regularization_coeff = 10**np.random.uniform(-5.,0.)#0.01
+    learning_rate = 10**np.random.uniform(-3.5,-2.5)#0.005
+    regularization_coeff = 10**np.random.uniform(-4.,-2.)#0.01
     discount_factor = 0.5
     Qnet = qNetwork.Qnetwork(input_size, output_size, filter_size, learning_rate, discount_factor, regularization_coeff)
     loss,val_acc = tn.trainNetwork(Qnet,training_matches,validation_matches,n_epoch,batch_size,buffer_size,False)
-    print("{}/{}: val_acc: {:.5f}, learn_rate: {:.3e}, reg_coeff: {:.3e}".format(count+1,max_runs,val_acc,learning_rate,regularization_coeff))
+    print("{:3d}/{:3d}: val_acc: {:.5f}, learn_rate: {:.3e}, reg_coeff: {:.3e}".format(count+1,max_runs,val_acc,learning_rate,regularization_coeff))
+    x = [i+1 for i in range(len(loss))]
+    fig = plt.figure()
+    plt.plot(x,loss)
+    plt.ylabel('loss')
+    plt.xlabel('epoch')
+    fig_name = "tmp/loss_figures/lr_opt_run{}.png".format(count+1)
+    fig.savefig(fig_name)
 
 # Now if we want to predict what decisions we should make..
 myState,action,_,_ = exp_replay.buffer[0]
@@ -150,6 +161,7 @@ with tf.Session() as sess:
 
 print("Closing DB connection..")
 conn.close()
+plt.show()
 
 print("")
 print("********************************")
