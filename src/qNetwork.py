@@ -26,7 +26,8 @@ class Qnetwork():
         initial = tf.constant(0.1, shape=shape)
         return tf.Variable(initial)
 
-    def __init__(self, inputShape, output_size, filter_sizes = (8,16), learning_rate = 0.001 , discount_factor = 0.9, regularization_coeff = 0.01):
+    def __init__(self, inputShape, output_size, filter_sizes = (8,16,32), learning_rate = 0.001 , discount_factor = 0.9, regularization_coeff = 0.01):
+        self.learning_rate = tf.Variable(learning_rate,trainable=False)
         self.discount_factor = discount_factor
         self.regularization_coeff = regularization_coeff
 
@@ -43,7 +44,7 @@ class Qnetwork():
         self.n_layers = self.n_hidden_layers + 2
 
         # First convolutional layer:
-        #  32 filters of 3x3 stencil, step size 1, RELu activation, and padding to
+        #  filters of 3x3 stencil, step size 1, RELu activation, and padding to
         #  keep output spatial shape the same as the input shape
         self.conv1 = tf.layers.conv2d(
                         inputs=self.conv_input,
@@ -64,7 +65,7 @@ class Qnetwork():
                         padding="SAME")
 
         # Second convolutional layer:
-        #   64 filters of 3x3 stencil, stride 1, RELu activation, and padding to keep
+        #   filters of 3x3 stencil, stride 1, RELu activation, and padding to keep
         #   spatial dimensions unchanged
         self.conv2 = tf.layers.conv2d(
                         inputs=self.pool1,
@@ -75,9 +76,26 @@ class Qnetwork():
                         use_bias=True,
                         bias_initializer=tf.constant_initializer(0.1))
 
-        # Second pooling layer. Identical parameterization to first pooling layer.
+        # Second pooling layer. Identical parameterization to other pooling layers.
         self.pool2 = tf.layers.max_pooling2d(
                         inputs=self.conv2,
+                        pool_size=[2,2],
+                        strides=2,
+                        padding="SAME")
+
+        # Third convolutional layer.
+        self.conv3 = tf.layers.conv2d(
+                        inputs=self.pool2,
+                        filters=filter_sizes[2],
+                        kernel_size=[3,3],
+                        padding="SAME",
+                        activation=tf.nn.relu,
+                        use_bias=True,
+                        bias_initializer=tf.constant_initializer(0.1))
+
+        # Third pooling layer. Identical parameterization to other pooling layers.
+        self.pool3 = tf.layers.max_pooling2d(
+                        inputs=self.conv3,
                         pool_size=[2,2],
                         strides=2,
                         padding="SAME")
@@ -85,11 +103,11 @@ class Qnetwork():
         # Fully connected (FC) output layer:
         # Flatten input feature map (pool2) to be shape [-1, features]
         # If pool2 has shape = [-1, nx, ny, nf] then feature_size = nx*ny*nf
-        self.fc_input_size = int(np.prod(self.pool2.shape[1:]))
-        self.pool2_flat = tf.reshape(self.pool2, [-1, self.fc_input_size])
+        self.fc_input_size = int(np.prod(self.pool3.shape[1:]))
+        self.pool3_flat = tf.reshape(self.pool3, [-1, self.fc_input_size])
         self.fc_weights = Qnetwork.weight_variable([self.fc_input_size,output_size])
         self.fc_biases = Qnetwork.bias_variable([output_size])
-        self.outQ = tf.add(tf.matmul(self.pool2_flat, self.fc_weights), self.fc_biases)
+        self.outQ = tf.add(tf.matmul(self.pool3_flat, self.fc_weights), self.fc_biases)
 
         # Predicted optimal action
         self.prediction = tf.argmax(self.outQ, dimension=1)
@@ -120,7 +138,7 @@ class Qnetwork():
         self.loss = (tf.reduce_mean(tf.square(self.target-self.estimatedQ))+
                     self.regularization_coeff*(tf.nn.l2_loss(self.fc_weights)))
 
-        self.trainer = tf.train.AdamOptimizer(learning_rate = learning_rate)
+        self.trainer = tf.train.AdamOptimizer(learning_rate = self.learning_rate)
         self.updateModel = self.trainer.minimize(self.loss)
 
         self.init = tf.global_variables_initializer()

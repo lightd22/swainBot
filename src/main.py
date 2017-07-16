@@ -15,6 +15,7 @@ import tensorflow as tf
 import sqlite3
 import draftDbOps as dbo
 
+from optimizeLearningRate import optimizeLearningRate
 import matplotlib.pyplot as plt
 
 class Team(object):
@@ -87,30 +88,73 @@ input_size = state.formatState().shape
 output_size = state.num_actions
 filter_size = (8,16)
 
-n_epoch = 50
+n_epoch = 5
 batch_size = 15
 buffer_size = 30
 n_matches = 100
 match_pool = mp.buildMatchPool(n_matches)
 training_matches = match_pool[:75]
 validation_matches = match_pool[75:]
-max_runs = 50
+max_runs = 1
+lr_bounds = [-3.5, -2.5]
+reg_bounds = [-4., -2.]
+discount_factor = 0.5
 print("Beginning learning_rate/regularization optimization..")
 print("max_runs:{}, n_epoch:{}, n_matches:{}, b:{}, B:{}".format(max_runs,n_epoch,n_matches,batch_size,buffer_size))
-for count in range(max_runs):
-    learning_rate = 10**np.random.uniform(-3.5,-2.5)#0.005
-    regularization_coeff = 10**np.random.uniform(-4.,-2.)#0.01
-    discount_factor = 0.5
-    Qnet = qNetwork.Qnetwork(input_size, output_size, filter_size, learning_rate, discount_factor, regularization_coeff)
-    loss,val_acc = tn.trainNetwork(Qnet,training_matches,validation_matches,n_epoch,batch_size,buffer_size,False)
-    print("{:3d}/{:3d}: val_acc: {:.5f}, learn_rate: {:.3e}, reg_coeff: {:.3e}".format(count+1,max_runs,val_acc,learning_rate,regularization_coeff))
-    x = [i+1 for i in range(len(loss))]
-    fig = plt.figure()
-    plt.plot(x,loss)
-    plt.ylabel('loss')
-    plt.xlabel('epoch')
-    fig_name = "tmp/loss_figures/lr_opt_run{}.png".format(count+1)
-    fig.savefig(fig_name)
+#optimizeLearningRate(max_runs, n_epoch, training_matches, validation_matches, lr_bounds, reg_bounds,
+#                         input_size, output_size, filter_size, discount_factor, buffer_size, batch_size, save = False)
+
+
+input_size = state.formatState().shape
+output_size = state.num_actions
+filter_size = (16,32,64)
+
+n_matches = 10
+match_pool = mp.buildMatchPool(n_matches)
+training_matches = match_pool[:8]
+validation_matches = match_pool[8:]
+
+batch_size = 15
+buffer_size = 30
+n_epoch = 2000
+
+discount_factor = 0.5
+learning_rate = 1.2e-3
+regularization_coeff = 1.5e-3
+print("Learning on {} matches for {} epochs. lr {:.4e} reg {:4e}".format(len(training_matches),n_epoch, learning_rate, regularization_coeff))
+Qnet = qNetwork.Qnetwork(input_size, output_size, filter_size, learning_rate, discount_factor, regularization_coeff)
+loss,val_acc = tn.trainNetwork(Qnet,training_matches,validation_matches,n_epoch,batch_size,buffer_size,load_model=False,verbose=True)
+print("Learning complete!")
+print("..final training accuracy: {:.4f}".format(val_acc))
+x = [i+1 for i in range(len(loss))]
+fig = plt.figure()
+plt.plot(x,loss)
+plt.ylabel('loss')
+plt.xlabel('epoch')
+plt.ylim([0,125])
+fig_name = "tmp/loss_figures/loss_E{}_run.png".format(n_epoch)
+fig.savefig(fig_name)
+
+
+replay = er.ExperienceBuffer(10*len(training_matches))
+for match in training_matches:
+    team = DraftState.RED_TEAM if match["winner"]==1 else DraftState.BLUE_TEAM
+    experiences = mp.processMatch(match,team)
+    replay.store(experiences)
+with tf.Session() as sess:
+    Qnet.saver.restore(sess,"tmp/model.ckpt")
+
+    for exp in replay.buffer:
+        state,act,rew,next_state = exp
+        cid,pos = act
+        form_act = state.getAction(cid,pos)
+        pred_act, pred_Q = sess.run([Qnet.prediction,Qnet.outQ],feed_dict={Qnet.input:[state.formatState()]})
+        pred_act = pred_act[0]
+        pred_cid,pred_pos = state.formatAction(pred_act)
+        if(form_act != pred_act):
+            state.displayState()
+            print("pred: {} in pos {}, actual: {} in pos {}".format(cinfo.championNameFromId(pred_cid),pred_pos,cinfo.championNameFromId(cid),pos))
+            print("pred Q: {:.4f}, actual Q: {:.4f}".format(pred_Q[0,pred_act],pred_Q[0,form_act]))
 
 # Now if we want to predict what decisions we should make..
 myState,action,_,_ = exp_replay.buffer[0]
@@ -161,7 +205,6 @@ with tf.Session() as sess:
 
 print("Closing DB connection..")
 conn.close()
-plt.show()
 
 print("")
 print("********************************")
