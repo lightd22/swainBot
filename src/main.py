@@ -117,23 +117,25 @@ validation_matches = match_pool[8:]
 batch_size = 15
 buffer_size = 30
 n_epoch = 2000
+spinup_epochs = 40
 
 discount_factor = 0.5
 learning_rate = 1.2e-3
 regularization_coeff = 1.5e-3
-print("Learning on {} matches for {} epochs. lr {:.4e} reg {:4e}".format(len(training_matches),n_epoch, learning_rate, regularization_coeff))
-Qnet = qNetwork.Qnetwork(input_size, output_size, filter_size, learning_rate, discount_factor, regularization_coeff)
-loss,val_acc = tn.trainNetwork(Qnet,training_matches,validation_matches,n_epoch,batch_size,buffer_size,load_model=False,verbose=True)
-print("Learning complete!")
-print("..final training accuracy: {:.4f}".format(val_acc))
-x = [i+1 for i in range(len(loss))]
-fig = plt.figure()
-plt.plot(x,loss)
-plt.ylabel('loss')
-plt.xlabel('epoch')
-plt.ylim([0,125])
-fig_name = "tmp/loss_figures/loss_E{}_run.png".format(n_epoch)
-fig.savefig(fig_name)
+for i in range(7):
+    print("Learning on {} matches for {} epochs. lr {:.4e} reg {:4e}".format(len(training_matches),n_epoch, learning_rate, regularization_coeff))
+    Qnet = qNetwork.Qnetwork(input_size, output_size, filter_size, learning_rate, discount_factor, regularization_coeff)
+    loss,val_acc = tn.trainNetwork(Qnet,training_matches,validation_matches,n_epoch,batch_size,buffer_size,spinup_epochs,load_model=False,verbose=True)
+    print("Learning complete!")
+    print("..final training accuracy: {:.4f}".format(val_acc))
+    x = [i+1 for i in range(len(loss))]
+    fig = plt.figure()
+    plt.plot(x,loss)
+    plt.ylabel('loss')
+    plt.xlabel('epoch')
+    plt.ylim([0,125])
+    fig_name = "tmp/loss_figures/spinup/{}_epoch/loss_E{}_run_{}.png".format(spinup_epochs,n_epoch,i+1)
+    fig.savefig(fig_name)
 
 
 replay = er.ExperienceBuffer(10*len(training_matches))

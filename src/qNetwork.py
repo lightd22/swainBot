@@ -19,7 +19,7 @@ class Qnetwork():
 
     """
     def weight_variable(shape):
-        initial = tf.multiply(tf.random_uniform(shape,0,0.1), tf.sqrt(2.0/shape[0]))
+        initial = tf.multiply(tf.random_normal(shape,0,1.0), tf.sqrt(2.0/shape[0]))
         return tf.Variable(initial)
 
     def bias_variable(shape):
