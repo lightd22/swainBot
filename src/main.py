@@ -99,8 +99,8 @@ max_runs = 1
 lr_bounds = [-3.5, -2.5]
 reg_bounds = [-4., -2.]
 discount_factor = 0.5
-print("Beginning learning_rate/regularization optimization..")
-print("max_runs:{}, n_epoch:{}, n_matches:{}, b:{}, B:{}".format(max_runs,n_epoch,n_matches,batch_size,buffer_size))
+#print("Beginning learning_rate/regularization optimization..")
+#print("max_runs:{}, n_epoch:{}, n_matches:{}, b:{}, B:{}".format(max_runs,n_epoch,n_matches,batch_size,buffer_size))
 #optimizeLearningRate(max_runs, n_epoch, training_matches, validation_matches, lr_bounds, reg_bounds,
 #                         input_size, output_size, filter_size, discount_factor, buffer_size, batch_size, save = False)
 
@@ -109,20 +109,20 @@ input_size = state.formatState().shape
 output_size = state.num_actions
 filter_size = (16,32,64)
 
-n_matches = 10
+n_matches = 200
 match_pool = mp.buildMatchPool(n_matches)
-training_matches = match_pool[:8]
-validation_matches = match_pool[8:]
+training_matches = match_pool[:160]
+validation_matches = match_pool[160:]
 
-batch_size = 15
-buffer_size = 30
-n_epoch = 2000
-spinup_epochs = 40
+batch_size = 32
+buffer_size = 1024
+n_epoch = 500
+spinup_epochs = 0
 
 discount_factor = 0.5
-learning_rate = 1.2e-3
-regularization_coeff = 1.5e-3
-for i in range(7):
+learning_rate = 6.0e-4 #1.2e-3 #2.4e-3
+regularization_coeff = 1.5e-4
+for i in range(3):
     print("Learning on {} matches for {} epochs. lr {:.4e} reg {:4e}".format(len(training_matches),n_epoch, learning_rate, regularization_coeff))
     Qnet = qNetwork.Qnetwork(input_size, output_size, filter_size, learning_rate, discount_factor, regularization_coeff)
     loss,val_acc = tn.trainNetwork(Qnet,training_matches,validation_matches,n_epoch,batch_size,buffer_size,spinup_epochs,load_model=False,verbose=True)
@@ -133,7 +133,7 @@ for i in range(7):
     plt.plot(x,loss)
     plt.ylabel('loss')
     plt.xlabel('epoch')
-    plt.ylim([0,125])
+    plt.ylim([0,50])
     fig_name = "tmp/loss_figures/spinup/{}_epoch/loss_E{}_run_{}.png".format(spinup_epochs,n_epoch,i+1)
     fig.savefig(fig_name)
 

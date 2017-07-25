@@ -1,12 +1,13 @@
 import numpy as np
-from cassiopeia import riotapi
+#from cassiopeia import riotapi
+from riotapi import make_request, api_versions
+import requests
 import re
+import json
 from myRiotApiKey import api_key
 
 # Box is a vacant class with no initial members. This will be used to hold the champion_id list and champion_id <-> name dictionaries.
 
-#TODO (Devin): These members should really just be initialized whenever the storage class is created since the very first thing all of these functions
-# do is check if they are none or not..
 class Box:
     pass
 __m = Box()
@@ -135,12 +136,30 @@ def populateChampionDictionary():
         True if succesful, False otherwise
     Populates the module dictionary whose keys are champion Ids and values are strings of the corresponding champion's name.
     """
-    riotapi.set_region("NA")
-    riotapi.set_api_key(api_key)
-    champions = riotapi.get_champions()
+    #riotapi.set_region("NA")
+    #riotapi.set_api_key(api_key)
+    #champions = riotapi.get_champions()
+    # Devin: This is a hack. This needs to separate formulating request, making request,
+    #  handling response (including headers), formatting response, returning response.
+    request = "{static}/{version}/champions".format(static="static-data",version=api_versions["staticdata"])
+    params = {"locale":"en_US", "dataById":"true", "api_key":api_key }
+    response = make_request(request,"GET",params)
+    data = response["data"]
+    champions = []
+    for value in data.values():
+        champion = Champion(value)
+        champions.append(champion)
+
     __m.championNameFromId = {champion.id: champion.name for champion in champions}
     __m.championIdFromName = {re.sub("[^A-Za-z0-9]+", "", champion.name.lower()): champion.id for champion in champions}
     __m.validChampionIds = sorted(__m.championNameFromId.keys())
     if not __m.championNameFromId:
         return False
     return True
+
+class Champion():
+    def __init__(self,dictionary):
+        self.key = dictionary["key"]
+        self.id = dictionary["id"]
+        self.name = dictionary["name"]
+        self.title = dictionary["title"]
