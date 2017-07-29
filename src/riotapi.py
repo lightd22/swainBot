@@ -42,13 +42,13 @@ def make_request(request, method, params={}):
         return response.json()
     except requests.exceptions.HTTPError as e:
         # Wait and try again on 429 (rate limit exceeded)
-        if e.code == 429:
+        if response.status_code == 429:
             if "X-Rate-Limit-Type" not in e.headers or e.headers["X-Rate-Limit-Type"] == "service":
                 # Wait 1 second before retrying
                 time.sleep(1)
             else:
                 retry_after = 1
-                if e.headers["Retry-After"]:
+                if response.headers["Retry-After"]:
                     retry_after += int(e.headers["Retry-After"])
 
                 time.sleep(retry_after)

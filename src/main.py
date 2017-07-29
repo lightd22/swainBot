@@ -109,20 +109,20 @@ input_size = state.formatState().shape
 output_size = state.num_actions
 filter_size = (16,32,64)
 
-n_matches = 200
+n_matches = 12
 match_pool = mp.buildMatchPool(n_matches)
-training_matches = match_pool[:160]
-validation_matches = match_pool[160:]
+training_matches = match_pool[:10]
+validation_matches = match_pool[10:]
 
-batch_size = 32
+batch_size = 8
 buffer_size = 1024
-n_epoch = 500
+n_epoch = 2000
 spinup_epochs = 0
 
-discount_factor = 0.5
+discount_factor = 0.9
 learning_rate = 6.0e-4 #1.2e-3 #2.4e-3
-regularization_coeff = 1.5e-4
-for i in range(3):
+regularization_coeff = 7.5e-5#1.5e-4
+for i in range(2):
     print("Learning on {} matches for {} epochs. lr {:.4e} reg {:4e}".format(len(training_matches),n_epoch, learning_rate, regularization_coeff))
     Qnet = qNetwork.Qnetwork(input_size, output_size, filter_size, learning_rate, discount_factor, regularization_coeff)
     loss,val_acc = tn.trainNetwork(Qnet,training_matches,validation_matches,n_epoch,batch_size,buffer_size,spinup_epochs,load_model=False,verbose=True)
@@ -133,7 +133,7 @@ for i in range(3):
     plt.plot(x,loss)
     plt.ylabel('loss')
     plt.xlabel('epoch')
-    plt.ylim([0,50])
+    plt.ylim([0,10])
     fig_name = "tmp/loss_figures/spinup/{}_epoch/loss_E{}_run_{}.png".format(spinup_epochs,n_epoch,i+1)
     fig.savefig(fig_name)
 
