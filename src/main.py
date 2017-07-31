@@ -116,7 +116,7 @@ validation_matches = match_pool[10:]
 
 batch_size = 8
 buffer_size = 1024
-n_epoch = 2000
+n_epoch = 1500
 spinup_epochs = 0
 
 discount_factor = 0.9

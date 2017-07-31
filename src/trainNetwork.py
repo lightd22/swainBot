@@ -42,7 +42,7 @@ def trainNetwork(Qnet, training_matches, validation_matches, train_epochs, batch
         print("  buffer_size: {}".format(buffer_size))
 
     # Number of steps to take before doing any training. Needs to be at least batch_size to avoid error when sampling from experience replay
-    pre_training_steps = 5*batch_size
+    pre_training_steps = 10*batch_size
     assert(pre_training_steps <= buffer_size), "Replay not large enough for pre-training!"
     # Number of steps to take between training
     update_freq = 1 # 5 picks + 5 bans per match
@@ -57,6 +57,7 @@ def trainNetwork(Qnet, training_matches, validation_matches, train_epochs, batch
     else:
         epsilon = 0.
 
+    teams = [DraftState.BLUE_TEAM, DraftState.RED_TEAM]
     # Start training
     with tf.Session() as sess:
         if load_model:
@@ -91,92 +92,93 @@ def trainNetwork(Qnet, training_matches, validation_matches, train_epochs, batch
                 #    team = DraftState.RED_TEAM
 
                 # Only learns from winning team
-                team = DraftState.RED_TEAM if match["winner"]==1 else DraftState.BLUE_TEAM
-                # Process this match into individual experiences
-                experiences = mp.processMatch(match, team)
-                for experience in experiences:
-                    # Some experiences include NULL submissions (exclusively bans)
-                    # We don't allow the learner to submit NULL picks so skip adding these
-                    # to the replay buffer.
-                    state,a,rew,_ = experience
-                    (cid,pos) = a
+                #team = DraftState.RED_TEAM if match["winner"]==1 else DraftState.BLUE_TEAM
+                for team in teams:
+                    # Process this match into individual experiences
+                    experiences = mp.processMatch(match, team)
+                    for experience in experiences:
+                        # Some experiences include NULL submissions (exclusively bans)
+                        # We don't allow the learner to submit NULL picks so skip adding these
+                        # to the replay buffer.
+                        state,a,rew,_ = experience
+                        (cid,pos) = a
 
-                    if cid is None:
-                        null_action_count += 1
-                        continue
+                        if cid is None:
+                            null_action_count += 1
+                            continue
 
-                    # Let the network predict the next action, if the action leads
-                    # to an invalid state add a negatively reinforced experience to the replay buffer.
-                    # This helps the network learn the drafting structure.
-                    # Ideally we would also let the network predict a random action and evaluate the reward
-                    # for the resulting state, but it's not clear how to assign a reward for an action
-                    # which was not produced by geniune match data unless it matches the original experience.
-                    # At the very least we can look at the networks predicted optimal action and if it
-                    # disagrees with what was actually submitted we can adjust its predicted value.
-                    pred_act = sess.run(Qnet.prediction,
-                          feed_dict={Qnet.input:[state.formatState()]})
-                    pred_act = pred_act[0]
+                        # Let the network predict the next action, if the action leads
+                        # to an invalid state add a negatively reinforced experience to the replay buffer.
+                        # This helps the network learn the drafting structure.
+                        # Ideally we would also let the network predict a random action and evaluate the reward
+                        # for the resulting state, but it's not clear how to assign a reward for an action
+                        # which was not produced by geniune match data unless it matches the original experience.
+                        # At the very least we can look at the networks predicted optimal action and if it
+                        # disagrees with what was actually submitted we can adjust its predicted value.
+                        pred_act = sess.run(Qnet.prediction,
+                              feed_dict={Qnet.input:[state.formatState()]})
+                        pred_act = pred_act[0]
 
-                    (cid,pos) = state.formatAction(pred_act)
+                        (cid,pos) = state.formatAction(pred_act)
 
-                    pred_state = deepcopy(state)
-                    pred_state.updateState(cid,pos)
+                        pred_state = deepcopy(state)
+                        pred_state.updateState(cid,pos)
 
-                    state_code = pred_state.evaluateState()
-                    if state_code in DraftState.invalid_states:
-                        # Prediction moves to illegal state, add negative experience
-                        bad_state_counts[state_code] += 1
-                        r = getReward(pred_state, blank_match)
-                        new_experience = (state, state.formatAction(pred_act), r, pred_state)
-                        experience_replay.store([new_experience])
-                    elif(random.random() < epsilon and state.getAction(*a)!=pred_act):
-                        # Prediction does not move to illegal state, but doesn't match
-                        # submission from training example.
-                        r = getReward(pred_state, blank_match) # This should be r = 0
-                        new_experience = (state, state.formatAction(pred_act), r, pred_state)
-                        experience_replay.store([new_experience])
-                    experience_replay.store([experience])
-                    if(epsilon > 0.001):
-                        # Reduce chance of learner-submitted actions over time
-                        epsilon -= 1./(10*len(shuffled_matches)*spinup_epochs)
-                    total_steps += 1
+                        state_code = pred_state.evaluateState()
+                        if state_code in DraftState.invalid_states:
+                            # Prediction moves to illegal state, add negative experience
+                            bad_state_counts[state_code] += 1
+                            r = getReward(pred_state, blank_match)
+                            new_experience = (state, state.formatAction(pred_act), r, pred_state)
+                            experience_replay.store([new_experience])
+                        elif(random.random() < epsilon and state.getAction(*a)!=pred_act):
+                            # Prediction does not move to illegal state, but doesn't match
+                            # submission from training example.
+                            r = getReward(pred_state, blank_match) # This should be r = 0
+                            new_experience = (state, state.formatAction(pred_act), r, pred_state)
+                            experience_replay.store([new_experience])
+                        experience_replay.store([experience])
+                        if(epsilon > 0.001):
+                            # Reduce chance of learner-submitted actions over time
+                            epsilon -= 1./(10*len(shuffled_matches)*spinup_epochs)
+                        total_steps += 1
 
-                    # Every update_freq steps we train the network using the replay buffer
-                    if (total_steps >= pre_training_steps) and (total_steps % update_freq == 0):
-                        training_batch = experience_replay.sample(batch_size)
+                        # Every update_freq steps we train the network using the replay buffer
+                        if (total_steps >= pre_training_steps) and (total_steps % update_freq == 0):
+                            training_batch = experience_replay.sample(batch_size)
 
-                        #TODO (Devin): Every reference to training_batch involves stacking each input of the batch before using it.. probably better to just have er.sample() return
-                        # a numpy array.
+                            #TODO (Devin): Every reference to training_batch involves stacking each input of the batch before using it.. probably better to just have er.sample() return
+                            # a numpy array.
 
-                        # Calculate target Q values for each example:
-                        # For non-temrinal states, targetQ is estimated according to
-                        #   targetQ = r + gamma*max_{a} Q(s',a).
-                        # For terminating states (where state.evaluateState() == DS.DRAFT_COMPLETE) the target is computed as
-                        #   targetQ = r
-                        updates = []
-                        for exp in training_batch:
-                            startState,_,reward,endingState = exp
-                            if endingState.evaluateState() == DraftState.DRAFT_COMPLETE: # Action moves to terminal state
-                                updates.append(reward)
-                            else:
-                                # Each row in predictedQ gives estimated Q(s',a) values for all possible actions for the input state s'.
-                                predictedQ = sess.run(Qnet.outQ,
-                                               feed_dict={Qnet.input:[endingState.formatState()]})
-                                # To get max_{a} Q(s',a) values take max along *rows* of predictedQ.
-                                maxQ = np.max(predictedQ,axis=1)[0]
-                                updates.append(reward + Qnet.discount_factor*maxQ)
-                        targetQ = np.array(updates)
-                        # Make sure targetQ shape is correct (sometimes np.array likes to return array of shape (batch_size,1))
-                        targetQ.shape = (batch_size,)
+                            # Calculate target Q values for each example:
+                            # For non-temrinal states, targetQ is estimated according to
+                            #   targetQ = r + gamma*max_{a} Q(s',a).
+                            # For terminating states (where state.evaluateState() == DS.DRAFT_COMPLETE) the target is computed as
+                            #   targetQ = r
+                            updates = []
+                            for exp in training_batch:
+                                startState,_,reward,endingState = exp
+                                if endingState.evaluateState() == DraftState.DRAFT_COMPLETE: # Action moves to terminal state
+                                    updates.append(reward)
+                                else:
+                                    # Each row in predictedQ gives estimated Q(s',a) values for all possible actions for the input state s'.
+                                    predictedQ = sess.run(Qnet.outQ,
+                                                   feed_dict={Qnet.input:[endingState.formatState()]})
+                                    # To get max_{a} Q(s',a) values take max along *rows* of predictedQ.
+                                    maxQ = np.max(predictedQ,axis=1)[0]
+                                    updates.append(reward + Qnet.discount_factor*maxQ)
+                            targetQ = np.array(updates)
+                            # Make sure targetQ shape is correct (sometimes np.array likes to return array of shape (batch_size,1))
+                            targetQ.shape = (batch_size,)
 
-                        # Update Qnet using target Q
-                        # Experience replay stores action = (champion_id, position) pairs
-                        # these need to be converted into the corresponding index of the input vector to the Qnet
-                        actions = np.array([startState.getAction(exp[1][0],exp[1][1]) for exp in training_batch])
-                        _ = sess.run(Qnet.updateModel,
-                                 feed_dict={Qnet.input:np.stack([exp[0].formatState() for exp in training_batch],axis=0),
-                                 Qnet.actions:actions,
-                                 Qnet.target:targetQ})
+                            # Update Qnet using target Q
+                            # Experience replay stores action = (champion_id, position) pairs
+                            # these need to be converted into the corresponding index of the input vector to the Qnet
+                            actions = np.array([startState.getAction(exp[1][0],exp[1][1]) for exp in training_batch])
+                            _ = sess.run(Qnet.updateModel,
+                                     feed_dict={Qnet.input:np.stack([exp[0].formatState() for exp in training_batch],axis=0),
+                                     Qnet.actions:actions,
+                                     Qnet.target:targetQ})
 
             t1 = time.time()-t0
             val_loss,val_acc = validate_model(sess, validation_matches, Qnet)
@@ -204,15 +206,16 @@ def validate_model(sess, validation_data, Qnet):
     Validates given model by computing loss and absolute accuracy for validation data using current Qnet estimates.
     Args:
         sess (tensorflow Session): TF Session to run model in
-        validation_data (list(matchIds)): list of match ids to validate against
+        validation_data (list(dict)): list of matches to validate against
         Qnet (qNetwork): tensorflow q network of model to validate
     Returns:
         stats (tuple(float)): list of statistical measures of performance. stats = (loss,acc)
     """
     val_replay = er.ExperienceBuffer(10*len(validation_data))
     for match in validation_data:
+        # Loss is only computed for winning side of drafts
         team = DraftState.RED_TEAM if match["winner"]==1 else DraftState.BLUE_TEAM
-        # Process this match into individual experiences
+        # Process match into individual experiences
         experiences = mp.processMatch(match, team)
         for exp in experiences:
             _,act,_,_ = exp
@@ -221,6 +224,7 @@ def validate_model(sess, validation_data, Qnet):
                 # Skip null actions such as missing/skipped bans
                 continue
             val_replay.store([exp])
+
     n_experiences = val_replay.getBufferSize()
     val_experiences = val_replay.sample(n_experiences)
     state,_,_,_ = val_experiences[0]
@@ -247,7 +251,45 @@ def validate_model(sess, validation_data, Qnet):
                           feed_dict={Qnet.input:val_states,
                                 Qnet.actions:val_actions,
                                 Qnet.target:val_targets})
-#            print(" t:{}".format([int(i) for i in train_actions]))
-#            print(" p:{}".format([int(i) for i in pred_actions]))
-    val_accuracy = (n_experiences-np.count_nonzero(val_actions-pred_actions))/n_experiences
+    accurate_predictions = 0.
+    for match in validation_data:
+        actions = []
+        states = []
+        blue_score = score_match(sess,Qnet,match,DraftState.BLUE_TEAM)
+        red_score = score_match(sess,Qnet,match,DraftState.RED_TEAM)
+        predicted_winner = DraftState.BLUE_TEAM if blue_score >= red_score else DraftState.RED_TEAM
+        match_winner = DraftState.RED_TEAM if match["winner"]==1 else DraftState.BLUE_TEAM
+        if predicted_winner == match_winner:
+            accurate_predictions +=1
+    val_accuracy = accurate_predictions/len(validation_data)
     return (loss, val_accuracy)
+
+def score_match(sess, Qnet, match, team):
+    """
+    Generates an estimated performance score for a team using a specified Qnetwork.
+    Args:
+        sess (tensorflow Session): TF Session to run model in
+        Qnet (qNetwork): tensorflow q network used to score draft
+        match (dict): match dictionary with pick and ban data
+        team (DraftState.BLUE_TEAM or DraftState.RED_TEAM): team perspective that is being scored
+    Returns:
+        score (float): estimated value of picks made in the draft submitted by team for this match
+    """
+    score = 0.
+    actions = []
+    states = []
+    experiences = mp.processMatch(match,team)
+    for exp in experiences:
+        start,(cid,pos),_,_ = exp
+        if cid is None:
+            # Ignore missing bans (if present)
+            continue
+        actions.append(start.getAction(cid,pos))
+        states.append(start.formatState())
+
+    # Feed states forward and get scores for submitted actions
+    predicted_Q = sess.run(Qnet.outQ,feed_dict={Qnet.input:np.stack(states,axis=0)})
+    assert len(actions) == predicted_Q.shape[0], "Number of actions doesn't match number of Q estimates!"
+    for i in range(len(actions)):
+        score += predicted_Q[i,actions[i]]
+    return score
