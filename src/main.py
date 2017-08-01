@@ -82,29 +82,6 @@ for exp in exp_replay.buffer:
     print("")
 
 state = DraftState(team,valid_champ_ids)
-nPos = 7 # Positions 1-5 + ban + enemy selection
-input_size = state.formatState().shape
-# Output from network won't include selecting for other team
-output_size = state.num_actions
-filter_size = (8,16)
-
-n_epoch = 5
-batch_size = 15
-buffer_size = 30
-n_matches = 100
-match_pool = mp.buildMatchPool(n_matches)
-training_matches = match_pool[:75]
-validation_matches = match_pool[75:]
-max_runs = 1
-lr_bounds = [-3.5, -2.5]
-reg_bounds = [-4., -2.]
-discount_factor = 0.5
-#print("Beginning learning_rate/regularization optimization..")
-#print("max_runs:{}, n_epoch:{}, n_matches:{}, b:{}, B:{}".format(max_runs,n_epoch,n_matches,batch_size,buffer_size))
-#optimizeLearningRate(max_runs, n_epoch, training_matches, validation_matches, lr_bounds, reg_bounds,
-#                         input_size, output_size, filter_size, discount_factor, buffer_size, batch_size, save = False)
-
-
 input_size = state.formatState().shape
 output_size = state.num_actions
 filter_size = (16,32,64)
@@ -116,7 +93,7 @@ validation_matches = match_pool[50:]
 
 batch_size = 8
 buffer_size = 1024
-n_epoch = 1500
+n_epoch = 200
 spinup_epochs = 0
 
 discount_factor = 0.9

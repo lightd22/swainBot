@@ -169,8 +169,7 @@ def populateChampionDictionary():
     for value in data.values():
         champion = Champion(value)
         champions.append(champion)
-    for champion in champions:
-        print("{} .. {}".format(champion.name, champion.id))
+        
     __m.championNameFromId = {champion.id: champion.name for champion in champions}
     __m.championIdFromName = {re.sub("[^A-Za-z0-9]+", "", champion.name.lower()): champion.id for champion in champions}
     __m.validChampionIds = sorted(__m.championNameFromId.keys())
