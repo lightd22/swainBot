@@ -2,7 +2,8 @@ import requests
 import myRiotApiKey
 import time
 api_versions = {
-    "staticdata": "v3"
+    "staticdata": "v3",
+    "datadragon": "7.15.1"
 }
 valid_methods = ["GET", "PUT", "POST"]
 region = "na1"

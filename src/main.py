@@ -109,10 +109,10 @@ input_size = state.formatState().shape
 output_size = state.num_actions
 filter_size = (16,32,64)
 
-n_matches = 12
+n_matches = 52
 match_pool = mp.buildMatchPool(n_matches)
-training_matches = match_pool[:10]
-validation_matches = match_pool[10:]
+training_matches = match_pool[:50]
+validation_matches = match_pool[50:]
 
 batch_size = 8
 buffer_size = 1024
@@ -120,7 +120,7 @@ n_epoch = 1500
 spinup_epochs = 0
 
 discount_factor = 0.9
-learning_rate = 6.0e-4 #1.2e-3 #2.4e-3
+learning_rate = 3.0e-4#6.0e-4 #1.2e-3 #2.4e-3
 regularization_coeff = 7.5e-5#1.5e-4
 for i in range(2):
     print("Learning on {} matches for {} epochs. lr {:.4e} reg {:4e}".format(len(training_matches),n_epoch, learning_rate, regularization_coeff))

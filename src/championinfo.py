@@ -35,6 +35,24 @@ __m.championAliases = {
 "mundo": "drmundo",
 "tahm": "tahmkench"
 }
+
+# This is a flag to make championinfo methods look for data stored locally
+# rather than query the API. Useful if API is out.
+look_local = True
+
+class Champion():
+    def __init__(self,dictionary):
+        if(look_local):
+            # Local file is a cached query to data dragon
+            # Data dragon reverses the meaning of keys and ids from the API.
+            self.key = dictionary["id"]
+            self.id = int(dictionary["key"])
+        else:
+            self.key = dictionary["key"]
+            self.id = int(dictionary["id"])
+        self.name = dictionary["name"]
+        self.title = dictionary["title"]
+
 class AliasException(Exception):
     def __init__(self, message, errors):
         super().__init__(message)
@@ -139,27 +157,23 @@ def populateChampionDictionary():
     #riotapi.set_region("NA")
     #riotapi.set_api_key(api_key)
     #champions = riotapi.get_champions()
-    # Devin: This is a hack. This needs to separate formulating request, making request,
-    #  handling response (including headers), formatting response, returning response.
-    request = "{static}/{version}/champions".format(static="static-data",version=api_versions["staticdata"])
-    params = {"locale":"en_US", "dataById":"true", "api_key":api_key }
-    response = make_request(request,"GET",params)
+    if(look_local):
+        with open('champions.json') as local_data:
+            response = json.load(local_data)
+    else:
+        request = "{static}/{version}/champions".format(static="static-data",version=api_versions["staticdata"])
+        params = {"locale":"en_US", "dataById":"true", "api_key":api_key }
+        response = make_request(request,"GET",params)
     data = response["data"]
     champions = []
     for value in data.values():
         champion = Champion(value)
         champions.append(champion)
-
+    for champion in champions:
+        print("{} .. {}".format(champion.name, champion.id))
     __m.championNameFromId = {champion.id: champion.name for champion in champions}
     __m.championIdFromName = {re.sub("[^A-Za-z0-9]+", "", champion.name.lower()): champion.id for champion in champions}
     __m.validChampionIds = sorted(__m.championNameFromId.keys())
     if not __m.championNameFromId:
         return False
     return True
-
-class Champion():
-    def __init__(self,dictionary):
-        self.key = dictionary["key"]
-        self.id = dictionary["id"]
-        self.name = dictionary["name"]
-        self.title = dictionary["title"]
