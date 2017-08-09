@@ -69,7 +69,7 @@ def trainNetwork(Qnet, training_matches, validation_matches, train_epochs, batch
 
         for i in range(train_epochs):
             t0 = time.time()
-            if((i>0) and (i % lr_decay_freq == 0) and (Qnet.learning_rate >= min_learning_rate)):
+            if((i>0) and (i % lr_decay_freq == 0) and (Qnet.learning_rate.eval() >= min_learning_rate)):
                 # Decay learning rate accoring to decay schedule
                 Qnet.learning_rate = 0.50*Qnet.learning_rate
 

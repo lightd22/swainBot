@@ -87,7 +87,7 @@ buffer_size = 4096
 n_epoch = 500
 
 discount_factor = 0.9
-learning_rate = 4.0e-4 #1.2e-3 #2.4e-3
+learning_rate = 2.0e-4
 regularization_coeff = 7.5e-5#1.5e-4
 for i in range(1):
     tf.reset_default_graph()
@@ -153,32 +153,6 @@ with tf.Session() as sess:
 
         fig_name = "tmp/qval_figs/{}.pdf".format(count)
         fig.savefig(fig_name)
-
-# Lets look at the submissions that are incorrectly predicted
-replay = er.ExperienceBuffer(10*len(training_matches))
-for match in training_matches:
-    team = DraftState.RED_TEAM if match["winner"]==1 else DraftState.BLUE_TEAM
-    experiences = mp.processMatch(match,team)
-    replay.store(experiences)
-
-tf.reset_default_graph()
-with tf.Session() as sess:
-    Qnet = qNetwork.Qnetwork(input_size, output_size, filter_size, learning_rate, discount_factor, regularization_coeff)
-    Qnet.saver.restore(sess,"tmp/model.ckpt")
-
-    for exp in replay.buffer:
-        state,act,rew,next_state = exp
-        cid,pos = act
-        if cid == None:
-            continue
-        form_act = state.getAction(cid,pos)
-        pred_act, pred_Q = sess.run([Qnet.prediction,Qnet.outQ],feed_dict={Qnet.input:[state.formatState()]})
-        pred_act = pred_act[0]
-        pred_cid,pred_pos = state.formatAction(pred_act)
-        if(form_act != pred_act):
-            #state.displayState()
-            print("pred: {} in pos {}, actual: {} in pos {}".format(cinfo.championNameFromId(pred_cid),pred_pos,cinfo.championNameFromId(cid),pos))
-            print("pred Q: {:.4f}, actual Q: {:.4f}".format(pred_Q[0,pred_act],pred_Q[0,form_act]))
 
 # Now if we want to predict what decisions we should make..
 myState,action,_,_ = exp_replay.buffer[0]

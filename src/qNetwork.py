@@ -34,7 +34,7 @@ class Qnetwork():
         # Incoming state matrices are of size input_size = (nChampions, nPos+2)
         # 'None' here means the input tensor will flex with the number of training
         # examples (aka batch size).
-        self.input = tf.placeholder(tf.float32, (None,)+inputShape)
+        self.input = tf.placeholder(tf.float32, (None,)+inputShape, name="inputs")
         # Reshape input for conv layer to be a tensor of shape [None, nChampions, nPos+2, 1]
         # The extra '1' dimension added at the end represents the number of input channels
         # (normally color channels for an image).
@@ -107,10 +107,10 @@ class Qnetwork():
         self.pool3_flat = tf.reshape(self.pool3, [-1, self.fc_input_size])
         self.fc_weights = Qnetwork.weight_variable([self.fc_input_size,output_size])
         self.fc_biases = Qnetwork.bias_variable([output_size])
-        self.outQ = tf.add(tf.matmul(self.pool3_flat, self.fc_weights), self.fc_biases)
+        self.outQ = tf.add(tf.matmul(self.pool3_flat, self.fc_weights), self.fc_biases, name="output_Q")
 
         # Predicted optimal action
-        self.prediction = tf.argmax(self.outQ, dimension=1)
+        self.prediction = tf.argmax(self.outQ, dimension=1, name="predicted_action")
 
         # Loss function and optimization:
         # The inputs self.target and self.actions are indexed by training example. If
@@ -122,8 +122,8 @@ class Qnetwork():
         # self.target[i] = Q*(s[i],a*[i])
         # self.actions[i] = a*[i]
 
-        self.target = tf.placeholder(tf.float32, shape=[None])
-        self.actions = tf.placeholder(tf.int32, shape=[None])
+        self.target = tf.placeholder(tf.float32, shape=[None], name="target_Q")
+        self.actions = tf.placeholder(tf.int32, shape=[None], name="submitted_action")
 
         # Since the Qnet outputs a vector Q(s,-) of  predicted values for every possible action that can be taken from state s,
         # we need to connect each target value with the appropriate predicted Q(s,a*) = Qout[i,a*[i]].
@@ -139,7 +139,7 @@ class Qnetwork():
                     self.regularization_coeff*(tf.nn.l2_loss(self.fc_weights)))
 
         self.trainer = tf.train.AdamOptimizer(learning_rate = self.learning_rate)
-        self.updateModel = self.trainer.minimize(self.loss)
+        self.updateModel = self.trainer.minimize(self.loss, name="training_op")
 
         self.init = tf.global_variables_initializer()
         self.saver = tf.train.Saver()
