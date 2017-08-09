@@ -21,6 +21,7 @@ __m.championAliases = {
 "cait": "caitlyn",
 "lb": "leblanc",
 "cass": "cassiopeia",
+"casiopeia": "cassiopeia",
 "ori": "orianna",
 "lee": "leesin",
 "vlad": "vladimir",
@@ -169,7 +170,7 @@ def populateChampionDictionary():
     for value in data.values():
         champion = Champion(value)
         champions.append(champion)
-        
+
     __m.championNameFromId = {champion.id: champion.name for champion in champions}
     __m.championIdFromName = {re.sub("[^A-Za-z0-9]+", "", champion.name.lower()): champion.id for champion in champions}
     __m.validChampionIds = sorted(__m.championNameFromId.keys())

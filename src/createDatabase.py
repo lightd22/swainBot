@@ -77,7 +77,7 @@ if __name__ == "__main__":
     createTables(cur, tableNames, columnInfo, clobber = True)
 
     year = "2017"
-    regions = ["EU_LCS","NA_LCS","LCK","LPL","LMS"]
+    regions = ["LCK","EU_LCS","LPL","LMS","NA_LCS"]
     tournament = "Summer_Season"
     for region in regions:
         print("Querying: {}".format(year+"/"+region+"/"+tournament))
@@ -122,9 +122,10 @@ if __name__ == "__main__":
 
     year = "2017"
     region = "International"
-    tournaments = ["RR/BLUE",
-                  "RR/PURPLE",
-                  "MSI"]
+    #tournaments = ["RR/BLUE",
+    #              "RR/PURPLE",
+    #              "MSI"]
+    tournaments = []
     for tournament in tournaments:
         print("Querying: {}".format("/".join([year, region, tournament])))
         gameData = queryWiki(year, region, tournament)

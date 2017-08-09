@@ -18,15 +18,6 @@ import draftDbOps as dbo
 from optimizeLearningRate import optimizeLearningRate
 import matplotlib.pyplot as plt
 
-class Team(object):
-    win = False
-    def __init__(self):
-        pass
-
-class Match(object):
-    red_team = Team()
-    def __init__(self,redTeamWon):
-        self.red_team.win = redTeamWon
 
 print("")
 print("********************************")
@@ -79,59 +70,113 @@ for exp in exp_replay.buffer:
     else:
         print("  we selected: {}->{} for position: {}".format(cid,cinfo.championNameFromId(cid), pos))
     print("  we recieved a reward of {} for this selection".format(r))
-    print("")
+    print("",flush=True)
 
 state = DraftState(team,valid_champ_ids)
 input_size = state.formatState().shape
 output_size = state.num_actions
 filter_size = (16,32,64)
 
-n_matches = 52
+n_matches = 420
 match_pool = mp.buildMatchPool(n_matches)
-training_matches = match_pool[:50]
-validation_matches = match_pool[50:]
+training_matches = match_pool[:400]
+validation_matches = match_pool[400:]
 
-batch_size = 8
-buffer_size = 1024
-n_epoch = 200
-spinup_epochs = 0
+batch_size = 32
+buffer_size = 4096
+n_epoch = 500
 
 discount_factor = 0.9
-learning_rate = 3.0e-4#6.0e-4 #1.2e-3 #2.4e-3
+learning_rate = 4.0e-4 #1.2e-3 #2.4e-3
 regularization_coeff = 7.5e-5#1.5e-4
-for i in range(2):
-    print("Learning on {} matches for {} epochs. lr {:.4e} reg {:4e}".format(len(training_matches),n_epoch, learning_rate, regularization_coeff))
+for i in range(1):
+    tf.reset_default_graph()
     Qnet = qNetwork.Qnetwork(input_size, output_size, filter_size, learning_rate, discount_factor, regularization_coeff)
-    loss,val_acc = tn.trainNetwork(Qnet,training_matches,validation_matches,n_epoch,batch_size,buffer_size,spinup_epochs,load_model=False,verbose=True)
+    n_epoch = n_epoch*(i+1)
+    print("Learning on {} matches for {} epochs. lr {:.4e} reg {:4e}".format(len(training_matches),n_epoch, learning_rate, regularization_coeff),flush=True)
+    loss,train_acc = tn.trainNetwork(Qnet,training_matches,validation_matches,n_epoch,batch_size,buffer_size,load_model=False,verbose=True)
     print("Learning complete!")
-    print("..final training accuracy: {:.4f}".format(val_acc))
+    print("..final training accuracy: {:.4f}".format(train_acc))
     x = [i+1 for i in range(len(loss))]
     fig = plt.figure()
     plt.plot(x,loss)
     plt.ylabel('loss')
     plt.xlabel('epoch')
-    plt.ylim([0,10])
-    fig_name = "tmp/loss_figures/spinup/{}_epoch/loss_E{}_run_{}.png".format(spinup_epochs,n_epoch,i+1)
+    plt.ylim([0,50])
+    fig_name = "tmp/loss_figures/annuled_rate/loss_E{}_run_{}.pdf".format(n_epoch,i+1)
+    print("Loss figure saved in:{}".format(fig_name),flush=True)
     fig.savefig(fig_name)
 
+# Look at predicted Q values for states in a randomly drawn match
+Qnet = qNetwork.Qnetwork(input_size, output_size, filter_size, learning_rate, discount_factor, regularization_coeff)
+match = random.sample(training_matches,1)[0]
+team = DraftState.RED_TEAM if match["winner"]==1 else DraftState.BLUE_TEAM
+experiences = mp.processMatch(match,team)
+count = 0
+# x labels for q val plots
+xticks = []
+xtick_locs = []
+for a in range(state.num_actions):
+    cid,pos = state.formatAction(a)
+    if cid not in xticks:
+        xticks.append(cid)
+        xtick_locs.append(a)
+xtick_labels = [cinfo.championNameFromId(cid)[:6] for cid in xticks]
 
+tf.reset_default_graph()
+with tf.Session() as sess:
+    Qnet = qNetwork.Qnetwork(input_size, output_size, filter_size, learning_rate, discount_factor, regularization_coeff)
+    Qnet.saver.restore(sess,"tmp/model.ckpt")
+    for exp in experiences:
+        state,act,rew,next_state = exp
+        cid,pos = act
+        if cid == None:
+            continue
+        count += 1
+        form_act = state.getAction(cid,pos)
+        pred_act, pred_Q = sess.run([Qnet.prediction,Qnet.outQ],feed_dict={Qnet.input:[state.formatState()]})
+        pred_act = pred_act[0]
+        pred_Q = pred_Q[0,:]
+        p_cid,p_pos = state.formatAction(pred_act)
+        actual = (cinfo.championNameFromId(cid),pos,pred_Q[form_act])
+        pred = (cinfo.championNameFromId(p_cid),p_pos,pred_Q[pred_act])
+        print("pred:{}, actual:{}".format(pred,actual))
+        fig = plt.figure(figsize=(25,5))
+        plt.ylabel('$Q(s,a)$')
+        plt.xlabel('$a$')
+        plt.xticks(xtick_locs, xtick_labels, rotation=70)
+        plt.tick_params(axis='x',which='both',labelsize=6)
+        x = np.arange(len(pred_Q))
+        plt.bar(x,pred_Q, align='center',alpha=0.8,color='b')
+        plt.bar(pred_act, pred_Q[pred_act],align='center',color='r')
+        plt.bar(form_act, pred_Q[form_act],align='center',color='g')
+
+        fig_name = "tmp/qval_figs/{}.pdf".format(count)
+        fig.savefig(fig_name)
+
+# Lets look at the submissions that are incorrectly predicted
 replay = er.ExperienceBuffer(10*len(training_matches))
 for match in training_matches:
     team = DraftState.RED_TEAM if match["winner"]==1 else DraftState.BLUE_TEAM
     experiences = mp.processMatch(match,team)
     replay.store(experiences)
+
+tf.reset_default_graph()
 with tf.Session() as sess:
+    Qnet = qNetwork.Qnetwork(input_size, output_size, filter_size, learning_rate, discount_factor, regularization_coeff)
     Qnet.saver.restore(sess,"tmp/model.ckpt")
 
     for exp in replay.buffer:
         state,act,rew,next_state = exp
         cid,pos = act
+        if cid == None:
+            continue
         form_act = state.getAction(cid,pos)
         pred_act, pred_Q = sess.run([Qnet.prediction,Qnet.outQ],feed_dict={Qnet.input:[state.formatState()]})
         pred_act = pred_act[0]
         pred_cid,pred_pos = state.formatAction(pred_act)
         if(form_act != pred_act):
-            state.displayState()
+            #state.displayState()
             print("pred: {} in pos {}, actual: {} in pos {}".format(cinfo.championNameFromId(pred_cid),pred_pos,cinfo.championNameFromId(cid),pos))
             print("pred Q: {:.4f}, actual Q: {:.4f}".format(pred_Q[0,pred_act],pred_Q[0,form_act]))
 
@@ -142,14 +187,15 @@ print("The state we are predicting from is:")
 myState.displayState()
 
 # Print out learner's predicted Q-values for myState after training.
+tf.reset_default_graph()
 with tf.Session() as sess:
+    Qnet = qNetwork.Qnetwork(input_size, output_size, filter_size, learning_rate, discount_factor, regularization_coeff)
     Qnet.saver.restore(sess,"tmp/model.ckpt")
     print("qNetwork restored")
 
     input_state = [myState.formatState()]
     action = sess.run(Qnet.prediction,feed_dict={Qnet.input:input_state})
     pred_Q = sess.run(Qnet.outQ,feed_dict={Qnet.input:input_state})
-    print(pred_Q.shape)
     pred_action = np.argmax(pred_Q, axis=1)
     print("We should be taking action a = {}".format(pred_action[0]))
     print("actionid \t championid \t championName \t position \t qValue")
