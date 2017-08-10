@@ -1,6 +1,7 @@
 import random
 import numpy as np
 from copy import deepcopy
+import json
 from cassiopeia import riotapi
 from draftstate import DraftState
 import championinfo as cinfo
@@ -72,23 +73,29 @@ for exp in exp_replay.buffer:
     print("  we recieved a reward of {} for this selection".format(r))
     print("",flush=True)
 
+n_matches = 420
+match_data = mp.buildMatchPool(n_matches)
+match_pool = match_data["matches"]
+# Store training match data in a json file (for use later)
+with open('match_pool.txt','w') as outfile:
+    json.dump(match_data,outfile)
+training_matches = match_pool[:400]
+validation_matches = match_pool[400:]
+
+# Network parameters
 state = DraftState(team,valid_champ_ids)
 input_size = state.formatState().shape
 output_size = state.num_actions
 filter_size = (16,32,64)
+regularization_coeff = 7.5e-5#1.5e-4
 
-n_matches = 420
-match_pool = mp.buildMatchPool(n_matches)
-training_matches = match_pool[:400]
-validation_matches = match_pool[400:]
-
+# Training parameters
 batch_size = 32
 buffer_size = 4096
 n_epoch = 500
-
 discount_factor = 0.9
 learning_rate = 2.0e-4
-regularization_coeff = 7.5e-5#1.5e-4
+
 for i in range(1):
     tf.reset_default_graph()
     Qnet = qNetwork.Qnetwork(input_size, output_size, filter_size, learning_rate, discount_factor, regularization_coeff)
