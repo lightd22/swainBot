@@ -73,14 +73,14 @@ for exp in exp_replay.buffer:
     print("  we recieved a reward of {} for this selection".format(r))
     print("",flush=True)
 
-n_matches = 420
+n_matches = 30
 match_data = mp.buildMatchPool(n_matches)
 match_pool = match_data["matches"]
 # Store training match data in a json file (for use later)
 with open('match_pool.txt','w') as outfile:
-    json.dump(match_data,outfile)
-training_matches = match_pool[:400]
-validation_matches = match_pool[400:]
+    json.dump(match_data["match_ids"],outfile)
+training_matches = match_pool[:25]
+validation_matches = match_pool[25:]
 
 # Network parameters
 state = DraftState(team,valid_champ_ids)
@@ -90,18 +90,19 @@ filter_size = (16,32,64)
 regularization_coeff = 7.5e-5#1.5e-4
 
 # Training parameters
-batch_size = 32
+batch_size = 8
 buffer_size = 4096
-n_epoch = 500
+n_epoch = 100
 discount_factor = 0.9
-learning_rate = 2.0e-4
+learning_rate = 1.0e-4
 
 for i in range(1):
     tf.reset_default_graph()
-    Qnet = qNetwork.Qnetwork(input_size, output_size, filter_size, learning_rate, discount_factor, regularization_coeff)
+    online_net = qNetwork.Qnetwork("online",input_size, output_size, filter_size, learning_rate, regularization_coeff, discount_factor)
+    target_net = qNetwork.Qnetwork("target",input_size, output_size, filter_size, learning_rate, regularization_coeff, discount_factor)
     n_epoch = n_epoch*(i+1)
     print("Learning on {} matches for {} epochs. lr {:.4e} reg {:4e}".format(len(training_matches),n_epoch, learning_rate, regularization_coeff),flush=True)
-    loss,train_acc = tn.trainNetwork(Qnet,training_matches,validation_matches,n_epoch,batch_size,buffer_size,load_model=False,verbose=True)
+    loss,train_acc = tn.trainNetwork(online_net,target_net,training_matches,validation_matches,n_epoch,batch_size,buffer_size,load_model=False,verbose=True)
     print("Learning complete!")
     print("..final training accuracy: {:.4f}".format(train_acc))
     x = [i+1 for i in range(len(loss))]
@@ -115,7 +116,6 @@ for i in range(1):
     fig.savefig(fig_name)
 
 # Look at predicted Q values for states in a randomly drawn match
-Qnet = qNetwork.Qnetwork(input_size, output_size, filter_size, learning_rate, discount_factor, regularization_coeff)
 match = random.sample(training_matches,1)[0]
 team = DraftState.RED_TEAM if match["winner"]==1 else DraftState.BLUE_TEAM
 experiences = mp.processMatch(match,team)
@@ -131,8 +131,8 @@ for a in range(state.num_actions):
 xtick_labels = [cinfo.championNameFromId(cid)[:6] for cid in xticks]
 
 tf.reset_default_graph()
+Qnet = qNetwork.Qnetwork("online",input_size, output_size, filter_size, learning_rate, regularization_coeff, discount_factor)
 with tf.Session() as sess:
-    Qnet = qNetwork.Qnetwork(input_size, output_size, filter_size, learning_rate, discount_factor, regularization_coeff)
     Qnet.saver.restore(sess,"tmp/model.ckpt")
     for exp in experiences:
         state,act,rew,next_state = exp
@@ -169,8 +169,8 @@ myState.displayState()
 
 # Print out learner's predicted Q-values for myState after training.
 tf.reset_default_graph()
+Qnet = qNetwork.Qnetwork(input_size, output_size, filter_size, learning_rate, discount_factor, regularization_coeff)
 with tf.Session() as sess:
-    Qnet = qNetwork.Qnetwork(input_size, output_size, filter_size, learning_rate, discount_factor, regularization_coeff)
     Qnet.saver.restore(sess,"tmp/model.ckpt")
     print("qNetwork restored")
 
