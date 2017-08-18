@@ -9,16 +9,16 @@ def getReward(state, match):
         reward (int): Integer value representing the reward earned for the draft state.
 
     getReward takes a draft state and returns the immediate reward for reaching that state. The reward is determined by a simple reward table
-        1) state is invalid -> reward = -10
-        2) state is complete, valid, and the selection was submitted by the winning team -> reward = 10
+        1) state is invalid -> reward = -2
+        2) state is complete, valid, and the selection was submitted by the winning team -> reward = +2
         3) state is valid, but incomplete  -> reward = 0
     """
     status = state.evaluateState()
     if(status in ds.invalid_states):
-        return -10.
-    if(state.team == getWinningTeam(match)):
+        return -2.
+    if(state.team==getWinningTeam(match)):
         if(status==ds.DRAFT_COMPLETE):
-            return 10.
+            return 2.
         else:
             return 0.
     return 0.

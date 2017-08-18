@@ -22,7 +22,7 @@ import matplotlib.pyplot as plt
 
 print("")
 print("********************************")
-print("** Beginning Smart Draft Run! **")
+print("** Beginning Swain Bot Run! **")
 print("********************************")
 
 valid_champ_ids = cinfo.getChampionIds()
@@ -73,14 +73,16 @@ for exp in exp_replay.buffer:
     print("  we recieved a reward of {} for this selection".format(r))
     print("",flush=True)
 
-n_matches = 30
+n_matches = 500
+n_training = 450
 match_data = mp.buildMatchPool(n_matches)
 match_pool = match_data["matches"]
+match_ids = match_data["match_ids"]
 # Store training match data in a json file (for use later)
 with open('match_pool.txt','w') as outfile:
-    json.dump(match_data["match_ids"],outfile)
-training_matches = match_pool[:25]
-validation_matches = match_pool[25:]
+    json.dump({"training_ids":match_ids[:n_training],"validation_ids":match_ids[n_training:]},outfile)
+training_matches = match_pool[:n_training]
+validation_matches = match_pool[n_training:]
 
 # Network parameters
 state = DraftState(team,valid_champ_ids)
@@ -90,9 +92,9 @@ filter_size = (16,32,64)
 regularization_coeff = 7.5e-5#1.5e-4
 
 # Training parameters
-batch_size = 8
+batch_size = 32
 buffer_size = 4096
-n_epoch = 100
+n_epoch = 500
 discount_factor = 0.9
 learning_rate = 1.0e-4
 
@@ -133,7 +135,7 @@ xtick_labels = [cinfo.championNameFromId(cid)[:6] for cid in xticks]
 tf.reset_default_graph()
 Qnet = qNetwork.Qnetwork("online",input_size, output_size, filter_size, learning_rate, regularization_coeff, discount_factor)
 with tf.Session() as sess:
-    Qnet.saver.restore(sess,"tmp/model.ckpt")
+    Qnet.saver.restore(sess,"tmp/model_E{}.ckpt".format(500))
     for exp in experiences:
         state,act,rew,next_state = exp
         cid,pos = act
@@ -169,9 +171,9 @@ myState.displayState()
 
 # Print out learner's predicted Q-values for myState after training.
 tf.reset_default_graph()
-Qnet = qNetwork.Qnetwork(input_size, output_size, filter_size, learning_rate, discount_factor, regularization_coeff)
+Qnet = qNetwork.Qnetwork("online",input_size, output_size, filter_size, learning_rate, regularization_coeff, discount_factor)
 with tf.Session() as sess:
-    Qnet.saver.restore(sess,"tmp/model.ckpt")
+    Qnet.saver.restore(sess,"tmp/model_E{}.ckpt".format(500))
     print("qNetwork restored")
 
     input_state = [myState.formatState()]

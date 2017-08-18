@@ -153,7 +153,7 @@ class Qnetwork():
 
             # Simple sum-of-squares loss (error) function with regularization. Note that biases do not
             # need to be regularized since they are (generally) not subject to overfitting.
-            self.loss = tf.add(tf.reduce_mean(tf.square(self.target-self.estimatedQ)),
+            self.loss = tf.add(tf.reduce_mean(0.5*tf.square(self.target-self.estimatedQ)),
                         self._regularization_coeff*(tf.nn.l2_loss(self.fc_weights)),name="loss")
 
             self.trainer = tf.train.AdamOptimizer(learning_rate = self.learning_rate)

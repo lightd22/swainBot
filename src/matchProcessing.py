@@ -20,7 +20,7 @@ def buildMatchPool(num_matches):
             "match_ids": list of match_ids for pooled matches
             "matches": list of pooled match data to process
 
-    This will be responsible for building the set of matchids that we will use during learning phase.
+    This will be responsible for building the set of random matchids that we will use during learning phase.
     """
     dbName = "competitiveGameData.db"
     conn = sqlite3.connect("tmp/"+dbName)
