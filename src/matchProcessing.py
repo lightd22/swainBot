@@ -9,7 +9,6 @@ import sqlite3
 import draftDbOps as dbo
 
 import random
-
 import json
 
 def buildMatchPool(num_matches):
@@ -17,9 +16,11 @@ def buildMatchPool(num_matches):
     Args:
         num_matches (int): Number of matches to include in the queue (0 indicates to use the maximum number of matches available)
     Returns:
-        selected_matches (list of match references): list containing matchIds to be processed
+        match_data (dictionary): dictionary containing two keys:
+            "match_ids": list of match_ids for pooled matches
+            "matches": list of pooled match data to process
 
-    This will be responsible for building the queue of matchids that we will use during learning phase.
+    This will be responsible for building the set of random matchids that we will use during learning phase.
     """
     dbName = "competitiveGameData.db"
     conn = sqlite3.connect("tmp/"+dbName)
@@ -27,15 +28,21 @@ def buildMatchPool(num_matches):
     tournaments = ["2017/EU/Summer_Season", "2017/NA/Summer_Season", "2017/LCK/Summer_Season",
                     "2017/LPL/Summer_Season", "2017/LMS/Summer_Season", "2017/INTL/MSI"]
     match_pool = []
+    # Build list of eligible matche ids
     for tournament in tournaments:
         game_ids = dbo.getGameIdsByTournament(cur, tournament)
-        for game in game_ids:
-            match = dbo.getMatchData(cur, game)
-            match_pool.append(match)
+        match_pool.extend(game_ids)
+
     print("Number of available matches for training={}".format(len(match_pool)))
     assert num_matches <= len(match_pool), "Not enough matches found to sample!"
-    selected_matches = random.sample(match_pool, num_matches)
-    return selected_matches
+    selected_match_ids = random.sample(match_pool, num_matches)
+
+    selected_matches = []
+    for match_id in selected_match_ids:
+        match = dbo.getMatchData(cur, match_id)
+        selected_matches.append(match)
+    conn.close()
+    return {"match_ids":selected_match_ids, "matches":selected_matches}
 
 def processMatch(match, team):
     """
