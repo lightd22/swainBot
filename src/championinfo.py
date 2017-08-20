@@ -34,7 +34,8 @@ __m.championAliases = {
 "nid": "nidalee",
 "aurelion": "aurelionsol",
 "mundo": "drmundo",
-"tahm": "tahmkench"
+"tahm": "tahmkench",
+"kayne": "kayn"
 }
 
 # This is a flag to make championinfo methods look for data stored locally
@@ -73,8 +74,9 @@ def convertChampionAlias(alias):
 
     Example: name = convertChampionAlias("blitz") will yield name = "blitzcrank"
     """
-    if (alias == "none"):
-        return None
+    null_champion = ["none","lossofban"]
+    if (alias in null_champion):
+        return "none"
     try:
         if (alias in __m.championAliases):
             return __m.championAliases[alias]

@@ -77,8 +77,8 @@ if __name__ == "__main__":
     createTables(cur, tableNames, columnInfo, clobber = True)
 
     year = "2017"
-    regions = ["LCK","EU_LCS","LPL","LMS","NA_LCS"]
-    tournament = "Summer_Season"
+    regions = ["LPL","LMS","LCK","EU_LCS","NA_LCS"]
+    tournament = "Summer_Split"
     for region in regions:
         print("Querying: {}".format(year+"/"+region+"/"+tournament))
         gameData = queryWiki(year, region, tournament)
@@ -122,10 +122,12 @@ if __name__ == "__main__":
 
     year = "2017"
     region = "International"
-    #tournaments = ["RR/BLUE",
-    #              "RR/PURPLE",
-    #              "MSI"]
-    tournaments = []
+    tournaments = ["RR/BLUE",
+                  "RR/PURPLE",
+                  "RR/RED",
+                  "RR/GREEN",
+                  "MSI"]
+    #tournaments = []
     for tournament in tournaments:
         print("Querying: {}".format("/".join([year, region, tournament])))
         gameData = queryWiki(year, region, tournament)
@@ -186,7 +188,7 @@ if __name__ == "__main__":
     db = pd.read_sql_query(query, conn, params=params)
     print(db)
 
-    gameIds = dbo.getGameIdsByTournament(cur, "2017/Summer_Season/EU")
+    gameIds = dbo.getGameIdsByTournament(cur, "2017/Summer_Split/EU")
     for i in gameIds:
         match = dbo.getMatchData(cur, i)
         print(match)

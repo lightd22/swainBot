@@ -14,7 +14,7 @@ def queryWiki(year, region, tournament):
     queryWiki("2017", "EU_LCS", "Summer_Split")
 
     If we were interested in 2016 World Championship we would pass:
-    queryWiki("2016", "International", "Season_World_Championship")
+    queryWiki("2016", "International", "World_Championship")
 
     Each dictionary corresponds to the pick/ban phase of an LCS game with the following keys:
         "region":
@@ -36,19 +36,21 @@ def queryWiki(year, region, tournament):
         List of dictionaries containing formatted response data from lol.gamepedia api
     """
     # Common root for all requests
-    urlRoot = "http://lol.esportspedia.com/w/api.php"
+    url_root = "https://lol.gamepedia.com/api.php"
 
     # Semi-standardized page suffixes for pick/ban pages
-    pageSuffixes = ["", "/Bracket_Stage"]
+    page_suffixes = ["", "/Group_Stage", "/Knockout_Stage"]
+    for i in range(10):
+        page_suffixes.append("/Week_{}".format(i+1))
 
-    formattedRegions = {"NA_LCS":"League_Championship_Series/North_America",
-                        "EU_LCS":"League_Championship_Series/Europe",
+    formatted_regions = {"NA_LCS":"NA_LCS",
+                        "EU_LCS":"EU_LCS",
                         "LCK":"LCK",
                         "LPL":"LPL",
                         "LMS":"LMS"}
 
-    formattedInternationalTournaments = {
-                        "WRLDS": "Season_World_Championship",
+    formatted_international_tournaments = {
+                        "WRLDS": "World_Championship",
                         "RR/BLUE": "Rift_Rivals/Blue_Rift",
                         "RR/PURPLE": "Rift_Rivals/Purple_Rift",
                         "RR/RED": "Rift_Rivals/Red_Rift",
@@ -58,91 +60,105 @@ def queryWiki(year, region, tournament):
     }
     # Build list of titles of pages to query
     if region == "International":
-        titleRoot = ["_".join([year,formattedInternationalTournaments[tournament]])]
+        title_root = ["_".join([year,formatted_international_tournaments[tournament]])]
     else:
-        formattedRegion = formattedRegions[region]
-        formattedYear = "_".join([year,"Season"])
-        titleRoot = [formattedRegion,formattedYear,tournament]
-    titleRoot.append("Picks_and_Bans")
-    titleRoot = "/".join(titleRoot)
+        formatted_region = formatted_regions[region]
+        formatted_year = "_".join([year,formatted_region])
+        title_root = [formatted_year,tournament]
+    title_root.append("Scoreboards")
+    title_root = "/".join(title_root)
 
-    titleList = []
-    for suffix in pageSuffixes:
-        titleList.append(titleRoot+suffix)
-    formattedTitleList = "|".join(titleList) # Parameter string to pass to API
-    params = {"action": "query", "titles": formattedTitleList,
+    title_list = []
+    for suffix in page_suffixes:
+        title_list.append(title_root+suffix)
+    formatted_title_list = "|".join(title_list) # Parameter string to pass to API
+    params = {"action": "query", "titles": formatted_title_list,
               "prop":"revisions", "rvprop":"content", "format": "json"}
 
-    response = requests.get(url=urlRoot, params=params)
+    response = requests.get(url=url_root, params=params)
     print(response.url)
     data = json.loads(response.text)
-    pageData = data['query']['pages']
+    page_data = data['query']['pages']
     # Get list of page keys (actually a list of pageIds.. could be used to identify pages?)
-    pageKeys = list(sorted(pageData.keys()))
-    pageKeys = [k for k in pageKeys if int(k)>=0] # Filter out "invalid page" and "missing page" responses
+    page_keys = list(sorted(page_data.keys()))
+    page_keys = [k for k in page_keys if int(k)>=0] # Filter out "invalid page" and "missing page" responses
     formattedData = []
     tournGameId = 0
-    for page in pageKeys:
+    for page in page_keys:
         # Get the raw text of the most recent revision of the current page
         # Note that we remove all space characters from the raw text, including those
         # in team or champion names.
-        rawText = pageData[page]["revisions"][0]["*"].replace(" ","").replace("\\n"," ")
-
+        raw_text = page_data[page]["revisions"][0]["*"].replace(" ","").replace("\\n"," ")
+        print(page_data[page]["title"])
         # string representation of blue and red teams, ordered by game
-        blueTeams = parseRawText("(team1=\w+\s?\w*)",rawText)
-        redTeams = parseRawText("(team2=\w+\s?\w*)",rawText)
+        blue_teams = parseRawText("(team1=\w+\s?\w*)",raw_text)
+        red_teams = parseRawText("(team2=\w+\s?\w*)",raw_text)
 
-        blueScores = parseRawText("(team1score=[0-9])",rawText)
-        redScores = parseRawText("(team2score=[0-9])",rawText)
+#        blueScores = parseRawText("(team1score=[0-9])",raw_text)
+#        redScores = parseRawText("(team2score=[0-9])",raw_text)
 
-        # winningTeams holds which team won for each parsed game
+        # winning_teams holds which team won for each parsed game
         # winner = 1 -> first team won (i.e blue team)
         # winner = 2 -> second team won (i.e red team)
-        winningTeams = parseRawText("(winner=[0-9])",rawText)
-        winningTeams = [int(i)-1 for i in winningTeams] # Convert string response to int
-        numGamesOnPage = len(winningTeams)
+        winning_teams = parseRawText("(winner=[0-9])",raw_text)
+        winning_teams = [int(i)-1 for i in winning_teams] # Convert string response to int
+        num_games_on_page = len(winning_teams)
 
         # bans holds the string identifiers of submitted bans for each team in the parsed game
-        # ex: bans[k] = kth ban on the page
-        blueBans = parseRawText("(blueban[0-9]=\w[\w\s'.]+)", rawText)
-        redBans = parseRawText("(redban[0-9]=\w[\w\s'.]+)", rawText)
+        # ex: bans[k] = list of bans for kth game on the page
+        blue_bans = parseRawText("(team1bans=\w[\w\s'.,]+)", raw_text)
+        blue_bans = [blue_bans[k].split(',') for k in range(len(blue_bans))]
+        red_bans = parseRawText("(team2bans=\w[\w\s'.,]+)", raw_text)
+        red_bans = [red_bans[k].split(',') for k in range(len(red_bans))]
 
-        # bluePicks[i] = ith pick on the page
-        bluePicks = parseRawText("(bluepick[0-9]=\w[\w\s'.]+)", rawText)
-        redPicks = parseRawText("(redpick[0-9]=\w[\w\s'.]+)", rawText)
+        # blue_picks[i] = list of picks for kth game on the page
+        blue_picks = parseRawText("(team1picks=\w[\w\s'.,]+)", raw_text)
+        blue_picks = [blue_picks[k].split(',') for k in range(len(blue_picks))]
+        red_picks = parseRawText("(team2picks=\w[\w\s'.,]+)", raw_text)
+        red_picks = [red_picks[k].split(',') for k in range(len(red_picks))]
 
-        # bluePickPositions[k] = position associated with kth pick on the page
-        bluePickPositions = parseRawText("(bluepick[0-9]role=[\w\s'.]+)",rawText)
-        redPickPositions = parseRawText("(redpick[0-9]role=[\w\s'.]+)",rawText)
+        picks_per_game = len(blue_picks[0])
+        bans_per_game = len(blue_bans[0])
 
-        print("Total number of games found: {}".format(numGamesOnPage))
-        print("There should be {} bans. We found {} blue bans and {} red bans".format(numGamesOnPage*5,len(blueBans),len(redBans)))
-        print("There should be {} picks. We found {} blue picks and {} red picks".format(numGamesOnPage*5,len(bluePicks),len(redPicks)))
-        assert len(redBans)==len(blueBans), "Bans don't match!"
-        assert len(redPicks)==len(bluePicks), "Picks don't match!"
-        if numGamesOnPage > 0: # At least one game found on current page
-            picksPerGame = len(bluePicks)//numGamesOnPage
-            bansPerGame = len(blueBans)//numGamesOnPage
-            print("This means we're looking for {} bans per game".format(bansPerGame))
-            for k in range(numGamesOnPage):
-                # picks holds the identifiers of submitted (pick, position) pairs for each team in the parsed game
+        # blue_picks_in_lcs_order initially raw list of picks in lcs order (not sorted by match)
+        blue_picks_in_lcs_order = parseRawText("(blue[0-9]champion=[\w\s'.,]+)",raw_text)
+        blue_picks_in_lcs_order = [blue_picks_in_lcs_order[picks_per_game*k:picks_per_game*(k+1)] for k in range(num_games_on_page)]
+        blue_position_dicts = list(map(createPositionDict,blue_picks_in_lcs_order))
+        #print(blue_position_dicts[11].keys())
+        red_picks_in_lcs_order = parseRawText("(purple[0-9]champion=[\w\s'.,]+)",raw_text)
+        red_picks_in_lcs_order = [red_picks_in_lcs_order[picks_per_game*k:picks_per_game*(k+1)] for k in range(num_games_on_page)]
+        red_position_dicts = list(map(createPositionDict,red_picks_in_lcs_order))
+        #print(red_position_dicts[11].keys())
+        total_blue_bans = sum([len(bans) for bans in blue_bans])
+        total_red_bans = sum([len(bans) for bans in red_bans])
+        total_blue_picks = sum([len(picks) for picks in blue_picks])
+        total_red_picks = sum([len(picks) for picks in red_picks])
+
+        print("Total number of games found: {}".format(num_games_on_page))
+        print("There should be {} bans. We found {} blue bans and {} red bans".format(num_games_on_page*5,total_blue_bans,total_red_bans))
+        print("There should be {} picks. We found {} blue picks and {} red picks".format(num_games_on_page*5,total_blue_picks,total_red_picks))
+        assert total_red_bans==total_blue_bans, "Bans don't match!"
+        assert total_red_picks==total_blue_picks, "Picks don't match!"
+        if num_games_on_page > 0: # At least one game found on current page
+            for k in range(num_games_on_page):
+                # submissions holds the identifiers of submitted (pick, position) pairs for each team in the parsed game
                 # string representation for the positions are converted to ints to match DraftState expectations
-                print("Game {}: {} vs {}".format(k,blueTeams[k],redTeams[k]))
-                picks = cleanChampionNames(bluePicks[k*picksPerGame:(k+1)*picksPerGame])
-                positions = positionStringToId(bluePickPositions[k*picksPerGame:(k+1)*picksPerGame])
-                bluePickPos = [(picks[k], positions[k]) for k in range(picksPerGame)]
+                print("Game {}: {} vs {}".format(k+1,blue_teams[k],red_teams[k]))
+                picks = cleanChampionNames(blue_picks[k])
+                positions = [blue_position_dicts[k][pick] for pick in picks]
+                blue_submissions = [(picks[k], positions[k]) for k in range(picks_per_game)]
 
-                picks = cleanChampionNames(redPicks[k*picksPerGame:(k+1)*picksPerGame])
-                positions = positionStringToId(redPickPositions[k*picksPerGame:(k+1)*picksPerGame])
-                redPickPos = [(picks[k], positions[k]) for k in range(picksPerGame)]
+                picks = cleanChampionNames(red_picks[k])
+                positions = [red_position_dicts[k][pick] for pick in picks]
+                red_submissions = [(picks[k], positions[k]) for k in range(picks_per_game)]
 
                 tournGameId += 1
-                bans = {"blue": blueBans[k*bansPerGame:(k+1)*bansPerGame], "red":redBans[k*bansPerGame:(k+1)*bansPerGame]}
-                picks = {"blue": bluePickPos, "red":redPickPos}
+                bans = {"blue": cleanChampionNames(blue_bans[k]), "red":cleanChampionNames(red_bans[k])}
+                picks = {"blue": blue_submissions, "red":red_submissions}
                 gameData = {"region": region, "year":year, "tournament": tournament,
-                            "blue_team": blueTeams[k], "red_team": redTeams[k],
-                            "winning_team": winningTeams[k],
-                            "blue_score":blueScores[k], "red_score":redScores[k],
+                            "blue_team": blue_teams[k], "red_team": red_teams[k],
+                            "winning_team": winning_teams[k],
+                            "blue_score":-1, "red_score":-1,
                             "bans": bans, "picks": picks, "tourn_game_id": tournGameId}
                 formattedData.append(gameData)
 
@@ -227,6 +243,23 @@ def convertLcsPositions(index):
     lcsOrderToPos = {i:j for i,j in enumerate([3,4,2,1,5])}
     return lcsOrderToPos[index]
 
+def createPositionDict(picks_in_lcs_order):
+    """
+    Given a list of champions selected in lcs order (ie top,jungle,mid,adc,support)
+    returns a dictionary which matches pick -> position.
+    Args:
+        picks_in_lcs_order (list(string)): list of string identifiers of picks. Assumed to be in LCS order
+    Returns:
+        dict (dictionary): dictionary with champion names for keys and position that the key was played in for value.
+    """
+    d = {}
+    cleaned_names = cleanChampionNames(picks_in_lcs_order)
+    for k in range(len(picks_in_lcs_order)):
+        pos = convertLcsPositions(k)
+        d.update({cleaned_names[k]:pos})
+    return d
+
+
 def cleanChampionNames(names):
     """
     Takes a list of champion names and standarizes them by looking for possible aliases
@@ -244,9 +277,9 @@ def cleanChampionNames(names):
     return cleanedNames
 
 if __name__ == "__main__":
-    #gameData = queryWiki("2017", "EU_LCS", "Summer_Season")
-    gameData = queryWiki("2016", "International", "Season_World_Championship")
-    #gameData = queryWiki("2017", "International", "Mid-Season_Invitational")
+    gameData = queryWiki("2017", "EU_LCS", "Summer_Split")
+    #gameData = queryWiki("2016", "International", "WRLDS")
+    #gameData = queryWiki("2017", "International", "MSI")
     print("**********************************************")
     print("**********************************************")
     print("Testing queryWiki:")
@@ -258,27 +291,33 @@ if __name__ == "__main__":
         picks = game["picks"]["blue"]
         bans = game["bans"]["blue"]
         print(bans)
-        bluePicks = []
-        bluebans = []
+        blue_picks = []
+        blue_bans = []
         for ban in bans:
-            bluebans.append(ban)
+            if ban is None:
+                blue_bans.append("None")
+            else:
+                blue_bans.append(ban)
         for (pick,pos) in picks:
-            bluePicks.append(pick)
-        s = "|team1picks=" + ", ".join(bluePicks)
-        t = "|team1bans=" + ", ".join(bluebans)
+            blue_picks.append(pick)
+        s = "|team1picks=" + ", ".join(blue_picks)
+        t = "|team1bans=" + ", ".join(blue_bans)
         print("blue team = {}".format(team1))
 
         team2 = game["red_team"]
         picks = game["picks"]["red"]
         bans = game["bans"]["red"]
-        redPicks = []
-        redbans = []
+        red_picks = []
+        red_bans = []
         for ban in bans:
-            redbans.append(ban)
+            if ban is None:
+                red_bans.append("None")
+            else:
+                red_bans.append(ban)
         for (pick,pos) in picks:
-            redPicks.append(pick)
-        t = t + "|team2bans=" + ", ".join(redbans)
-        s = s + "|team2picks=" + ", ".join(redPicks)
+            red_picks.append(pick)
+        t = t + "|team2bans=" + ", ".join(red_bans)
+        s = s + "|team2picks=" + ", ".join(red_picks)
         print("red team = {}".format(team2))
         print(s)
         print(t)
