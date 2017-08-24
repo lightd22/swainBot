@@ -78,45 +78,46 @@ if __name__ == "__main__":
 
     year = "2017"
     regions = ["LPL","LMS","LCK","EU_LCS","NA_LCS"]
-    tournament = "Summer_Split"
+    tournaments = ["Summer_Playoffs","Summer_Split"]
     for region in regions:
-        print("Querying: {}".format(year+"/"+region+"/"+tournament))
-        gameData = queryWiki(year, region, tournament)
-        for game in gameData:
-            seen_bans = set()
-            print("{} v {}".format(game["blue_team"], game["red_team"]))
-            bans = game["bans"]["blue"] + game["bans"]["red"]
-            for ban in bans:
-                if ban not in seen_bans:
-                    seen_bans.add(ban)
-                else:
-                    print(" Duplicate ban found! {}".format(ban))
-                    print("  ".format(seen_bans))
-
-            seen_picks = set()
-            for side in ["blue", "red"]:
-                seen_positions = set()
-                for pick in game["picks"][side]:
-                    (p,pos) = pick
-                    if p not in seen_picks:
-                        seen_picks.add(p)
+        for tournament in tournaments:
+            print("Querying: {}".format(year+"/"+region+"/"+tournament))
+            gameData = queryWiki(year, region, tournament)
+            for game in gameData:
+                seen_bans = set()
+                print("{} v {}".format(game["blue_team"], game["red_team"]))
+                bans = game["bans"]["blue"] + game["bans"]["red"]
+                for ban in bans:
+                    if ban not in seen_bans:
+                        seen_bans.add(ban)
                     else:
-                        print("  Duplicate pick found! {}".format(p))
-                        print("  ".format(seen_picks))
+                        print(" Duplicate ban found! {}".format(ban))
+                        print("  ".format(seen_bans))
 
-                    if pos not in seen_positions:
-                        seen_positions.add(pos)
-                    else:
-                        print("   Duplicate pos found! {}".format(pos))
-                        print("  ".format(seen_positions))
+                seen_picks = set()
+                for side in ["blue", "red"]:
+                    seen_positions = set()
+                    for pick in game["picks"][side]:
+                        (p,pos) = pick
+                        if p not in seen_picks:
+                            seen_picks.add(p)
+                        else:
+                            print("  Duplicate pick found! {}".format(p))
+                            print("  ".format(seen_picks))
 
-        print("Attempting to insert {} games..".format(len(gameData)))
-        status = dbo.insertTeam(cur,gameData)
-        status = dbo.insertGame(cur,gameData)
-        status = dbo.insertBan(cur,gameData)
-        status = dbo.insertPick(cur,gameData)
-        print("Committing changes to db..")
-        conn.commit()
+                        if pos not in seen_positions:
+                            seen_positions.add(pos)
+                        else:
+                            print("   Duplicate pos found! {}".format(pos))
+                            print("  ".format(seen_positions))
+
+            print("Attempting to insert {} games..".format(len(gameData)))
+            status = dbo.insertTeam(cur,gameData)
+            status = dbo.insertGame(cur,gameData)
+            status = dbo.insertBan(cur,gameData)
+            status = dbo.insertPick(cur,gameData)
+            print("Committing changes to db..")
+            conn.commit()
 
 #    print(json.dumps(game, indent=4, sort_keys=True))
 

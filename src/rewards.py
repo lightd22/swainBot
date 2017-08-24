@@ -15,10 +15,10 @@ def getReward(state, match):
     """
     status = state.evaluateState()
     if(status in ds.invalid_states):
-        return -2.
+        return -10.
     if(state.team==getWinningTeam(match)):
         if(status==ds.DRAFT_COMPLETE):
-            return 2.
+            return 5.
         else:
             return 0.
     return 0.

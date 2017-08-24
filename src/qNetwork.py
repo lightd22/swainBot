@@ -118,14 +118,23 @@ class Qnetwork():
                             padding="SAME",
                             name="pool3")
 
-            # Fully connected (FC) output layer:
-            # Flatten input feature map (pool2) to be shape [-1, features]
-            # If pool2 has shape = [-1, nx, ny, nf] then feature_size = nx*ny*nf
-            fc_input_size = int(np.prod(self.pool3.shape[1:]))
-            pool3_flat = tf.reshape(self.pool3, [-1, fc_input_size])
-            self.fc_weights = Qnetwork.weight_variable([fc_input_size,output_shape],"fc_out_weight")
-            self.fc_biases = Qnetwork.bias_variable([output_shape],"fc_out_bias")
-            self.outQ = tf.add(tf.matmul(pool3_flat, self.fc_weights), self.fc_biases, name="outputs")
+            # Fully connected (FC) layer:
+            # Flatten input feature map (pool2) to be shape [-1, feature_size]
+            # If pool3 has shape = [-1, nx, ny, nf] then feature_size = nx*ny*nf
+            fc1_input_size = int(np.prod(self.pool3.shape[1:]))
+            fc1_output_size = fc1_input_size//2
+            pool3_flat = tf.reshape(self.pool3, [-1, fc1_input_size])
+            self.fc1_weights = Qnetwork.weight_variable([fc1_input_size,fc1_output_size],"fc1_weight")
+            self.fc1_biases = Qnetwork.bias_variable([fc1_output_size],"fc1_bias")
+
+            self.fc1 = tf.nn.relu(tf.add(tf.matmul(pool3_flat, self.fc1_weights), self.fc1_biases),name="fc1")
+            self.dropout_keep_prob = tf.placeholder(tf.float32)
+            self.dropout1 = tf.nn.dropout(self.fc1,self.dropout_keep_prob)
+
+            # FC output layer
+            self.fc2_weights = Qnetwork.weight_variable([fc1_output_size,output_shape],"fc2_weight")
+            self.fc2_biases = Qnetwork.bias_variable([output_shape],"fc2_bias")
+            self.outQ = tf.add(tf.matmul(self.fc1, self.fc2_weights), self.fc2_biases, name="outputs")
 
             # Predicted optimal action
             self.prediction = tf.argmax(self.outQ, dimension=1, name="prediction")
@@ -154,7 +163,7 @@ class Qnetwork():
             # Simple sum-of-squares loss (error) function with regularization. Note that biases do not
             # need to be regularized since they are (generally) not subject to overfitting.
             self.loss = tf.add(tf.reduce_mean(0.5*tf.square(self.target-self.estimatedQ)),
-                        self._regularization_coeff*(tf.nn.l2_loss(self.fc_weights)),name="loss")
+                        self._regularization_coeff*(tf.nn.l2_loss(self.fc1_weights)+tf.nn.l2_loss(self.fc2_weights)),name="loss")
 
             self.trainer = tf.train.AdamOptimizer(learning_rate = self.learning_rate)
             self.update = self.trainer.minimize(self.loss, name="update")

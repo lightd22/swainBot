@@ -28,53 +28,8 @@ print("********************************")
 valid_champ_ids = cinfo.getChampionIds()
 print("Number of valid championIds: {}".format(len(valid_champ_ids)))
 
-# Simple memory storage loop for this draft.
-dbName = "competitiveGameData.db"
-conn = sqlite3.connect("tmp/"+dbName)
-cur = conn.cursor()
-tournament = "2017/EU/Summer_Season"
-gameIds = dbo.getGameIdsByTournament(cur, tournament)
-game = gameIds[0]
-match = dbo.getMatchData(cur, game)
-team = match["winner"]
-bluePicks = match["blue"]["picks"]
-blueBans = match["blue"]["bans"]
-redPicks = match["red"]["picks"]
-redBans = match["red"]["bans"]
-print("blue side selections:")
-print("   picks:")
-for pick in bluePicks:
-    print("         {}, position={}".format(cinfo.championNameFromId(pick[0]),pick[1]))
-print("    bans:")
-for ban in blueBans:
-    print("         {}".format(cinfo.championNameFromId(ban[0]),ban[1]))
-print("")
-print("red side selections:")
-for pick in redPicks:
-    print("         {}, position={}".format(cinfo.championNameFromId(pick[0]),pick[1]))
-print("    bans:")
-for ban in redBans:
-    print("         {}".format(cinfo.championNameFromId(ban[0]),ban[1]))
-print("the winner of this game was: {}".format(match["winner"]))
-
-experiences = mp.processMatch(match,team)
-exp_replay = er.ExperienceBuffer(10) # just enough buffer to store the first game's experience
-exp_replay.store(experiences)
-count = 0
-for exp in exp_replay.buffer:
-    count+=1
-    s,a,r,sNew = exp
-    (cid, pos) = a
-    print("For the {}th selection:".format(count))
-    if pos==-1:
-        print("  we banned: {}->{}".format(cid,cinfo.championNameFromId(cid)))
-    else:
-        print("  we selected: {}->{} for position: {}".format(cid,cinfo.championNameFromId(cid), pos))
-    print("  we recieved a reward of {} for this selection".format(r))
-    print("",flush=True)
-
-n_matches = 500
-n_training = 450
+n_matches = 20
+n_training = 18
 match_data = mp.buildMatchPool(n_matches)
 match_pool = match_data["matches"]
 match_ids = match_data["match_ids"]
@@ -85,10 +40,10 @@ training_matches = match_pool[:n_training]
 validation_matches = match_pool[n_training:]
 
 # Network parameters
-state = DraftState(team,valid_champ_ids)
+state = DraftState(DraftState.BLUE_TEAM,valid_champ_ids)
 input_size = state.formatState().shape
 output_size = state.num_actions
-filter_size = (16,32,64)
+filter_size = (32,32,64)
 regularization_coeff = 7.5e-5#1.5e-4
 
 # Training parameters
@@ -112,7 +67,7 @@ for i in range(1):
     plt.plot(x,loss)
     plt.ylabel('loss')
     plt.xlabel('epoch')
-    plt.ylim([0,50])
+    plt.ylim([0,1])
     fig_name = "tmp/loss_figures/annuled_rate/loss_E{}_run_{}.pdf".format(n_epoch,i+1)
     print("Loss figure saved in:{}".format(fig_name),flush=True)
     fig.savefig(fig_name)
@@ -143,7 +98,7 @@ with tf.Session() as sess:
             continue
         count += 1
         form_act = state.getAction(cid,pos)
-        pred_act, pred_Q = sess.run([Qnet.prediction,Qnet.outQ],feed_dict={Qnet.input:[state.formatState()]})
+        pred_act, pred_Q = sess.run([Qnet.prediction,Qnet.outQ],feed_dict={Qnet.input:[state.formatState()],Qnet.dropout_keep_prob:1.0})
         pred_act = pred_act[0]
         pred_Q = pred_Q[0,:]
         p_cid,p_pos = state.formatAction(pred_act)
@@ -162,58 +117,6 @@ with tf.Session() as sess:
 
         fig_name = "tmp/qval_figs/{}.pdf".format(count)
         fig.savefig(fig_name)
-
-# Now if we want to predict what decisions we should make..
-myState,action,_,_ = exp_replay.buffer[0]
-print("")
-print("The state we are predicting from is:")
-myState.displayState()
-
-# Print out learner's predicted Q-values for myState after training.
-tf.reset_default_graph()
-Qnet = qNetwork.Qnetwork("online",input_size, output_size, filter_size, learning_rate, regularization_coeff, discount_factor)
-with tf.Session() as sess:
-    Qnet.saver.restore(sess,"tmp/model_E{}.ckpt".format(500))
-    print("qNetwork restored")
-
-    input_state = [myState.formatState()]
-    action = sess.run(Qnet.prediction,feed_dict={Qnet.input:input_state})
-    pred_Q = sess.run(Qnet.outQ,feed_dict={Qnet.input:input_state})
-    pred_action = np.argmax(pred_Q, axis=1)
-    print("We should be taking action a = {}".format(pred_action[0]))
-    print("actionid \t championid \t championName \t position \t qValue")
-    print("*****************************************************************")
-    for i in range(pred_Q.size):
-        (cid,pos) = myState.formatAction(i)
-        qVal = pred_Q[0,i]
-        print("{} \t \t {} \t \t {:12} \t {} \t \t {:.4f}".format(i, cid, cinfo.championNameFromId(cid),pos,qVal))
-
-    (r_ChampId,r_Pos) = myState.formatAction(action[0])
-    print("The champion our network has chosen was: {}".format(cinfo.championNameFromId(r_ChampId)))
-    print("The position it recommended was: {}".format(r_Pos))
-
-    for exp in exp_replay.buffer:
-        state,a,r,nextState = exp
-        print("Predicting from state:")
-        state.displayState()
-        print("")
-        predictedAction = sess.run(Qnet.prediction, feed_dict={Qnet.input:[state.formatState()]})
-        (cid,pos) = state.formatAction(predictedAction[0])
-        print("Network predicts: {}, {}".format(cinfo.championNameFromId(cid),pos))
-
-    input_state = [state.formatState()]
-    pred_Q = sess.run(Qnet.outQ,feed_dict={Qnet.input:input_state})
-    print("actionid \t championid \t championName \t position \t qValue")
-    print("*****************************************************************")
-    for i in range(pred_Q.size):
-        (cid,pos) = myState.formatAction(i)
-        qVal = pred_Q[0,i]
-        print("{} \t \t {} \t \t {:12} \t {} \t \t {:.4f}".format(i, cid, cinfo.championNameFromId(cid),pos,qVal))
-    print("We should be taking action a = {}".format(predictedAction[0]))
-
-print("Closing DB connection..")
-conn.close()
-
 print("")
 print("********************************")
 print("**  Ending Smart Draft Run!   **")

@@ -25,8 +25,8 @@ def buildMatchPool(num_matches):
     dbName = "competitiveGameData.db"
     conn = sqlite3.connect("tmp/"+dbName)
     cur = conn.cursor()
-    tournaments = ["2017/EU/Summer_Season", "2017/NA/Summer_Season", "2017/LCK/Summer_Season",
-                    "2017/LPL/Summer_Season", "2017/LMS/Summer_Season", "2017/INTL/MSI"]
+    tournaments = ["2017/EU/Summer_Split", "2017/NA/Summer_Split", "2017/LCK/Summer_Split",
+                    "2017/LPL/Summer_Split", "2017/LMS/Summer_Split", "2017/INTL/MSI"]
     match_pool = []
     # Build list of eligible matche ids
     for tournament in tournaments:
@@ -167,3 +167,6 @@ def buildActionQueue(match):
         print("num_actions = {}".format(num_actions))
         print(json.dumps(match, indent=2, sort_keys=True))
     return action_queue
+
+if __name__ == "__main__":
+    match_info = buildMatchPool(10)
