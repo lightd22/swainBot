@@ -57,7 +57,7 @@ def trainNetwork(online_net, target_net, training_matches, validation_matches, t
     epsilon = 1. # Initial probability of letting the learner submit its own action
     # Number of steps to take between training
     update_freq = 1 # There are 10 submissions per match per side
-    lr_decay_freq = 100000 # Decay learning rate after a set number of epochs
+    lr_decay_freq = 50 # Decay learning rate after a set number of epochs
     min_learning_rate = 1.e-6 # Minimum learning rate allowed to decay to
 
     teams = [DraftState.BLUE_TEAM, DraftState.RED_TEAM]
@@ -89,10 +89,16 @@ def trainNetwork(online_net, target_net, training_matches, validation_matches, t
                 online_net.learning_rate = 0.50*online_net.learning_rate
 
             epoch_steps = 0
-            bad_state_counts = {DraftState.BAN_AND_SUBMISSION:0,
-                                DraftState.DUPLICATE_SUBMISSION:0,
-                                DraftState.DUPLICATE_ROLE:0,
-                                DraftState.INVALID_SUBMISSION:0}
+
+            bad_state_counts = {
+                "wins":{DraftState.BAN_AND_SUBMISSION:0,
+                        DraftState.DUPLICATE_SUBMISSION:0,
+                        DraftState.DUPLICATE_ROLE:0,
+                        DraftState.INVALID_SUBMISSION:0},
+                "loss":{DraftState.BAN_AND_SUBMISSION:0,
+                        DraftState.DUPLICATE_SUBMISSION:0,
+                        DraftState.DUPLICATE_ROLE:0,
+                        DraftState.INVALID_SUBMISSION:0}}
             learner_submitted_counts = 0
             null_action_count = 0
             # Shuffle match presentation order
@@ -120,9 +126,7 @@ def trainNetwork(online_net, target_net, training_matches, validation_matches, t
                             # which was not produced by geniune match data unless it matches the original experience.
                             # At the very least we can look at the networks predicted optimal action and if it
                             # disagrees with what was actually submitted we can adjust its predicted value.
-                            pred_act = sess.run(online_net.prediction,
-                                        feed_dict={online_net.input:[state.formatState()],
-                                                   online_net.dropout_keep_prob:1.0})
+                            pred_act = sess.run(online_net.prediction,feed_dict={online_net.input:[state.formatState()]})
                             pred_act = pred_act[0]
                             (cid,pos) = state.formatAction(pred_act)
 
@@ -132,7 +136,10 @@ def trainNetwork(online_net, target_net, training_matches, validation_matches, t
                             state_code = pred_state.evaluateState()
                             if(state_code in DraftState.invalid_states):
                                 # Prediction moves to illegal state, add negative experience
-                                bad_state_counts[state_code] += 1
+                                if(team==match["winner"]):
+                                    bad_state_counts["wins"][state_code] += 1
+                                else:
+                                    bad_state_counts["loss"][state_code] += 1
                                 r = getReward(pred_state, blank_match)
                                 new_experience = (state, (cid,pos), r, pred_state)
                                 experience_replay.store([new_experience])
@@ -214,11 +221,12 @@ def trainNetwork(online_net, target_net, training_matches, validation_matches, t
             if(verbose):
                 print(" Finished epoch {}/{}: dt {:.2f}, mem {}, loss {:.6f}, train {:.6f}, val {:.6f}".format(i+1,train_epochs,t1,total_steps,loss,train_acc,val_acc),flush=True)
                 print("  alpha:{:.4e}".format(online_net.learning_rate.eval()))
-                invalid_action_count = sum([bad_state_counts[k] for k in bad_state_counts])
+                invalid_action_count = sum([bad_state_counts["wins"][k]+bad_state_counts["loss"][k] for k in bad_state_counts["wins"]])
                 print("  negative memories added = {}".format(invalid_action_count))
                 print("  bad state distributions:")
-                for code in bad_state_counts:
-                    print("   {} -> {} counts".format(code,bad_state_counts[code]))
+                print("   from wins: {:9} from losses:".format(""))
+                for code in bad_state_counts["wins"]:
+                    print("   {:3} -> {:3} counts {:2} {:3} -> {:3} counts".format(code,bad_state_counts["wins"][code],"",code,bad_state_counts["loss"][code]))
                 print("  learner submissions: {}".format(learner_submitted_counts))
                 print("  model is saved in file: {}".format(out_path))
                 print("***",flush=True)

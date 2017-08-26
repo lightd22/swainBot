@@ -47,9 +47,9 @@ filter_size = (32,32,64)
 regularization_coeff = 7.5e-5#1.5e-4
 
 # Training parameters
-batch_size = 32
-buffer_size = 4096
-n_epoch = 500
+batch_size = 8#32
+buffer_size = 512#4096
+n_epoch = 1000#500
 discount_factor = 0.9
 learning_rate = 1.0e-4
 

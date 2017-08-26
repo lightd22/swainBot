@@ -121,14 +121,22 @@ class Qnetwork():
             # Fully connected (FC) layer:
             # Flatten input feature map (pool2) to be shape [-1, feature_size]
             # If pool3 has shape = [-1, nx, ny, nf] then feature_size = nx*ny*nf
-            fc1_input_size = int(np.prod(self.pool3.shape[1:]))
+            dim = int(np.prod(self.pool3.shape[1:]))
+            pool3_flat = tf.reshape(self.pool3, [-1, dim])
+
+            pick_start_index = 2 # Column index of state at which pick submissions begin
+            is_pos_filled = tf.reduce_max(self.input[:,:,pick_start_index:],axis=1)
+
+            self.fc_input = tf.concat([pool3_flat,is_pos_filled],axis=1)
+            fc1_input_size = int(self.fc_input.shape[1])
             fc1_output_size = fc1_input_size//2
-            pool3_flat = tf.reshape(self.pool3, [-1, fc1_input_size])
+
             self.fc1_weights = Qnetwork.weight_variable([fc1_input_size,fc1_output_size],"fc1_weight")
             self.fc1_biases = Qnetwork.bias_variable([fc1_output_size],"fc1_bias")
 
-            self.fc1 = tf.nn.relu(tf.add(tf.matmul(pool3_flat, self.fc1_weights), self.fc1_biases),name="fc1")
-            self.dropout_keep_prob = tf.placeholder(tf.float32)
+            #self.fc1 = tf.nn.relu(tf.add(tf.matmul(pool3_flat, self.fc1_weights), self.fc1_biases),name="fc1")
+            self.fc1 = tf.nn.relu(tf.add(tf.matmul(self.fc_input, self.fc1_weights), self.fc1_biases),name="fc1")
+            self.dropout_keep_prob = tf.placeholder_with_default(1.0,shape=())
             self.dropout1 = tf.nn.dropout(self.fc1,self.dropout_keep_prob)
 
             # FC output layer
@@ -137,7 +145,7 @@ class Qnetwork():
             self.outQ = tf.add(tf.matmul(self.fc1, self.fc2_weights), self.fc2_biases, name="outputs")
 
             # Predicted optimal action
-            self.prediction = tf.argmax(self.outQ, dimension=1, name="prediction")
+            self.prediction = tf.argmax(self.outQ, axis=1, name="prediction")
 
             # Loss function and optimization:
             # The inputs self.target and self.actions are indexed by training example. If

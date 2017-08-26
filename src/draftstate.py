@@ -123,12 +123,13 @@ class DraftState:
             A copy of self.state reshaped as a numpy vector of length numChampions*(num_positions+2)
         """
         #return np.reshape(self.state,self.numChampions*(self.num_positions+2))
-        header = [0,0]
-        for k in range(2,self.num_positions+2):
-            header_val = np.max(self.state[:,k])
-            header.append(header_val)
-        header = np.array([header])
-        return np.concatenate((header,self.state),axis=0)
+        #header = [0,0]
+        #for k in range(2,self.num_positions+2):
+        #    header_val = np.max(self.state[:,k])
+        #    header.append(header_val)
+        #header = np.array([header])
+        #return np.concatenate((header,self.state),axis=0)
+        return self.state
 
     def formatAction(self,action):
         """
