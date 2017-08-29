@@ -28,8 +28,8 @@ print("********************************")
 valid_champ_ids = cinfo.getChampionIds()
 print("Number of valid championIds: {}".format(len(valid_champ_ids)))
 
-n_matches = 20
-n_training = 18
+n_matches = 910
+n_training = 900
 match_data = mp.buildMatchPool(n_matches)
 match_pool = match_data["matches"]
 match_ids = match_data["match_ids"]
@@ -46,13 +46,10 @@ output_size = state.num_actions
 filter_size = (32,32,64)
 regularization_coeff = 7.5e-5#1.5e-4
 
-foo = state.format_secondary_inputs()
-print(foo)
-
 # Training parameters
-batch_size = 8#32
-buffer_size = 512#4096
-n_epoch = 1000#500
+batch_size = 32
+buffer_size = 4096
+n_epoch = 500
 discount_factor = 0.9
 learning_rate = 1.0e-4
 
@@ -101,7 +98,8 @@ with tf.Session() as sess:
             continue
         count += 1
         form_act = state.getAction(cid,pos)
-        pred_act, pred_Q = sess.run([Qnet.prediction,Qnet.outQ],feed_dict={Qnet.input:[state.format_state()],Qnet.dropout_keep_prob:1.0})
+        pred_act, pred_Q = sess.run([Qnet.prediction,Qnet.outQ],
+                            feed_dict={Qnet.input:[state.format_state()],Qnet.secondary_input:[state.format_secondary_inputs()]})
         pred_act = pred_act[0]
         pred_Q = pred_Q[0,:]
         p_cid,p_pos = state.formatAction(pred_act)

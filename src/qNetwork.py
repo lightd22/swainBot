@@ -37,6 +37,7 @@ class Qnetwork():
     def __init__(self, name, input_shape, output_shape, filter_sizes = (8,16,32), learning_rate=1.e-3, regularization_coeff = 0.01, discount_factor = 0.9):
         self._name = name
         self._input_shape = input_shape
+        self._secondary_input_shape = (6,)
         self._output_shape = output_shape
         self._regularization_coeff = regularization_coeff
         self._discount_factor = discount_factor
@@ -124,10 +125,9 @@ class Qnetwork():
             dim = int(np.prod(self.pool3.shape[1:]))
             pool3_flat = tf.reshape(self.pool3, [-1, dim])
 
-            pick_start_index = 2 # Column index of state at which pick submissions begin
-            is_pos_filled = tf.reduce_max(self.input[:,:,pick_start_index:],axis=1)
-
-            self.fc_input = tf.concat([pool3_flat,is_pos_filled],axis=1)
+            self.secondary_input = tf.placeholder(tf.float32, (None,)+self._secondary_input_shape, name="secondary_inputs")
+            
+            self.fc_input = tf.concat([pool3_flat,self.secondary_input],axis=1)
             fc1_input_size = int(self.fc_input.shape[1])
             fc1_output_size = fc1_input_size//2
 

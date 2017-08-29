@@ -11,31 +11,38 @@ import draftDbOps as dbo
 import random
 import json
 
-def buildMatchPool(num_matches):
+def buildMatchPool(num_matches,randomize=True):
     """
     Args:
         num_matches (int): Number of matches to include in the queue (0 indicates to use the maximum number of matches available)
+        randomize (bool): Flag for randomizing order of output matches.
     Returns:
         match_data (dictionary): dictionary containing two keys:
             "match_ids": list of match_ids for pooled matches
             "matches": list of pooled match data to process
 
-    This will be responsible for building the set of random matchids that we will use during learning phase.
+    Builds a set of matchids and match data used during learning phase. If randomize flag is set
+    to false this returns the first num_matches in order according to the tournaments list.
     """
     dbName = "competitiveGameData.db"
     conn = sqlite3.connect("tmp/"+dbName)
     cur = conn.cursor()
     tournaments = ["2017/EU/Summer_Split", "2017/NA/Summer_Split", "2017/LCK/Summer_Split",
-                    "2017/LPL/Summer_Split", "2017/LMS/Summer_Split", "2017/INTL/MSI"]
+                    "2017/LPL/Summer_Split", "2017/LMS/Summer_Split", "2017/INTL/MSI",
+                    "2017/EU/Summer_Playoffs","2017/NA/Summer_Playoffs","2017/LCK/Summer_Playoffs",
+                    "2017/LPL/Summer_Playoffs","2017/LMS/Summer_Playoffs"]
     match_pool = []
-    # Build list of eligible matche ids
+    # Build list of eligible match ids
     for tournament in tournaments:
         game_ids = dbo.getGameIdsByTournament(cur, tournament)
         match_pool.extend(game_ids)
 
     print("Number of available matches for training={}".format(len(match_pool)))
     assert num_matches <= len(match_pool), "Not enough matches found to sample!"
-    selected_match_ids = random.sample(match_pool, num_matches)
+    if(not randomize):
+        selected_match_ids = match_pool[:num_matches]
+    else:
+        selected_match_ids = random.sample(match_pool, num_matches)
 
     selected_matches = []
     for match_id in selected_match_ids:
@@ -99,7 +106,7 @@ def processMatch(match, team):
         draft.updateState(next_pick, position)
 
     # Once the queue is empty, store last memory. This is case 2 above.
-    # There is always be an outstanding memory at the completion of the draft.
+    # There is always an outstanding memory at the completion of the draft.
     # RED_TEAM always gets last pick. Therefore:
     #   if team = DraftState.BLUE_TEAM -> There is an outstanding memory from last RED_TEAM submission
     #   if team = DraftState.RED_TEAM -> Memory is open from just before our last submission
@@ -110,14 +117,14 @@ def processMatch(match, team):
         memory = (s, a, r, s_next)
         experiences.append(memory)
     else:
-        print(draft.evaluateState())
-        draft.displayState()
         print("{} vs {}".format(match["blue_team"],match["red_team"]))
-        print(len(experiences))
+        draft.displayState()
+        print("Error code {}".format(draft.evaluateState()))
+        print("Number of experiences {}".format(len(experiences)))
         for experience in experiences:
             _,a,_,_ = experience
             print(a)
-        raise
+        print("")#raise
 
     return experiences
 

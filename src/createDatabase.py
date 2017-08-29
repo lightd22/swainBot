@@ -77,7 +77,7 @@ if __name__ == "__main__":
     createTables(cur, tableNames, columnInfo, clobber = True)
 
     year = "2017"
-    regions = ["LPL","LMS","LCK","EU_LCS","NA_LCS"]
+    regions = ["EU_LCS","NA_LCS","LPL","LMS","LCK"]
     tournaments = ["Summer_Playoffs","Summer_Split"]
     for region in regions:
         for tournament in tournaments:

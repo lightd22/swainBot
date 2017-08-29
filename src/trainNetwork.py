@@ -94,11 +94,15 @@ def trainNetwork(online_net, target_net, training_matches, validation_matches, t
                 "wins":{DraftState.BAN_AND_SUBMISSION:0,
                         DraftState.DUPLICATE_SUBMISSION:0,
                         DraftState.DUPLICATE_ROLE:0,
-                        DraftState.INVALID_SUBMISSION:0},
+                        DraftState.INVALID_SUBMISSION:0,
+                        DraftState.TOO_MANY_BANS:0,
+                        DraftState.TOO_MANY_PICKS:0},
                 "loss":{DraftState.BAN_AND_SUBMISSION:0,
                         DraftState.DUPLICATE_SUBMISSION:0,
                         DraftState.DUPLICATE_ROLE:0,
-                        DraftState.INVALID_SUBMISSION:0}}
+                        DraftState.INVALID_SUBMISSION:0,
+                        DraftState.TOO_MANY_BANS:0,
+                        DraftState.TOO_MANY_PICKS:0}}
             learner_submitted_counts = 0
             null_action_count = 0
             # Shuffle match presentation order
@@ -126,7 +130,9 @@ def trainNetwork(online_net, target_net, training_matches, validation_matches, t
                             # which was not produced by geniune match data unless it matches the original experience.
                             # At the very least we can look at the networks predicted optimal action and if it
                             # disagrees with what was actually submitted we can adjust its predicted value.
-                            pred_act = sess.run(online_net.prediction,feed_dict={online_net.input:[state.format_state()]})
+                            pred_act = sess.run(online_net.prediction,
+                                            feed_dict={online_net.input:[state.format_state()],
+                                                       online_net.secondary_input:[state.format_secondary_inputs()]})
                             pred_act = pred_act[0]
                             (cid,pos) = state.formatAction(pred_act)
 
@@ -185,10 +191,10 @@ def trainNetwork(online_net, target_net, training_matches, validation_matches, t
                                     #  Action is chosen by online network, but the target network is used to evaluate this policy.
                                     predicted_action = sess.run(online_net.prediction,
                                                         feed_dict={online_net.input:[endingState.format_state()],
-                                                                   online_net.dropout_keep_prob:1.0})[0]
+                                                                   online_net.secondary_input:[endingState.format_secondary_inputs()]})[0]
                                     predicted_Q = sess.run(target_net.outQ,
                                                         feed_dict={target_net.input:[endingState.format_state()],
-                                                                   target_net.dropout_keep_prob:1.0})
+                                                                   target_net.secondary_input:[endingState.format_secondary_inputs()]})
                                     updates.append(reward + online_net.discount_factor*predicted_Q[0,predicted_action])
 
                             targetQ = np.array(updates)
@@ -200,9 +206,10 @@ def trainNetwork(online_net, target_net, training_matches, validation_matches, t
                             actions = np.array([startState.getAction(*exp[1]) for exp in training_batch])
                             _ = sess.run(online_net.update,
                                      feed_dict={online_net.input:np.stack([exp[0].format_state() for exp in training_batch],axis=0),
-                                     online_net.actions:actions,
-                                     online_net.target:targetQ,
-                                     online_net.dropout_keep_prob:0.8})
+                                                online_net.secondary_input:np.stack([exp[0].format_secondary_inputs() for exp in training_batch],axis=0),
+                                                online_net.actions:actions,
+                                                online_net.target:targetQ,
+                                                online_net.dropout_keep_prob:0.8})
                             if(total_steps % target_update_frequency == 0):
                                 # After the online network has been updated, update target network
                                 _ = sess.run(target_update)
@@ -304,11 +311,13 @@ def validate_model(sess, validation_data, online_net, target_net):
     val_experiences = val_replay.sample(n_experiences)
     state,_,_,_ = val_experiences[0]
     val_states = np.zeros((n_experiences,)+state.format_state().shape)
+    val_secondary_inputs = np.zeros((n_experiences,)+state.format_secondary_inputs().shape)
     val_actions = np.zeros((n_experiences,))
     val_targets = np.zeros((n_experiences,))
     for n in range(n_experiences):
         start,act,rew,finish = val_experiences[n]
         val_states[n,:,:] = start.format_state()
+        val_secondary_inputs[n,:] = start.format_secondary_inputs()
         (cid,pos) = act
         val_actions[n] = start.getAction(cid,pos)
         state_code = finish.evaluateState()
@@ -319,16 +328,16 @@ def validate_model(sess, validation_data, online_net, target_net):
             # Each row in predictedQ gives estimated Q(s',a) values for each possible action for the input state s'.
             predicted_Q = sess.run(target_net.outQ,
                             feed_dict={target_net.input:[finish.format_state()],
-                            target_net.dropout_keep_prob:1.0})
+                            target_net.secondary_input:[finish.format_secondary_inputs()]})
             # To get max_{a} Q(s',a) values take max along *rows* of predictedQ.
             max_Q = np.max(predicted_Q,axis=1)[0]
             val_targets[n] = (rew + online_net.discount_factor*max_Q)
 
     loss,pred_actions = sess.run([online_net.loss, online_net.prediction],
                           feed_dict={online_net.input:val_states,
+                                online_net.secondary_input:val_secondary_inputs,
                                 online_net.actions:val_actions,
-                                online_net.target:val_targets,
-                                online_net.dropout_keep_prob:1.0})
+                                online_net.target:val_targets})
     accurate_predictions = 0.
     for match in validation_data:
         actions = []
@@ -356,6 +365,7 @@ def score_match(sess, Qnet, match, team):
     score = 0.
     actions = []
     states = []
+    secondary_inputs = []
     experiences = mp.processMatch(match,team)
     for exp in experiences:
         start,(cid,pos),_,_ = exp
@@ -364,9 +374,12 @@ def score_match(sess, Qnet, match, team):
             continue
         actions.append(start.getAction(cid,pos))
         states.append(start.format_state())
+        secondary_inputs.append(start.format_secondary_inputs())
 
     # Feed states forward and get scores for submitted actions
-    predicted_Q = sess.run(Qnet.outQ,feed_dict={Qnet.input:np.stack(states,axis=0),Qnet.dropout_keep_prob:1.0})
+    predicted_Q = sess.run(Qnet.outQ,
+                    feed_dict={Qnet.input:np.stack(states,axis=0),
+                               Qnet.secondary_input:np.stack(secondary_inputs,axis=0)})
     assert len(actions) == predicted_Q.shape[0], "Number of actions doesn't match number of Q estimates!"
     for i in range(len(actions)):
         score += predicted_Q[i,actions[i]]
