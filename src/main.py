@@ -41,10 +41,13 @@ validation_matches = match_pool[n_training:]
 
 # Network parameters
 state = DraftState(DraftState.BLUE_TEAM,valid_champ_ids)
-input_size = state.formatState().shape
+input_size = state.format_state().shape
 output_size = state.num_actions
 filter_size = (32,32,64)
 regularization_coeff = 7.5e-5#1.5e-4
+
+foo = state.format_secondary_inputs()
+print(foo)
 
 # Training parameters
 batch_size = 8#32
@@ -98,7 +101,7 @@ with tf.Session() as sess:
             continue
         count += 1
         form_act = state.getAction(cid,pos)
-        pred_act, pred_Q = sess.run([Qnet.prediction,Qnet.outQ],feed_dict={Qnet.input:[state.formatState()],Qnet.dropout_keep_prob:1.0})
+        pred_act, pred_Q = sess.run([Qnet.prediction,Qnet.outQ],feed_dict={Qnet.input:[state.format_state()],Qnet.dropout_keep_prob:1.0})
         pred_act = pred_act[0]
         pred_Q = pred_Q[0,:]
         p_cid,p_pos = state.formatAction(pred_act)

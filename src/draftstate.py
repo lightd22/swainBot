@@ -1,6 +1,9 @@
 import numpy as np
 from championinfo import championNameFromId, validChampionId
 
+class InvalidDraftState(Exception):
+    pass
+
 class DraftState:
     """
     Args:
@@ -31,7 +34,10 @@ class DraftState:
     DUPLICATE_SUBMISSION = 102
     DUPLICATE_ROLE = 103
     INVALID_SUBMISSION = 104
-    invalid_states = [BAN_AND_SUBMISSION, DUPLICATE_ROLE, DUPLICATE_SUBMISSION, INVALID_SUBMISSION]
+    TOO_MANY_BANS = 105
+    TOO_MANY_PICKS = 106
+    invalid_states = [BAN_AND_SUBMISSION, DUPLICATE_ROLE, DUPLICATE_SUBMISSION, INVALID_SUBMISSION,
+                      TOO_MANY_BANS, TOO_MANY_PICKS]
 
     DRAFT_COMPLETE = 1
     BLUE_TEAM = 0
@@ -39,6 +45,7 @@ class DraftState:
     BAN_PHASE_LENGTHS = [6,4] # Number of bans in each ban phase
     NUM_BANS = sum(BAN_PHASE_LENGTHS) # Total number of bans in draft
     PICK_PHASE_LENGTHS = [6,4] # Number of picks in each pick phase
+    NUM_PICKS = sum(PICK_PHASE_LENGTHS) # Total number of picks in draft
 
     def __init__(self, team, champ_ids, num_positions = 5):
         #TODO (Devin): This should make sure that numChampions >= num_positions
@@ -114,22 +121,49 @@ class DraftState:
             return False
         return self.pos_index_to_pos[pos_index]
 
-    def formatState(self):
+    def format_state(self):
         """
-        Format the state array into a vector so the Q-network can process it.
+        Format the state so the Q-network can process it.
         Args:
             None
         Returns:
-            A copy of self.state reshaped as a numpy vector of length numChampions*(num_positions+2)
+            A copy of self.state
         """
-        #return np.reshape(self.state,self.numChampions*(self.num_positions+2))
-        #header = [0,0]
-        #for k in range(2,self.num_positions+2):
-        #    header_val = np.max(self.state[:,k])
-        #    header.append(header_val)
-        #header = np.array([header])
-        #return np.concatenate((header,self.state),axis=0)
+        if(self.evaluateState() in DraftState.invalid_states):
+            raise InvalidDraftState("Attempting to format an invalid draft state for network input")
+
         return self.state
+
+    def format_secondary_inputs(self):
+        """
+        Produces secondary input information (information about filled positions and draft phase)
+        to send to Q-network.
+        Args:
+            None
+        Returns:
+            Numpy vector of secondary network inputs
+        """
+        if(self.evaluateState() in DraftState.invalid_states):
+            raise InvalidDraftState("Attempting to format an invalid draft state for network input")
+
+        # First segment of information checks whether each position has been or not filled in the state
+        # This is done by looking at columns in the subarray corresponding to positions 1 thru 5
+        start = self.getPositionIndex(1)
+        end = self.getPositionIndex(5)
+        secondary_inputs = np.amax(self.state[:,start:end+1],axis=0)
+
+        # Second segment checks if the phase corresponding to this state is a pick phase
+        # This is done by counting the number of bans currently submitted. Note that this assumes
+        # that state is currently a valid state. If this is not necessarily the case a check can be made using
+        # evaluateState().
+        num_bans = len(self.bans)
+        num_picks = len(self.picks)
+        is_pick_phase = False
+        if((num_bans==DraftState.BAN_PHASE_LENGTHS[0] and num_picks < DraftState.PICK_PHASE_LENGTHS[0]) or
+           (num_bans==DraftState.NUM_BANS and num_picks < DraftState.NUM_PICKS)):
+            is_pick_phase = True
+        secondary_inputs = np.append(secondary_inputs, is_pick_phase)
+        return secondary_inputs
 
     def formatAction(self,action):
         """
@@ -199,14 +233,14 @@ class DraftState:
                 position = 0 -> champion selection submitted by the opposing team.
                 0 < position <= num_positions -> champion selection submitted by our team for pos = position
         """
-        # Special case for NULL ban submitted. This only occurs when a team is penalized to lose ban
+        # Special case for NULL ban submitted.
         if (champion_id is None and position == -1):
             # Only append NULL bans to ban list (nothing done to state matrix)
             self.bans.append(champion_id)
             return True
 
-        # Submitted ally picks of the form (champ_id, pos) to correspond with the selection champion = champion_id in position = pos.
-        # However, this is not how they are stored in the state array. Bans are given pos = -1 and enemy picks pos = 0.
+        # Submitted picks of the form (champ_id, pos) correspond with the selection champion = champion_id in position = pos.
+        # Bans are given pos = -1 and enemy picks pos = 0. However, this is not how they are stored in the state array.
         # Finally this doesn't match indexing used for state array and action vector indexing (which follow state indexing).
         if((position < -1) or (position > self.num_positions) or (not validChampionId(champion_id))):
             return False
@@ -268,9 +302,6 @@ class DraftState:
             champion_id (int): Id of champion to add to pick list.
             position (int): Position of champion to be selected. If position = 0 this is interpreted as a selection submitted by the opposing team.
         """
-        #TODO: Currently getRewards() does not work correctly if invalid picks are blocked from selection. This should be fixed later.
-        #if(not self.canPick(champion_id) or (position < 0) or (position > self.num_positions)):
-        #    return False
         if((position < 0) or (position > self.num_positions) or (not validChampionId(champion_id))):
             return False
         self.picks.append(champion_id)
@@ -286,9 +317,6 @@ class DraftState:
         Args:
             champion_id (int): Id of champion to add to bans.
         """
-        #TODO: Currently getRewards() does not work correctly if invalid bans are blocked from selection. This should be fixed later.
-        #if(not self.canBan(champion_id)):
-        #    return False
         if(not validChampionId(champion_id)):
             return False
         self.bans.append(champion_id)
@@ -309,7 +337,7 @@ class DraftState:
                 value = DUPLICATE_ROLE -> state has multiple champions selected for a single role
                 value = INVALID_SUBMISSION -> state has a submission that was included out of the draft phase order (ex pick during ban phase / ban during pick phase)
         """
-        # Check for duplicate submissions appearing in either picks or bans
+        # Check for duplicate submissions appearing in picks or bans
         duplicate_picks = set([cid for cid in self.picks if self.picks.count(cid)>1])
         # Need to remove possible NULL bans as duplicates (since these may be legitimate)
         duplicate_bans = set([cid for cid in self.bans if self.bans.count(cid)>1]).difference(set([None]))
@@ -331,11 +359,17 @@ class DraftState:
         # Check for out of phase submissions
         num_bans = len(self.bans)
         num_picks = len(self.picks)
-        ban_cutoffs = [DraftState.BAN_PHASE_LENGTHS[0], DraftState.BAN_PHASE_LENGTHS[0]+DraftState.BAN_PHASE_LENGTHS[1]]
-        pick_cutoffs = [DraftState.PICK_PHASE_LENGTHS[0], DraftState.PICK_PHASE_LENGTHS[0]+DraftState.PICK_PHASE_LENGTHS[1]]
+
+        if(num_bans > DraftState.NUM_BANS):
+            return DraftState.TOO_MANY_BANS
+        if(num_picks > DraftState.NUM_PICKS):
+            return DraftState.TOO_MANY_PICKS
+
+        ban_cutoffs = [DraftState.BAN_PHASE_LENGTHS[0], DraftState.NUM_BANS]
+        pick_cutoffs = [DraftState.PICK_PHASE_LENGTHS[0], DraftState.NUM_PICKS]
         # TODO (Devin): This is a litle sloppy but it gets the job done and is fairly
         # understandable. However note that it assumes that ban phase always comes first
-        if 0<num_bans<ban_cutoffs[0]:
+        if 0<=num_bans<ban_cutoffs[0]:
             if num_picks != 0:
                 # Pick submitted during first ban phase
                 return DraftState.INVALID_SUBMISSION
@@ -343,11 +377,20 @@ class DraftState:
             if num_picks != pick_cutoffs[0]:
                 # Pick submitted during second ban phase
                 return DraftState.INVALID_SUBMISSION
+        if num_bans==ban_cutoffs[1]:
+            if num_picks < pick_cutoffs[0]:
+                # Insufficent picks submitted going into second pick phase
+                return DraftState.INVALID_SUBMISSION
+
+        if num_picks==0:
+            if num_bans > ban_cutoffs[0]:
+                # Too many bans submitted during first ban phase
+                return DraftState.INVALID_SUBMISSION
         if 0<num_picks<pick_cutoffs[0]:
             if num_bans != ban_cutoffs[0]:
                 # Ban submitted during first pick phase
                 return DraftState.INVALID_SUBMISSION
-        if pick_cutoffs[0]<num_picks<pick_cutoffs[1]:
+        if pick_cutoffs[0]<num_picks<=pick_cutoffs[1]:
             if num_bans != ban_cutoffs[1]:
                 # Ban submitted during second pick phase
                 return DraftState.INVALID_SUBMISSION
@@ -355,10 +398,10 @@ class DraftState:
         num_enemy_picks = np.sum(self.state[:,0])
         num_ally_picks = np.sum(self.state[:,2:])
         if(num_ally_picks == self.num_positions and num_enemy_picks == self.num_positions):
-            # Draft is valid and complete. Note that technically it isn't necessary
-            # to have the full number of bans to register a complete draft. This is
+            # Draft is valid and complete. Note that it isn't necessary
+            # to have the full number of valid bans to register a complete draft. This is
             # because teams can be forced to forefit bans due to disciplinary factor (rare)
-            # or they can elect to not submit a ban (this hasn't happened)
+            # or they can elect to not submit a ban (very rare).
             return DraftState.DRAFT_COMPLETE
 
         # Draft is valid, but not complete
