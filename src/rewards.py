@@ -5,12 +5,13 @@ def getReward(state, match):
     """
     Args:
         state (DraftState): Present state of the draft to be checked for reward
+        match (dict): record of match which identifies winning team
     Returns:
         reward (int): Integer value representing the reward earned for the draft state.
 
     getReward takes a draft state and returns the immediate reward for reaching that state. The reward is determined by a simple reward table
-        1) state is invalid -> reward = -2
-        2) state is complete, valid, and the selection was submitted by the winning team -> reward = +2
+        1) state is invalid -> reward = -10
+        2) state is complete, valid, and the selection was submitted by the winning team -> reward = +5
         3) state is valid, but incomplete  -> reward = 0
     """
     status = state.evaluateState()

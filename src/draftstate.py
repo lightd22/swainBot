@@ -130,7 +130,7 @@ class DraftState:
             A copy of self.state
         """
         if(self.evaluateState() in DraftState.invalid_states):
-            raise InvalidDraftState("Attempting to format an invalid draft state for network input")
+            raise InvalidDraftState("Attempting to format an invalid draft state for network input with code {}".format(self.evaluateState()))
 
         return self.state
 
@@ -144,7 +144,7 @@ class DraftState:
             Numpy vector of secondary network inputs
         """
         if(self.evaluateState() in DraftState.invalid_states):
-            raise InvalidDraftState("Attempting to format an invalid draft state for network input")
+            raise InvalidDraftState("Attempting to format an invalid draft state for network input with code {}".format(self.evaluateState()))
 
         # First segment of information checks whether each position has been or not filled in the state
         # This is done by looking at columns in the subarray corresponding to positions 1 thru 5

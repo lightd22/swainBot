@@ -9,6 +9,7 @@ import championinfo as cinfo
 import matchProcessing as mp
 import experienceReplay as er
 from rewards import getReward
+from dueling_networks import self_train
 
 from copy import deepcopy
 import sqlite3
@@ -46,7 +47,7 @@ def trainNetwork(online_net, target_net, training_matches, validation_matches, t
     tau = 1.
     target_update_frequency = 10000 # How often to update target network. Should only be used with tau = 1.
     stash_model = True # Flag for stashing a copy of the model
-    model_stash_interval = 100 # Stashes a copy of the model this often
+    model_stash_interval = 10 # Stashes a copy of the model this often
     # Number of steps to take before training. Allows buffer to partially fill.
     # Must be at least batch_size to avoid error when sampling from experience replay
     pre_training_steps = 10*batch_size
@@ -68,13 +69,13 @@ def trainNetwork(online_net, target_net, training_matches, validation_matches, t
     total_steps = 0
     # Start training
     with tf.Session() as sess:
+        sess.run(tf.global_variables_initializer())
         if load_model:
             # Open saved model
-            online_net.saver.restore(sess,"tmp/model_E{}.ckpt".format(100))
-            print("Checkpoint loaded..")
-        else:
-            # Otherwise, initialize tensorflow variables
-            sess.run(tf.global_variables_initializer())
+            path_to_model = "tmp/models/model_E{}.ckpt".format(170)
+            online_net.saver.restore(sess,path_to_model)
+            print("\nCheckpoint loaded from {}".format(path_to_model))
+
         # Add target init and update operations to graph
         target_init = create_target_initialization_ops(target_net.name, online_net.name)
         target_update = create_target_update_ops(target_net.name,online_net.name,tau)
@@ -105,6 +106,13 @@ def trainNetwork(online_net, target_net, training_matches, validation_matches, t
                         DraftState.TOO_MANY_PICKS:0}}
             learner_submitted_counts = 0
             null_action_count = 0
+
+            # Run model through a self-training iteration
+            exp = self_train(sess)
+            # If self training results in illegal state, add it to memory
+            if exp:
+                experience_replay.store([exp])
+
             # Shuffle match presentation order
             shuffled_matches = random.sample(training_matches,len(training_matches))
             for match in shuffled_matches:

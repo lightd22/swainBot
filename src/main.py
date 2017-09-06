@@ -28,8 +28,8 @@ print("********************************")
 valid_champ_ids = cinfo.getChampionIds()
 print("Number of valid championIds: {}".format(len(valid_champ_ids)))
 
-n_matches = 910
-n_training = 900
+n_matches = 1085
+n_training = 975
 match_data = mp.buildMatchPool(n_matches)
 match_pool = match_data["matches"]
 match_ids = match_data["match_ids"]
@@ -49,7 +49,7 @@ regularization_coeff = 7.5e-5#1.5e-4
 # Training parameters
 batch_size = 32
 buffer_size = 4096
-n_epoch = 500
+n_epoch = 1000
 discount_factor = 0.9
 learning_rate = 1.0e-4
 
@@ -59,7 +59,7 @@ for i in range(1):
     target_net = qNetwork.Qnetwork("target",input_size, output_size, filter_size, learning_rate, regularization_coeff, discount_factor)
     n_epoch = n_epoch*(i+1)
     print("Learning on {} matches for {} epochs. lr {:.4e} reg {:4e}".format(len(training_matches),n_epoch, learning_rate, regularization_coeff),flush=True)
-    loss,train_acc = tn.trainNetwork(online_net,target_net,training_matches,validation_matches,n_epoch,batch_size,buffer_size,load_model=False,verbose=True)
+    loss,train_acc = tn.trainNetwork(online_net,target_net,training_matches,validation_matches,n_epoch,batch_size,buffer_size,load_model=True,verbose=True)
     print("Learning complete!")
     print("..final training accuracy: {:.4f}".format(train_acc))
     x = [i+1 for i in range(len(loss))]
@@ -90,7 +90,7 @@ xtick_labels = [cinfo.championNameFromId(cid)[:6] for cid in xticks]
 tf.reset_default_graph()
 Qnet = qNetwork.Qnetwork("online",input_size, output_size, filter_size, learning_rate, regularization_coeff, discount_factor)
 with tf.Session() as sess:
-    Qnet.saver.restore(sess,"tmp/model_E{}.ckpt".format(500))
+    Qnet.saver.restore(sess,"tmp/model_E{}.ckpt".format(1000))
     for exp in experiences:
         state,act,rew,next_state = exp
         cid,pos = act
