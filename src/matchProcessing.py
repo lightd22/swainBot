@@ -11,6 +11,20 @@ import draftDbOps as dbo
 import random
 import json
 
+def get_matches_by_id(match_ids):
+    """
+    Returns match data for each match_id in the list match_ids
+    """
+    dbName = "competitiveGameData.db"
+    conn = sqlite3.connect("tmp/"+dbName)
+    cur = conn.cursor()
+    match_data = []
+    for match_id in match_ids:
+        match = dbo.getMatchData(cur, match_id)
+        match_data.append(match)
+    conn.close()
+    return match_data
+    
 def buildMatchPool(num_matches,randomize=True):
     """
     Args:

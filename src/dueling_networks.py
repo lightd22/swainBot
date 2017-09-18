@@ -2,12 +2,12 @@ import random
 from copy import deepcopy
 import numpy as np
 import tensorflow as tf
+import random
 
 from draftstate import DraftState
 import championinfo as cinfo
 import draftDbOps as dbo
 from rewards import getReward
-
 import qNetwork
 
 def get_active_team(submission_count):
@@ -18,12 +18,13 @@ def get_active_team(submission_count):
                   1,0,0,1] # Second phase picks
     return pick_order[submission_count]
 
-def self_train(sess):
+def self_train(sess, explore_prob):
     """
     Runs model currently held in TF Session sess through one self training loop. Returns
     negative memory if model fails to complete draft.
     Args:
         sess (tf.Session()): TF Session used to run model.
+        explore_prob (float): Probability that each pick will explore state space by submitting a random action
     Returns:
         experience (s,a,r,s') if network submits illegal action from either side of draft
         None if network completes draft without illegal actions
@@ -49,7 +50,11 @@ def self_train(sess):
         state = draft[active_team]
         start = deepcopy(state)
 
-        pred_act = sess.run(online_pred,
+        if(random.random() < explore_prob):
+            # Explore state space by submitting random action
+            pred_act = [random.randint(0,state.num_actions-1)]
+        else:
+            pred_act = sess.run(online_pred,
                             feed_dict={online_input:[state.format_state()],
                             online_secondary_input:[state.format_secondary_inputs()]})
         action = state.formatAction(pred_act[0])
@@ -71,10 +76,6 @@ def dueling_networks(path_to_model):
     valid_champ_ids = cinfo.getChampionIds()
     # Two states are maintained: one corresponding to the perception of the draft
     # according to each of the teams.
-    # TODO(Devin): It might be more efficient in the future to allow state to hold
-    #  all information related to the draft (i.e picks and positions for all submissions
-    #  rather than only those for designated team) and then mask the enemy positions when feeding
-    #  to network. This would make state larger (columns: ban, enemy_pos 1-5, ally_pos 1-5 = 11 cols)
     blue_state = DraftState(DraftState.BLUE_TEAM,valid_champ_ids)
     red_state = DraftState(DraftState.RED_TEAM,valid_champ_ids)
     draft = {0:blue_state,1:red_state}
@@ -92,26 +93,22 @@ def dueling_networks(path_to_model):
             inactive_team = 0 if active_team else 1
             print("active {}".format(active_team))
             state = draft[active_team]
-            pred_act = sess.run([online_pred],
-                                        feed_dict={online_input:[state.format_state()],
-                                        online_secondary_input:[state.format_secondary_inputs()]})
+            pred_act = sess.run(online_pred,
+                                feed_dict={online_input:[state.format_state()],
+                                online_secondary_input:[state.format_secondary_inputs()]})
             cid,pos = state.formatAction(pred_act[0])
             print("cid={} pos={}".format(cid,pos))
             # Update active state
             state.updateState(cid,pos)
             # Update inactive state, remembering to mask non-bans submitted by opponent
-            if(pos != -1):
-                # Submission is not a ban- mask it
-                inactive_pos = 0
-            else:
-                inactive_pos = pos
+            inactive_pos = pos if pos==-1 else 0
             draft[inactive_team].updateState(cid,inactive_pos)
             submission_count += 1
 
     return draft
 
 if __name__ == "__main__":
-    model_name = "models/model_E200"
+    model_name = "models/model_E60"
     path_to_model = "tmp/{}".format(model_name)
     print("Restoring model: {}".format(path_to_model))
 

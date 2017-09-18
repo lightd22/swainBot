@@ -28,16 +28,30 @@ print("********************************")
 valid_champ_ids = cinfo.getChampionIds()
 print("Number of valid championIds: {}".format(len(valid_champ_ids)))
 
-n_matches = 1085
-n_training = 975
-match_data = mp.buildMatchPool(n_matches)
-match_pool = match_data["matches"]
-match_ids = match_data["match_ids"]
 # Store training match data in a json file (for use later)
-with open('match_pool.txt','w') as outfile:
-    json.dump({"training_ids":match_ids[:n_training],"validation_ids":match_ids[n_training:]},outfile)
-training_matches = match_pool[:n_training]
-validation_matches = match_pool[n_training:]
+reuse_matches = True
+if reuse_matches:
+    print("Reusing match data in match_pool.txt.")
+    with open('match_pool.txt','r') as infile:
+        data = json.load(infile)
+    validation_ids = data["validation_ids"]
+    training_ids = data["training_ids"]
+
+    n_matches = len(validation_ids) + len(training_ids)
+    n_training = len(training_ids)
+    training_matches = mp.get_matches_by_id(training_ids)
+    validation_matches = mp.get_matches_by_id(validation_ids)
+else:
+    n_matches = 1085
+    n_training = 975
+
+    match_data = mp.buildMatchPool(n_matches)
+    match_pool = match_data["matches"]
+    match_ids = match_data["match_ids"]
+    with open('match_pool.txt','w') as outfile:
+        json.dump({"training_ids":match_ids[:n_training],"validation_ids":match_ids[n_training:]},outfile)
+    training_matches = match_pool[:n_training]
+    validation_matches = match_pool[n_training:]
 
 # Network parameters
 state = DraftState(DraftState.BLUE_TEAM,valid_champ_ids)
@@ -49,7 +63,7 @@ regularization_coeff = 7.5e-5#1.5e-4
 # Training parameters
 batch_size = 32
 buffer_size = 4096
-n_epoch = 1000
+n_epoch = 10
 discount_factor = 0.9
 learning_rate = 1.0e-4
 

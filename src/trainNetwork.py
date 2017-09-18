@@ -54,8 +54,9 @@ def trainNetwork(online_net, target_net, training_matches, validation_matches, t
     assert(pre_training_steps <= buffer_size), "Replay not large enough for pre-training!"
     assert(pre_training_steps >= batch_size), "Buffer not allowed to fill enough before sampling!"
     # Number of steps to force learner to observe submitted actions, rather than submit its own actions
-    observations = 1000
-    epsilon = 1. # Initial probability of letting the learner submit its own action
+    observations = 2000
+    epsilon = 0.5 # Initial probability of letting the learner submit its own action
+    eps_decay_rate = 1./(25*20*len(training_matches)) # Rate at which epsilon decays per submission
     # Number of steps to take between training
     update_freq = 1 # There are 10 submissions per match per side
     lr_decay_freq = 50 # Decay learning rate after a set number of epochs
@@ -72,7 +73,7 @@ def trainNetwork(online_net, target_net, training_matches, validation_matches, t
         sess.run(tf.global_variables_initializer())
         if load_model:
             # Open saved model
-            path_to_model = "tmp/models/model_E{}.ckpt".format(170)
+            path_to_model = "tmp/models/model_E{}.ckpt".format(90)
             online_net.saver.restore(sess,path_to_model)
             print("\nCheckpoint loaded from {}".format(path_to_model))
 
@@ -107,14 +108,15 @@ def trainNetwork(online_net, target_net, training_matches, validation_matches, t
             learner_submitted_counts = 0
             null_action_count = 0
 
-            # Run model through a self-training iteration
-            exp = self_train(sess)
+            # Shuffle match presentation order
+            shuffled_matches = random.sample(training_matches,len(training_matches))
+
+            # Run model through a self-training iteration, including exploration
+            exp = self_train(sess, epsilon)
             # If self training results in illegal state, add it to memory
             if exp:
                 experience_replay.store([exp])
 
-            # Shuffle match presentation order
-            shuffled_matches = random.sample(training_matches,len(training_matches))
             for match in shuffled_matches:
                 for team in teams:
                     # Process this match into individual experiences
@@ -135,12 +137,14 @@ def trainNetwork(online_net, target_net, training_matches, validation_matches, t
                             # This helps the network learn the drafting structure.
                             # Ideally we would also let the network predict a random action and evaluate the reward
                             # for the resulting state, but it's not clear how to assign a reward for an action
-                            # which was not produced by geniune match data unless it matches the original experience.
-                            # At the very least we can look at the networks predicted optimal action and if it
-                            # disagrees with what was actually submitted we can adjust its predicted value.
-                            pred_act = sess.run(online_net.prediction,
-                                            feed_dict={online_net.input:[state.format_state()],
-                                                       online_net.secondary_input:[state.format_secondary_inputs()]})
+                            # which was not produced by geniune match data (unless it matches the original experience).
+                            if(random.random() < epsilon):
+                                # Explore state space by submitting random action
+                                pred_act = [random.randint(0,state.num_actions-1)]
+                            else:
+                                pred_act = sess.run(online_net.prediction,
+                                                feed_dict={online_net.input:[state.format_state()],
+                                                           online_net.secondary_input:[state.format_secondary_inputs()]})
                             pred_act = pred_act[0]
                             (cid,pos) = state.formatAction(pred_act)
 
@@ -157,17 +161,18 @@ def trainNetwork(online_net, target_net, training_matches, validation_matches, t
                                 r = getReward(pred_state, blank_match)
                                 new_experience = (state, (cid,pos), r, pred_state)
                                 experience_replay.store([new_experience])
-                            elif(random.random() < epsilon and team==match["winner"] and state.getAction(*a)!=pred_act):
-                                # Prediction does not move to illegal state, but doesn't match
-                                # submission from winning training example.
-                                learner_submitted_counts += 1
-                                r = getReward(pred_state, blank_match) # Normally this should be r = 0
-                                new_experience = (state, (cid,pos), r, pred_state)
-                                experience_replay.store([new_experience])
+#                            elif(random.random() < 0.05 and team==match["winner"] and state.getAction(*a)!=pred_act):
+#                                # Prediction does not move to illegal state, but doesn't match
+#                                # submission from winning training example.
+#                                learner_submitted_counts += 1
+#                                r = getReward(pred_state, blank_match) # Normally this should be r = 0
+#                                print("in learner submission: reward={}".format(r))
+#                                new_experience = (state, (cid,pos), r, pred_state)
+#                                experience_replay.store([new_experience])
 
                         if(epsilon > 0.1):
-                            # Reduce chance of dampening learner-submitted actions over time
-                            epsilon -= 1./(20*len(training_matches)*train_epochs)
+                            # Reduce epsilon over time
+                            epsilon -= eps_decay_rate
                         total_steps += 1
                         epoch_steps += 1
 
@@ -189,14 +194,9 @@ def trainNetwork(online_net, target_net, training_matches, validation_matches, t
                                     # Action moves to terminal state
                                     updates.append(reward)
                                 else:
-                                    # Each row in predictedQ gives estimated Q(s',a) values for all possible actions for the input state s'.
-                                    #predictedQ = sess.run(target_net.outQ,feed_dict={target_net.input:[endingState.format_state()]})
-                                    # To get max_{a} Q(s',a) values take max along *rows* of predictedQ.
-                                    #maxQ = np.max(predictedQ,axis=1)[0]
-                                    #updates.append(reward + online_net.discount_factor*maxQ)
-
                                     # Follwing double DQN paper (https://arxiv.org/abs/1509.06461).
                                     #  Action is chosen by online network, but the target network is used to evaluate this policy.
+                                    # Each row in predicted_Q gives estimated Q(s',a) values for all possible actions for the input state s'.
                                     predicted_action = sess.run(online_net.prediction,
                                                         feed_dict={online_net.input:[endingState.format_state()],
                                                                    online_net.secondary_input:[endingState.format_secondary_inputs()]})[0]
@@ -234,7 +234,7 @@ def trainNetwork(online_net, target_net, training_matches, validation_matches, t
                     print("Stashed a copy of the current model in {}".format(out_path))
             out_path = online_net.saver.save(sess,"tmp/model_E{}.ckpt".format(train_epochs))
             if(verbose):
-                print(" Finished epoch {}/{}: dt {:.2f}, mem {}, loss {:.6f}, train {:.6f}, val {:.6f}".format(i+1,train_epochs,t1,total_steps,loss,train_acc,val_acc),flush=True)
+                print(" Finished epoch {}/{}: dt {:.2f}, mem {}, loss {:.6f}, train {:.6f}, val {:.6f}".format(i+1,train_epochs,t1,epoch_steps,loss,train_acc,val_acc),flush=True)
                 print("  alpha:{:.4e}".format(online_net.learning_rate.eval()))
                 invalid_action_count = sum([bad_state_counts["wins"][k]+bad_state_counts["loss"][k] for k in bad_state_counts["wins"]])
                 print("  negative memories added = {}".format(invalid_action_count))
