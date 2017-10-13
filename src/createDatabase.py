@@ -74,11 +74,12 @@ if __name__ == "__main__":
     conn = sqlite3.connect("tmp/"+dbName)
     cur = conn.cursor()
     print("Creating tables..")
-    createTables(cur, tableNames, columnInfo, clobber = True)
+    createTables(cur, tableNames, columnInfo, clobber = False)
 
     year = "2017"
-    regions = ["EU_LCS","NA_LCS","LPL","LMS","LCK"]
-    tournaments = ["Summer_Playoffs","Summer_Split"]
+#    regions = ["EU_LCS","NA_LCS","LPL","LMS","LCK"]
+    regions = []
+    tournaments = ["Summer_Split", "Summer_Playoffs"]
     for region in regions:
         for tournament in tournaments:
             print("Querying: {}".format(year+"/"+region+"/"+tournament))
@@ -123,12 +124,8 @@ if __name__ == "__main__":
 
     year = "2017"
     region = "International"
-    tournaments = ["RR/BLUE",
-                  "RR/PURPLE",
-                  "RR/RED",
-                  "RR/GREEN",
-                  "MSI"]
-    #tournaments = []
+    tournaments = ["WRLDS"]
+
     for tournament in tournaments:
         print("Querying: {}".format("/".join([year, region, tournament])))
         gameData = queryWiki(year, region, tournament)

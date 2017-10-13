@@ -37,12 +37,12 @@ def getMatchData(cursor, gameId):
     Returns:
         match (dict): formatted pick/ban phase data for game
     """
-    match = {"winner": None, "blue":{}, "red":{}, "blue_team":None, "red_team":None}
+    match = {"id": gameId ,"winner": None, "blue":{}, "red":{}, "blue_team":None, "red_team":None}
     # Get winning team
-    query = "SELECT winning_team FROM game WHERE id=?"
+    query = "SELECT tournament, tourn_game_id, winning_team FROM game WHERE id=?"
     params = (gameId,)
     cursor.execute(query, params)
-    match["winner"] = cursor.fetchone()[0]
+    match["tournament"], match["tourn_game_id"], match["winner"] = cursor.fetchone()#[0]
 
     # Get ban data
     query = "SELECT champion_id, selection_order FROM ban WHERE game_id=? and side_id=? ORDER BY selection_order"
@@ -131,7 +131,7 @@ def insertGame(cursor, gameData):
     status = 0
     assert isinstance(gameData,list), "gameData is not a list"
     for game in gameData:
-        tournGameId = game["tourn_game_id"] # Which game this is within current split
+        tournGameId = game["tourn_game_id"] # Which game this is within current tournament
         tournamentData = getTournamentData(game)
 
         # Check to see if game data is already in table

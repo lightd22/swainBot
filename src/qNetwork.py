@@ -126,7 +126,7 @@ class Qnetwork():
             pool3_flat = tf.reshape(self.pool3, [-1, dim])
 
             self.secondary_input = tf.placeholder(tf.float32, (None,)+self._secondary_input_shape, name="secondary_inputs")
-            
+
             self.fc_input = tf.concat([pool3_flat,self.secondary_input],axis=1)
             fc1_input_size = int(self.fc_input.shape[1])
             fc1_output_size = fc1_input_size//2
@@ -134,7 +134,6 @@ class Qnetwork():
             self.fc1_weights = Qnetwork.weight_variable([fc1_input_size,fc1_output_size],"fc1_weight")
             self.fc1_biases = Qnetwork.bias_variable([fc1_output_size],"fc1_bias")
 
-            #self.fc1 = tf.nn.relu(tf.add(tf.matmul(pool3_flat, self.fc1_weights), self.fc1_biases),name="fc1")
             self.fc1 = tf.nn.relu(tf.add(tf.matmul(self.fc_input, self.fc1_weights), self.fc1_biases),name="fc1")
             self.dropout_keep_prob = tf.placeholder_with_default(1.0,shape=())
             self.dropout1 = tf.nn.dropout(self.fc1,self.dropout_keep_prob)

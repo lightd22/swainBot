@@ -24,7 +24,7 @@ def get_matches_by_id(match_ids):
         match_data.append(match)
     conn.close()
     return match_data
-    
+
 def buildMatchPool(num_matches,randomize=True):
     """
     Args:
@@ -41,10 +41,19 @@ def buildMatchPool(num_matches,randomize=True):
     dbName = "competitiveGameData.db"
     conn = sqlite3.connect("tmp/"+dbName)
     cur = conn.cursor()
-    tournaments = ["2017/EU/Summer_Split", "2017/NA/Summer_Split", "2017/LCK/Summer_Split",
-                    "2017/LPL/Summer_Split", "2017/LMS/Summer_Split", "2017/INTL/MSI",
-                    "2017/EU/Summer_Playoffs","2017/NA/Summer_Playoffs","2017/LCK/Summer_Playoffs",
-                    "2017/LPL/Summer_Playoffs","2017/LMS/Summer_Playoffs"]
+    tournaments = [
+#        "2017/EU/Summer_Playoffs",
+#        "2017/NA/Summer_Playoffs",
+#        "2017/LCK/Summer_Playoffs",
+#        "2017/LPL/Summer_Playoffs",
+#        "2017/LMS/Summer_Playoffs"
+        "2017/INTL/QUALS/NA",
+        "2017/INTL/QUALS/EU",
+        "2017/INTL/QUALS/LCK",
+        "2017/INTL/QUALS/LPL",
+        "2017/INTL/QUALS/LMS",
+#        "2017/INTL/WRLDS",
+    ]
     match_pool = []
     # Build list of eligible match ids
     for tournament in tournaments:

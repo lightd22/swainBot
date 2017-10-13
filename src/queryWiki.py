@@ -39,9 +39,16 @@ def queryWiki(year, region, tournament):
     url_root = "https://lol.gamepedia.com/api.php"
 
     # Semi-standardized page suffixes for pick/ban pages
-    page_suffixes = ["", "/Group_Stage", "/Knockout_Stage"]
-    for i in range(10):
-        page_suffixes.append("/Week_{}".format(i+1))
+    page_suffixes = ["", "/Group_Stage"]
+    max_week = 1
+    for suffix in page_suffixes:
+        new_suffixes = []
+        for i in range(max_week):
+            new_suffixes.append("/".join([suffix,"Week_{}".format(i+1)]))
+        print(new_suffixes)
+    page_suffixes.extend(new_suffixes)
+    page_suffixes.extend(["/Knockout_Stage", "/Play-In_Stage/Round_1", "/Play-In_Stage/Round_2"])
+    print(page_suffixes)
 
     formatted_regions = {"NA_LCS":"NA_LCS",
                         "EU_LCS":"EU_LCS",
@@ -56,7 +63,12 @@ def queryWiki(year, region, tournament):
                         "RR/RED": "Rift_Rivals/Red_Rift",
                         "RR/YELLOW": "Rift_Rivals/Yellow_Rift",
                         "RR/GREEN": "Rift_Rivals/Green_Rift",
-                        "MSI": "Mid-Season_Invitational"
+                        "MSI": "Mid-Season_Invitational",
+                        "QUALS/NA": "Regional_Qualifiers/NA_LCS",
+                        "QUALS/EU": "Regional_Qualifiers/EU_LCS",
+                        "QUALS/LCK": "Regional_Qualifiers/LCK",
+                        "QUALS/LPL": "Regional_Qualifiers/LPL",
+                        "QUALS/LMS": "Regional_Qualifiers/LMS",
     }
     # Build list of titles of pages to query
     if region == "International":
@@ -94,6 +106,7 @@ def queryWiki(year, region, tournament):
         blue_teams = parseRawText("(team1=\w+\s?\w*)",raw_text)
         red_teams = parseRawText("(team2=\w+\s?\w*)",raw_text)
 
+        #TODO(Devin): Match scores can't easily be read from lol.gamepedia responses.
 #        blueScores = parseRawText("(team1score=[0-9])",raw_text)
 #        redScores = parseRawText("(team2score=[0-9])",raw_text)
 
@@ -103,6 +116,8 @@ def queryWiki(year, region, tournament):
         winning_teams = parseRawText("(winner=[0-9])",raw_text)
         winning_teams = [int(i)-1 for i in winning_teams] # Convert string response to int
         num_games_on_page = len(winning_teams)
+        if(num_games_on_page == 0):
+            continue
 
         # bans holds the string identifiers of submitted bans for each team in the parsed game
         # ex: bans[k] = list of bans for kth game on the page
@@ -124,11 +139,11 @@ def queryWiki(year, region, tournament):
         blue_picks_in_lcs_order = parseRawText("(blue[0-9]champion=[\w\s'.,]+)",raw_text)
         blue_picks_in_lcs_order = [blue_picks_in_lcs_order[picks_per_game*k:picks_per_game*(k+1)] for k in range(num_games_on_page)]
         blue_position_dicts = list(map(createPositionDict,blue_picks_in_lcs_order))
-        #print(blue_position_dicts[11].keys())
+
         red_picks_in_lcs_order = parseRawText("(purple[0-9]champion=[\w\s'.,]+)",raw_text)
         red_picks_in_lcs_order = [red_picks_in_lcs_order[picks_per_game*k:picks_per_game*(k+1)] for k in range(num_games_on_page)]
         red_position_dicts = list(map(createPositionDict,red_picks_in_lcs_order))
-        #print(red_position_dicts[11].keys())
+
         total_blue_bans = sum([len(bans) for bans in blue_bans])
         total_red_bans = sum([len(bans) for bans in red_bans])
         total_blue_picks = sum([len(picks) for picks in blue_picks])

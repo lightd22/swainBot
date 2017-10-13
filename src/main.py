@@ -28,10 +28,16 @@ print("********************************")
 valid_champ_ids = cinfo.getChampionIds()
 print("Number of valid championIds: {}".format(len(valid_champ_ids)))
 
+with open('worlds_matchids_by_stage.txt','r') as infile:
+    worlds_data = json.load(infile)
+worlds_play_ins = worlds_data["play_ins_rd1"]
+worlds_play_ins.extend(worlds_data["play_ins_rd2"])
+worlds_groups = worlds_data["groups"]
+
 # Store training match data in a json file (for use later)
-reuse_matches = True
+reuse_matches = False
 if reuse_matches:
-    print("Reusing match data in match_pool.txt.")
+    print("Using match data in match_pool.txt.")
     with open('match_pool.txt','r') as infile:
         data = json.load(infile)
     validation_ids = data["validation_ids"]
@@ -42,16 +48,31 @@ if reuse_matches:
     training_matches = mp.get_matches_by_id(training_ids)
     validation_matches = mp.get_matches_by_id(validation_ids)
 else:
-    n_matches = 1085
-    n_training = 975
+    n_matches = 55
+    n_training = 108
+    n_val = 10
+    group_stage_validation_count = 3
 
     match_data = mp.buildMatchPool(n_matches)
-    match_pool = match_data["matches"]
+#    match_pool = match_data["matches"]
+#    training_matches = match_pool[:n_training]
+#    validation_matches = match_pool[n_training:]
     match_ids = match_data["match_ids"]
+    match_ids.extend(worlds_play_ins) # Add play in matches to pools
+    random.shuffle(match_ids)
+    random.shuffle(worlds_groups)
+
+    validation_ids = match_ids[:(n_val-group_stage_validation_count)]
+    validation_ids.extend(worlds_groups[:group_stage_validation_count])
+    training_ids = match_ids[(n_val-group_stage_validation_count):]
+    training_ids.extend(worlds_groups[group_stage_validation_count:])
+    random.shuffle(validation_ids)
+    random.shuffle(training_ids)
+
+    training_matches = mp.get_matches_by_id(training_ids)
+    validation_matches = mp.get_matches_by_id(validation_ids)
     with open('match_pool.txt','w') as outfile:
-        json.dump({"training_ids":match_ids[:n_training],"validation_ids":match_ids[n_training:]},outfile)
-    training_matches = match_pool[:n_training]
-    validation_matches = match_pool[n_training:]
+        json.dump({"training_ids":training_ids,"validation_ids":validation_ids},outfile)
 
 # Network parameters
 state = DraftState(DraftState.BLUE_TEAM,valid_champ_ids)
@@ -63,9 +84,9 @@ regularization_coeff = 7.5e-5#1.5e-4
 # Training parameters
 batch_size = 32
 buffer_size = 4096
-n_epoch = 10
+n_epoch = 50
 discount_factor = 0.9
-learning_rate = 1.0e-4
+learning_rate = 2.0e-5#1.0e-4
 
 for i in range(1):
     tf.reset_default_graph()
@@ -104,7 +125,8 @@ xtick_labels = [cinfo.championNameFromId(cid)[:6] for cid in xticks]
 tf.reset_default_graph()
 Qnet = qNetwork.Qnetwork("online",input_size, output_size, filter_size, learning_rate, regularization_coeff, discount_factor)
 with tf.Session() as sess:
-    Qnet.saver.restore(sess,"tmp/model_E{}.ckpt".format(1000))
+    path_to_model = "model_predictions/play_ins_rd1/model_play_ins_rd1.ckpt"
+    Qnet.saver.restore(sess,path_to_model)
     for exp in experiences:
         state,act,rew,next_state = exp
         cid,pos = act
