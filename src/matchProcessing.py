@@ -25,7 +25,7 @@ def get_matches_by_id(match_ids):
     conn.close()
     return match_data
 
-def buildMatchPool(num_matches,randomize=True):
+def buildMatchPool(num_matches, randomize=True):
     """
     Args:
         num_matches (int): Number of matches to include in the queue (0 indicates to use the maximum number of matches available)
@@ -42,17 +42,28 @@ def buildMatchPool(num_matches,randomize=True):
     conn = sqlite3.connect("tmp/"+dbName)
     cur = conn.cursor()
     tournaments = [
+#        "2017/EU/Summer_Split",
+#        "2017/NA/Summer_Split",
+#        "2017/LCK/Summer_Split",
+#        "2017/LPL/Summer_Split",
+#        "2017/LMS/Summer_Split"
 #        "2017/EU/Summer_Playoffs",
 #        "2017/NA/Summer_Playoffs",
 #        "2017/LCK/Summer_Playoffs",
 #        "2017/LPL/Summer_Playoffs",
-#        "2017/LMS/Summer_Playoffs"
+#        "2017/LMS/Summer_Playoffs",
+#        "2017/INTL/RR/BLUE",
+#        "2017/INTL/RR/RED",
+#        "2017/INTL/RR/YELLOW",
+#        "2017/INTL/RR/GREEN",
+#        "2017/INTL/RR/PURPLE",
+#        "2017/INTL/MSI",
         "2017/INTL/QUALS/NA",
         "2017/INTL/QUALS/EU",
         "2017/INTL/QUALS/LCK",
         "2017/INTL/QUALS/LPL",
         "2017/INTL/QUALS/LMS",
-#        "2017/INTL/WRLDS",
+        "2017/INTL/WRLDS"
     ]
     match_pool = []
     # Build list of eligible match ids
@@ -61,6 +72,8 @@ def buildMatchPool(num_matches,randomize=True):
         match_pool.extend(game_ids)
 
     print("Number of available matches for training={}".format(len(match_pool)))
+    if(num_matches == 0):
+        num_matches = len(match_pool)
     assert num_matches <= len(match_pool), "Not enough matches found to sample!"
     if(not randomize):
         selected_match_ids = match_pool[:num_matches]

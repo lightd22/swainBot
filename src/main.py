@@ -48,24 +48,22 @@ if reuse_matches:
     training_matches = mp.get_matches_by_id(training_ids)
     validation_matches = mp.get_matches_by_id(validation_ids)
 else:
-    n_matches = 55
+    n_matches = 0
     n_training = 108
     n_val = 10
-    group_stage_validation_count = 3
 
     match_data = mp.buildMatchPool(n_matches)
 #    match_pool = match_data["matches"]
 #    training_matches = match_pool[:n_training]
 #    validation_matches = match_pool[n_training:]
     match_ids = match_data["match_ids"]
-    match_ids.extend(worlds_play_ins) # Add play in matches to pools
-    random.shuffle(match_ids)
-    random.shuffle(worlds_groups)
+#    match_ids.extend(worlds_play_ins) # Add play in matches to pools
+#    random.shuffle(match_ids)
+#    random.shuffle(worlds_groups)
 
-    validation_ids = match_ids[:(n_val-group_stage_validation_count)]
-    validation_ids.extend(worlds_groups[:group_stage_validation_count])
-    training_ids = match_ids[(n_val-group_stage_validation_count):]
-    training_ids.extend(worlds_groups[group_stage_validation_count:])
+    validation_ids = match_ids[:n_val]
+    training_ids = match_ids[n_val:]
+
     random.shuffle(validation_ids)
     random.shuffle(training_ids)
 
@@ -94,7 +92,7 @@ for i in range(1):
     target_net = qNetwork.Qnetwork("target",input_size, output_size, filter_size, learning_rate, regularization_coeff, discount_factor)
     n_epoch = n_epoch*(i+1)
     print("Learning on {} matches for {} epochs. lr {:.4e} reg {:4e}".format(len(training_matches),n_epoch, learning_rate, regularization_coeff),flush=True)
-    loss,train_acc = tn.trainNetwork(online_net,target_net,training_matches,validation_matches,n_epoch,batch_size,buffer_size,load_model=True,verbose=True)
+    loss,train_acc = tn.trainNetwork(online_net,target_net,training_matches,validation_matches,n_epoch,batch_size,buffer_size,dampen_states=False,load_model=True,verbose=True)
     print("Learning complete!")
     print("..final training accuracy: {:.4f}".format(train_acc))
     x = [i+1 for i in range(len(loss))]

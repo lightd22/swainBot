@@ -23,18 +23,27 @@ print("***")
 print("Outputting To: {}".format(out_dir))
 print("***")
 
+specific_team = "tsm"
+print("***")
+if(specific_team):
+    print("Looking at drafts by team:{}".format(specific_team))
+else:
+    print("Looking at drafts by winning team")
+print("***")
+
+
 model = Model(path_to_model)
 
-with open('worlds_matchids_by_stage.txt','r') as infile:
-    data = json.load(infile)
-match_ids = data["groups"]
-
+#with open('worlds_matchids_by_stage.txt','r') as infile:
+#    data = json.load(infile)
+#match_ids = data["groups"]
 dbName = "competitiveGameData.db"
 conn = sqlite3.connect("tmp/"+dbName)
 cur = conn.cursor()
-#match_ids = dbo.getGameIdsByTournament(cur,"2017/INTL/WRLDS")
+match_ids = dbo.getGameIdsByTournament(cur,"2017/INTL/WRLDS")
 matches = [dbo.getMatchData(cur,match_id) for match_id in match_ids]
 conn.close()
+matches = [match for match in matches if (match["blue_team"]=="tsm" or match["red_team"]=="tsm")]
 
 count = 0
 print("************************")
@@ -53,12 +62,17 @@ with open("{}/match_data.json".format(out_dir),'w') as outfile:
     json.dump(matches,outfile)
 
 count = 0
-full_diag = {"top1":0, "top5":0, "l2":[]}
-no_rd1_ban_diag = {"top1":0, "top5":0, "l2":[]}
-no_ban_diag = {"top1":0, "top5":0, "l2":[]}
+k = 5 # Rank to look for in topk range
+full_diag = {"top1":0, "topk":0, "l2":[],"k":k}
+no_rd1_ban_diag = {"top1":0, "topk":0, "l2":[],"k":k}
+no_ban_diag = {"top1":0, "topk":0, "l2":[],"k":k}
 model_diagnostics = {"full":full_diag, "no_rd1_ban":no_rd1_ban_diag, "no_bans":no_ban_diag}
 for match in matches:
-    team = DraftState.RED_TEAM if match["winner"]==1 else DraftState.BLUE_TEAM
+    if(specific_team):
+        team = DraftState.RED_TEAM if match["red_team"]==specific_team else DraftState.BLUE_TEAM
+    else:
+        team = DraftState.RED_TEAM if match["winner"]==1 else DraftState.BLUE_TEAM
+
     experiences = mp.processMatch(match, team)
 
     pick_count = 0
@@ -96,24 +110,24 @@ for match in matches:
         # Norms measuring for all submissions
         if(rank == 0):
             model_diagnostics["full"]["top1"] += 1
-        if(rank < 5):
-            model_diagnostics["full"]["top5"] += 1
+        if(rank < k):
+            model_diagnostics["full"]["topk"] += 1
         model_diagnostics["full"]["l2"].append(err)
 
         # Norms excluding round 1 bans
         if(pick_count > 2):
             if(rank == 0):
                 model_diagnostics["no_rd1_ban"]["top1"] += 1
-            if(rank < 5):
-                model_diagnostics["no_rd1_ban"]["top5"] += 1
+            if(rank < k):
+                model_diagnostics["no_rd1_ban"]["topk"] += 1
             model_diagnostics["no_rd1_ban"]["l2"].append(err)
 
         # Norms excluding all bans
         if(pos != -1):
             if(rank == 0):
                 model_diagnostics["no_bans"]["top1"] += 1
-            if(rank < 5):
-                model_diagnostics["no_bans"]["top5"] += 1
+            if(rank < k):
+                model_diagnostics["no_bans"]["topk"] += 1
             model_diagnostics["no_bans"]["l2"].append(err)
 
         print(" Top predictions:")
@@ -131,10 +145,11 @@ for key in model_diagnostics.keys():
     err = math.sqrt((sum([e**2 for e in err_list])/len(err_list)))
     num_predictions = len(err_list)#10*count
     top1 = model_diagnostics[key]["top1"]
-    top5 = model_diagnostics[key]["top5"]
+    topk = model_diagnostics[key]["topk"]
+    k = model_diagnostics[key]["k"]
     print("  Num_predictions = {}".format(num_predictions))
     print("  top 1: count {} -> acc: {:.4}".format(top1, top1/num_predictions))
-    print("  top 5: count {} -> acc: {:.4}".format(top5, top5/num_predictions))
+    print("  top {}: count {} -> acc: {:.4}".format(k, topk, topk/num_predictions))
     print("  l2 error: {:.4}".format(err))
     print("---")
 print("******************")

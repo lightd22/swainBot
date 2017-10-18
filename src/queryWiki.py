@@ -40,7 +40,7 @@ def queryWiki(year, region, tournament):
 
     # Semi-standardized page suffixes for pick/ban pages
     page_suffixes = ["", "/Group_Stage"]
-    max_week = 1
+    max_week = 2
     for suffix in page_suffixes:
         new_suffixes = []
         for i in range(max_week):

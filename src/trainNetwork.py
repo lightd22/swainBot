@@ -15,7 +15,7 @@ from copy import deepcopy
 import sqlite3
 import draftDbOps as dbo
 
-def trainNetwork(online_net, target_net, training_matches, validation_matches, train_epochs, batch_size, buffer_size, load_model = False, verbose = False):
+def trainNetwork(online_net, target_net, training_matches, validation_matches, train_epochs, batch_size, buffer_size, dampen_states = False, load_model = False, verbose = False):
     """
     Args:
         online_net (qNetwork): "live" Q-network to be trained.
@@ -39,6 +39,12 @@ def trainNetwork(online_net, target_net, training_matches, validation_matches, t
         print("  num_episodes: {}".format(num_episodes))
         print("  batch_size: {}".format(batch_size))
         print("  buffer_size: {}".format(buffer_size))
+        if(dampen_states):
+            print("  ********************************")
+            print("  WARNING: BEGINNING DAMPENING CYCLES")
+            print("  THIS SHOULD ONLY BE USED TO REDUCE VALUATION FOR OLDER METAS")
+            print("  ********************************")
+            time.sleep(2.)
     # Hyperparameter used in updating target network
     # Some notable values:
     #  tau = 1.e-3 -> used in original paper
@@ -74,8 +80,8 @@ def trainNetwork(online_net, target_net, training_matches, validation_matches, t
         sess.run(tf.global_variables_initializer())
         if load_model:
             # Open saved model
-            #path_to_model = "tmp/models/model_E{}.ckpt".format(50)
-            path_to_model = "model_predictions/play_ins_rd2/model_play_ins_rd2.ckpt"
+            path_to_model = "tmp/models/model_E{}.ckpt".format(10)
+            #path_to_model = "model_predictions/play_ins_rd2/model_play_ins_rd2.ckpt"
             online_net.saver.restore(sess,path_to_model)
             print("\nCheckpoint loaded from {}".format(path_to_model))
             #TODO FIX THIS SOMEWHERE ELSE
@@ -200,6 +206,10 @@ def trainNetwork(online_net, target_net, training_matches, validation_matches, t
                             updates = []
                             for exp in training_batch:
                                 startState,_,reward,endingState = exp
+                                if(dampen_states):
+                                    # To dampen states (usually done after major patches or when the meta shifts)
+                                    # we replace winning rewards with 0. (essentially a loss).
+                                    reward = 0.
                                 state_code = endingState.evaluateState()
                                 if(state_code==DraftState.DRAFT_COMPLETE or state_code in DraftState.invalid_states):
                                     # Action moves to terminal state

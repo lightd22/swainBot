@@ -186,9 +186,9 @@ if __name__ == "__main__":
     db = pd.read_sql_query(query, conn, params=params)
     print(db)
 
-    gameIds = dbo.getGameIdsByTournament(cur, "2017/Summer_Split/EU")
+    gameIds = dbo.getGameIdsByTournament(cur, "2017/INTL/WRLDS")
     for i in gameIds:
         match = dbo.getMatchData(cur, i)
-        print(match)
+        print("{} vs {}".format(match["blue_team"],match["red_team"]))
     print("Closing db..")
     conn.close()
