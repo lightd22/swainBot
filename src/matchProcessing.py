@@ -1,5 +1,5 @@
 from cassiopeia import riotapi
-import queue
+from collections import deque
 from draftstate import DraftState
 from championinfo import getChampionIds, championNameFromId
 from rewards import getReward
@@ -87,7 +87,7 @@ def buildMatchPool(num_matches, randomize=True):
     conn.close()
     return {"match_ids":selected_match_ids, "matches":selected_matches}
 
-def processMatch(match, team):
+def processMatch(match, team, augment_data=True):
     """
     processMatch takes an input match and breaks each incremental pick and ban down the draft into experiences (aka "memories").
 
@@ -96,6 +96,7 @@ def processMatch(match, team):
         team (DraftState.BLUE_TEAM or DraftState.RED_TEAM): The team perspective that is used to process match
             The selected team has the positions for each pick explicitly included with the experience while the
             "opposing" team has the assigned positions for its champion picks masked.
+        augment_data (optional) (bool): flag controlling the randomized ordering of submissions that do not affect the draft as a whole
     Returns:
         experiences ( list(tuple) ): list of experience tuples. Each experience is of the form (s, a, r, s') where:
             - s and s' are DraftState states before and after a single action
@@ -115,9 +116,29 @@ def processMatch(match, team):
     draft = DraftState(team,valid_champ_ids)
 
     finish_memory = False
-    while not action_queue.empty():
-        # Get next pick from queue
-        (submitting_team, next_pick, position) = action_queue.get()
+    while action_queue:
+        # Get next pick from deque
+        submission = action_queue.popleft()
+        submitting_team,_,position = submission
+
+        # This section controls data agumentation of the match. Certain submissions in the draft are
+        # submitted consecutively by the same team during the same phase (ie team1 pickA -> team1 pickB).
+        # Although these submissions were produced in a particular order, from a draft perspective
+        # there is no difference between submissions of the form
+        # team1 pickA -> team1 pickB vs team1 pickB -> team1 pickA
+        # provided that the two picks are from the same phase (either both bans or both picks).
+        # Therefore it is possible to augment the order in which these submissions are processed.
+        if(augment_data and action_queue):
+            next_sub = list(action_queue)[0] # Peek at next submission
+            (next_team, _, next_pos) = next_sub
+            if(next_team == submitting_team and next_pos*position > 0):
+                if(random.random() < 0.5):
+                    # Swap order of these two submissions
+                    next_sub = action_queue.popleft()
+                    action_queue.appendleft(submission)
+                    submission = next_sub
+        (submitting_team, pick, position) = submission
+
         # There are two conditions under which we want to finalize a memory:
         # 1. Non-designated team has finished submitting picks for this phase (ie next submission belongs to the designated team)
         # 2. Draft is complete (no further picks in the draft)
@@ -132,20 +153,20 @@ def processMatch(match, team):
             # Memory starts when upcoming pick belongs to designated team
             s = deepcopy(draft)
             # Store action = (champIndex, pos)
-            a = (next_pick, position)
+            a = (pick, position)
             finish_memory = True
         else:
             # Mask positions for pick submissions belonging to the non-designated team
             if position != -1:
                 position = 0
 
-        draft.updateState(next_pick, position)
+        draft.updateState(pick, position)
 
     # Once the queue is empty, store last memory. This is case 2 above.
     # There is always an outstanding memory at the completion of the draft.
     # RED_TEAM always gets last pick. Therefore:
-    #   if team = DraftState.BLUE_TEAM -> There is an outstanding memory from last RED_TEAM submission
-    #   if team = DraftState.RED_TEAM -> Memory is open from just before our last submission
+    #   if team = BLUE_TEAM -> There is an outstanding memory from last RED_TEAM submission
+    #   if team = RED_TEAM -> Memory is open from just before our last submission
     if(draft.evaluateState() == DraftState.DRAFT_COMPLETE):
         assert finish_memory == True
         r = getReward(draft, match)
@@ -170,11 +191,11 @@ def buildActionQueue(match):
     Args:
         match (dict): dictonary structure of match data to be parsed
     Returns:
-        action_queue (Queue(tuple)): Queue of pick tuples of the form (side_id, champion_id, position_id).
+        action_queue (deque(tuple)): deque of pick tuples of the form (side_id, champion_id, position_id).
             action_queue is produced in selection order.
     """
     winner = match["winner"]
-    action_queue = queue.Queue()
+    action_queue = deque()
     phases = {0:{"phase_type":"bans", "pick_order":["blue", "red", "blue", "red", "blue", "red"]}, # phase 1 bans
               1:{"phase_type":"picks", "pick_order":["blue", "red", "red", "blue", "blue", "red"]}, # phase 1 picks
               2:{"phase_type":"bans", "pick_order":["red", "blue", "red", "blue"]}, # phase 2 bans
@@ -202,7 +223,7 @@ def buildActionQueue(match):
                 index = pick_index
                 pick_index += pick_num%2 # Order matters here. index needs to be updated *after* use
             action = (side_id, match[side][phase_type][index][0], position_id)
-            action_queue.put(action)
+            action_queue.append(action)
             completed_actions += 1
 
     if(completed_actions != 20):
@@ -212,4 +233,15 @@ def buildActionQueue(match):
     return action_queue
 
 if __name__ == "__main__":
-    match_info = buildMatchPool(10)
+    data = buildMatchPool(1)
+    matches = data["matches"]
+    for match in matches:
+        for team in [DraftState.BLUE_TEAM, DraftState.RED_TEAM]:
+            for augment_data in [False, True]:
+                experiences = processMatch(match, team, augment_data)
+                count = 0
+                for exp in experiences:
+                    _,a,_,_ = exp
+                    print("{} - {}".format(count,a))
+                    count+=1
+                print("")
