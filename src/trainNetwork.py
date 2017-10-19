@@ -80,7 +80,7 @@ def trainNetwork(online_net, target_net, training_matches, validation_matches, t
         sess.run(tf.global_variables_initializer())
         if load_model:
             # Open saved model
-            path_to_model = "tmp/models/model_E{}.ckpt".format(10)
+            path_to_model = "tmp/models/model_E{}.ckpt".format(50)
             #path_to_model = "model_predictions/play_ins_rd2/model_play_ins_rd2.ckpt"
             online_net.saver.restore(sess,path_to_model)
             print("\nCheckpoint loaded from {}".format(path_to_model))
@@ -238,7 +238,7 @@ def trainNetwork(online_net, target_net, training_matches, validation_matches, t
                                                 online_net.secondary_input:np.stack([exp[0].format_secondary_inputs() for exp in training_batch],axis=0),
                                                 online_net.actions:actions,
                                                 online_net.target:targetQ,
-                                                online_net.dropout_keep_prob:0.8})
+                                                online_net.dropout_keep_prob:0.5})
                             if(total_steps % target_update_frequency == 0):
                                 # After the online network has been updated, update target network
                                 _ = sess.run(target_update)

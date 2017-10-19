@@ -23,7 +23,7 @@ print("***")
 print("Outputting To: {}".format(out_dir))
 print("***")
 
-specific_team = "tsm"
+specific_team = None#"tsm"
 print("***")
 if(specific_team):
     print("Looking at drafts by team:{}".format(specific_team))
@@ -43,7 +43,8 @@ cur = conn.cursor()
 match_ids = dbo.getGameIdsByTournament(cur,"2017/INTL/WRLDS")
 matches = [dbo.getMatchData(cur,match_id) for match_id in match_ids]
 conn.close()
-matches = [match for match in matches if (match["blue_team"]=="tsm" or match["red_team"]=="tsm")]
+if(specific_team):
+    matches = [match for match in matches if (match["blue_team"]=="tsm" or match["red_team"]=="tsm")]
 
 count = 0
 print("************************")

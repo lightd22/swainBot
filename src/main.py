@@ -2,7 +2,6 @@ import random
 import numpy as np
 from copy import deepcopy
 import json
-from cassiopeia import riotapi
 from draftstate import DraftState
 import championinfo as cinfo
 

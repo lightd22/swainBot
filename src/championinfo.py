@@ -179,3 +179,22 @@ def populateChampionDictionary():
     if not __m.championNameFromId:
         return False
     return True
+
+def create_Champion_fixture():
+    valid_ids = getChampionIds()
+    champions = []
+    model = 'predict.Champion'
+    for cid in valid_ids:
+        champion = {}
+        champion["model"] = model
+        champion["pk"] = cid
+        fields = {}
+        fields["id"] = cid
+        fields["display_name"] = championNameFromId(cid)
+        champion["fields"] = fields
+        champions.append(champion)
+    with open('champions_fixture.json','w') as outfile:
+        json.dump(champions,outfile)
+
+if __name__ == "__main__":
+    create_Champion_fixture()
