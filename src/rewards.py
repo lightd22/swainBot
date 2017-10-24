@@ -21,7 +21,7 @@ def getReward(state, match):
         if(status==ds.DRAFT_COMPLETE):
             return 5.
         else:
-            return 0.
+            return 2.5
     return 0.
 
 def getWinningTeam(match):

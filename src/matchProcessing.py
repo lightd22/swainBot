@@ -109,8 +109,39 @@ def processMatch(match, team, augment_data=True):
     """
     experiences = []
     valid_champ_ids = getChampionIds()
-    # Build queue of actions from match reference
-    action_queue = buildActionQueue(match)
+
+    # This section controls data agumentation of the match. Certain submissions in the draft are
+    # submitted consecutively by the same team during the same phase (ie team1 pick0 -> team1 pick1).
+    # Although these submissions were produced in a particular order, from a draft perspective
+    # there is no difference between submissions of the form
+    # team1 pick0 -> team1 pick1 vs team1 pick1 -> team0 pickA
+    # provided that the two picks are from the same phase (both bans or both picks).
+    # Therefore it is possible to augment the order in which these submissions are processed.
+
+    # Note that we can also augment the banning phase if desired. Although these submissions technically
+    # fall outside of the conditions listed above, in practice bans made in the same phase are
+    # interchangable in order.
+
+    # Build queue of actions from match reference (augmenting if desired)
+    augments_list = [
+        ("blue","bans",slice(0,3)), # Blue bans 0,1,2 are augmentable
+        ("blue","bans",slice(3,5)), # Blue bans 3,4 are augmentable
+        ("red","bans",slice(0,3)),
+        ("red","bans",slice(3,5)),
+        ("blue","picks",slice(1,3)), # Blue picks 1,2 are augmentable
+        ("blue","picks",slice(3,5)), # Blue picks 3,4 are augmentable
+        ("red","picks",slice(0,2)) # Red picks 0,1 are augmentable
+    ]
+    if(augment_data):
+        augmented_match = deepcopy(match) # Deepcopy match to avoid side effects
+        for aug in augments_list:
+            (k1,k2,aug_range) = aug
+            count = len(augmented_match[k1][k2][aug_range])
+            augmented_match[k1][k2][aug_range] = random.sample(augmented_match[k1][k2][aug_range],count)
+
+        action_queue = buildActionQueue(augmented_match)
+    else:
+        action_queue = buildActionQueue(match)
 
     # Set up draft state
     draft = DraftState(team,valid_champ_ids)
@@ -119,24 +150,6 @@ def processMatch(match, team, augment_data=True):
     while action_queue:
         # Get next pick from deque
         submission = action_queue.popleft()
-        submitting_team,_,position = submission
-
-        # This section controls data agumentation of the match. Certain submissions in the draft are
-        # submitted consecutively by the same team during the same phase (ie team1 pickA -> team1 pickB).
-        # Although these submissions were produced in a particular order, from a draft perspective
-        # there is no difference between submissions of the form
-        # team1 pickA -> team1 pickB vs team1 pickB -> team1 pickA
-        # provided that the two picks are from the same phase (either both bans or both picks).
-        # Therefore it is possible to augment the order in which these submissions are processed.
-        if(augment_data and action_queue):
-            next_sub = list(action_queue)[0] # Peek at next submission
-            (next_team, _, next_pos) = next_sub
-            if(next_team == submitting_team and next_pos*position > 0):
-                if(random.random() < 0.5):
-                    # Swap order of these two submissions
-                    next_sub = action_queue.popleft()
-                    action_queue.appendleft(submission)
-                    submission = next_sub
         (submitting_team, pick, position) = submission
 
         # There are two conditions under which we want to finalize a memory:

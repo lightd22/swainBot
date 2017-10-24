@@ -160,6 +160,7 @@ def populateChampionDictionary():
     #riotapi.set_region("NA")
     #riotapi.set_api_key(api_key)
     #champions = riotapi.get_champions()
+    DISABLED_CHAMPIONS = ["Ornn"]
     if(look_local):
         with open('champions.json') as local_data:
             response = json.load(local_data)
@@ -170,9 +171,11 @@ def populateChampionDictionary():
     data = response["data"]
     champions = []
     for value in data.values():
+        if(value["name"] in DISABLED_CHAMPIONS):
+            continue
         champion = Champion(value)
         champions.append(champion)
-
+        
     __m.championNameFromId = {champion.id: champion.name for champion in champions}
     __m.championIdFromName = {re.sub("[^A-Za-z0-9]+", "", champion.name.lower()): champion.id for champion in champions}
     __m.validChampionIds = sorted(__m.championNameFromId.keys())
