@@ -124,10 +124,12 @@ class Qnetwork():
             # If pool3 has shape = [-1, nx, ny, nf] then feature_size = nx*ny*nf
             dim = int(np.prod(self.pool3.shape[1:]))
             pool3_flat = tf.reshape(self.pool3, [-1, dim])
-
+            self.dropout_keep_prob = tf.placeholder_with_default(1.0,shape=())
+            self.dropout1 = tf.nn.dropout(pool3_flat,self.dropout_keep_prob)
             self.secondary_input = tf.placeholder(tf.float32, (None,)+self._secondary_input_shape, name="secondary_inputs")
 
-            self.fc_input = tf.concat([pool3_flat,self.secondary_input],axis=1)
+            self.fc_input = tf.concat([self.dropout1,self.secondary_input],axis=1)
+            #self.fc_input = tf.concat([pool3_flat,self.secondary_input],axis=1)
             fc1_input_size = int(self.fc_input.shape[1])
             fc1_output_size = fc1_input_size//2
 
@@ -135,13 +137,12 @@ class Qnetwork():
             self.fc1_biases = Qnetwork.bias_variable([fc1_output_size],"fc1_bias")
 
             self.fc1 = tf.nn.relu(tf.add(tf.matmul(self.fc_input, self.fc1_weights), self.fc1_biases),name="fc1")
-            self.dropout_keep_prob = tf.placeholder_with_default(1.0,shape=())
-            self.dropout1 = tf.nn.dropout(self.fc1,self.dropout_keep_prob)
+            self.dropout2 = tf.nn.dropout(self.fc1,self.dropout_keep_prob)
 
             # FC output layer
             self.fc2_weights = Qnetwork.weight_variable([fc1_output_size,output_shape],"fc2_weight")
             self.fc2_biases = Qnetwork.bias_variable([output_shape],"fc2_bias")
-            self.outQ = tf.add(tf.matmul(self.fc1, self.fc2_weights), self.fc2_biases, name="outputs")
+            self.outQ = tf.add(tf.matmul(self.dropout2, self.fc2_weights), self.fc2_biases, name="outputs")
 
             # Predicted optimal action
             self.prediction = tf.argmax(self.outQ, axis=1, name="prediction")

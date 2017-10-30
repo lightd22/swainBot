@@ -13,7 +13,7 @@ import sqlite3
 import math
 
 #path_to_model = "model_predictions/play_ins_rd2/model_play_ins_rd2"
-path_to_model = "tmp/models/model_E50"
+path_to_model = "tmp/models/model_E100"
 print("***")
 print("Loading Model From: {}".format(path_to_model))
 print("***")

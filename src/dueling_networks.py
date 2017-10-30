@@ -62,7 +62,7 @@ def self_train(sess, explore_prob):
         # Update active state
         state.updateState(*action)
         if(state.evaluateState() in DraftState.invalid_states):
-            return (start,action,getReward(state,match),state)
+            return (start,action,getReward(state,match,action,None),state)
         # Update inactive state, remembering to mask non-bans submitted by opponent
         (cid,pos) = action
         inactive_pos = pos if pos==-1 else 0

@@ -32,6 +32,7 @@ with open('worlds_matchids_by_stage.txt','r') as infile:
 worlds_play_ins = worlds_data["play_ins_rd1"]
 worlds_play_ins.extend(worlds_data["play_ins_rd2"])
 worlds_groups = worlds_data["groups"]
+worlds_knockouts = worlds_data["knockouts"]
 
 # Store training match data in a json file (for use later)
 reuse_matches = False
@@ -47,8 +48,8 @@ if reuse_matches:
     training_matches = mp.get_matches_by_id(training_ids)
     validation_matches = mp.get_matches_by_id(validation_ids)
 else:
-    n_matches = 0
-    n_training = 108
+    n_matches = 162
+    n_training = 152
     n_val = 10
 
     match_data = mp.buildMatchPool(n_matches)
@@ -81,7 +82,7 @@ regularization_coeff = 7.5e-5#1.5e-4
 # Training parameters
 batch_size = 32
 buffer_size = 4096
-n_epoch = 50
+n_epoch = 30
 discount_factor = 0.9
 learning_rate = 2.0e-5#1.0e-4
 
@@ -122,7 +123,7 @@ xtick_labels = [cinfo.championNameFromId(cid)[:6] for cid in xticks]
 tf.reset_default_graph()
 Qnet = qNetwork.Qnetwork("online",input_size, output_size, filter_size, learning_rate, regularization_coeff, discount_factor)
 with tf.Session() as sess:
-    path_to_model = "model_predictions/play_ins_rd1/model_play_ins_rd1.ckpt"
+    path_to_model = "tmp/models/model_E{}.ckpt".format(n_epoch)
     Qnet.saver.restore(sess,path_to_model)
     for exp in experiences:
         state,act,rew,next_state = exp

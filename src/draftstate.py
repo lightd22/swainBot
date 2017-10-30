@@ -4,6 +4,25 @@ from championinfo import championNameFromId, validChampionId
 class InvalidDraftState(Exception):
     pass
 
+def get_active_team(submission_count):
+    """
+    Gets the active team in the draft based on the number of submissions currently present
+    Args:
+        submission_count (int): number of submissions currently submitted
+    Returns:
+        DraftState.BLUE_TEAM if blue is active, else DraftState.RED_TEAM
+    """
+    blue = DraftState.BLUE_TEAM
+    red = DraftState.RED_TEAM
+    ACTIVE_TEAM = [blue, red, blue, red, blue, red,
+                   blue, red, red, blue, blue, red,
+                   red, blue, red, blue,
+                   red, blue, red]
+    if submission_count > len(ACTIVE_TEAM):
+        raise
+
+    return ACTIVE_TEAM[submission_count]
+    
 class DraftState:
     """
     Args:
@@ -367,33 +386,24 @@ class DraftState:
 
         ban_cutoffs = [DraftState.BAN_PHASE_LENGTHS[0], DraftState.NUM_BANS]
         pick_cutoffs = [DraftState.PICK_PHASE_LENGTHS[0], DraftState.NUM_PICKS]
-        # TODO (Devin): This is a litle sloppy but it gets the job done and is fairly
-        # understandable. However note that it assumes that ban phase always comes first
-        if 0<=num_bans<ban_cutoffs[0]:
+        submission_count = num_bans+num_picks
+        if(0<=submission_count<ban_cutoffs[0]):
             if num_picks != 0:
-                # Pick submitted during first ban phase
+                # Invalid number of picks for ban phase 1
                 return DraftState.INVALID_SUBMISSION
-        if ban_cutoffs[0]<num_bans<ban_cutoffs[1]:
+        if(ban_cutoffs[0]<=submission_count<(ban_cutoffs[0]+pick_cutoffs[0])):
+            if num_bans != ban_cutoffs[0]:
+                # Invalid number of bans for pick phase 1
+                return DraftState.INVALID_SUBMISSION
+        if((ban_cutoffs[0]+pick_cutoffs[0])<=submission_count<(ban_cutoffs[1]+pick_cutoffs[0])):
             if num_picks != pick_cutoffs[0]:
-                # Pick submitted during second ban phase
+                # Invalid number of picks for ban phase 2
                 return DraftState.INVALID_SUBMISSION
-        if num_bans==ban_cutoffs[1]:
-            if num_picks < pick_cutoffs[0]:
-                # Insufficent picks submitted going into second pick phase
+        if((ban_cutoffs[1]+pick_cutoffs[0])<=submission_count<=(ban_cutoffs[1]+pick_cutoffs[1])):
+            if num_bans != ban_cutoffs[1]:
+                # Invalid number of bans for pick phase 2
                 return DraftState.INVALID_SUBMISSION
 
-        if num_picks==0:
-            if num_bans > ban_cutoffs[0]:
-                # Too many bans submitted during first ban phase
-                return DraftState.INVALID_SUBMISSION
-        if 0<num_picks<pick_cutoffs[0]:
-            if num_bans != ban_cutoffs[0]:
-                # Ban submitted during first pick phase
-                return DraftState.INVALID_SUBMISSION
-        if pick_cutoffs[0]<num_picks<=pick_cutoffs[1]:
-            if num_bans != ban_cutoffs[1]:
-                # Ban submitted during second pick phase
-                return DraftState.INVALID_SUBMISSION
         # State is valid, check if draft is complete
         num_enemy_picks = np.sum(self.state[:,0])
         num_ally_picks = np.sum(self.state[:,2:])

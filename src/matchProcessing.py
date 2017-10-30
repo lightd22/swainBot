@@ -158,7 +158,7 @@ def processMatch(match, team, augment_data=True):
         if submitting_team == team:
             if finish_memory:
                 # This is case 1 to store memory
-                r = getReward(draft, match)
+                r = getReward(draft, match, a, a)
                 s_next = deepcopy(draft)
                 memory = (s, a, r, s_next)
                 experiences.append(memory)
@@ -182,7 +182,7 @@ def processMatch(match, team, augment_data=True):
     #   if team = RED_TEAM -> Memory is open from just before our last submission
     if(draft.evaluateState() == DraftState.DRAFT_COMPLETE):
         assert finish_memory == True
-        r = getReward(draft, match)
+        r = getReward(draft, match, a, a)
         s_next = deepcopy(draft)
         memory = (s, a, r, s_next)
         experiences.append(memory)

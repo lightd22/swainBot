@@ -25,6 +25,7 @@ def trainNetwork(online_net, target_net, training_matches, validation_matches, t
         train_epochs (int): number of times to learn on given data
         batch_size (int): size of each training set sampled from the replay buffer which will be used to update Qnet at a time
         buffer_size (int): size of replay buffer used
+        dampen_states (bool): flag for running dampening routine on model
         load_model (bool): flag to reload existing model
         verbose (bool): flag for enhanced output
     Returns:
@@ -84,7 +85,7 @@ def trainNetwork(online_net, target_net, training_matches, validation_matches, t
             #path_to_model = "model_predictions/play_ins_rd2/model_play_ins_rd2.ckpt"
             online_net.saver.restore(sess,path_to_model)
             print("\nCheckpoint loaded from {}".format(path_to_model))
-            #TODO FIX THIS SOMEWHERE ELSE
+
             if(overwrite_initial_lr):
                 online_net.learning_rate.assign(overwrite_initial_lr).eval()
 
@@ -142,26 +143,27 @@ def trainNetwork(online_net, target_net, training_matches, validation_matches, t
                         # Some experiences include NULL submissions
                         # We don't allow the learner to submit NULL picks so skip adding these
                         # to the replay buffer.
-                        state,a,_,_ = experience
-                        (cid,pos) = a
+                        state,actual,_,_ = experience
+                        (cid,pos) = actual
                         if cid is None:
                             null_action_count += 1
                             continue
+                        # Store original experience
                         experience_replay.store([experience])
                         if(total_steps >= observations):
                             # Let the network predict the next action, if the action leads
                             # to an invalid state add a negatively reinforced experience to the replay buffer.
-                            # This helps the network learn the drafting structure.
-                            # Ideally we would also let the network predict a random action and evaluate the reward
-                            # for the resulting state, but it's not clear how to assign a reward for an action
-                            # which was not produced by geniune match data (unless it matches the original experience).
+                            random_submission = False
                             if(random.random() < epsilon):
-                                # Explore state space by submitting random action
+                                random_submission = True
+                                # Explore state space by submitting random action and checking if that action is legal
                                 pred_act = [random.randint(0,state.num_actions-1)]
                             else:
+                                # Let model make prediction
                                 pred_act = sess.run(online_net.prediction,
                                                 feed_dict={online_net.input:[state.format_state()],
                                                            online_net.secondary_input:[state.format_secondary_inputs()]})
+
                             pred_act = pred_act[0]
                             (cid,pos) = state.formatAction(pred_act)
 
@@ -175,17 +177,15 @@ def trainNetwork(online_net, target_net, training_matches, validation_matches, t
                                     bad_state_counts["wins"][state_code] += 1
                                 else:
                                     bad_state_counts["loss"][state_code] += 1
-                                r = getReward(pred_state, blank_match)
+                                r = getReward(pred_state, blank_match, (cid,pos), actual)
                                 new_experience = (state, (cid,pos), r, pred_state)
                                 experience_replay.store([new_experience])
-#                            elif(random.random() < 0.05 and team==match["winner"] and state.getAction(*a)!=pred_act):
-#                                # Prediction does not move to illegal state, but doesn't match
-#                                # submission from winning training example.
-#                                learner_submitted_counts += 1
-#                                r = getReward(pred_state, blank_match) # Normally this should be r = 0
-#                                print("in learner submission: reward={}".format(r))
-#                                new_experience = (state, (cid,pos), r, pred_state)
-#                                experience_replay.store([new_experience])
+                            elif(not random_submission and (cid,pos) != actual):
+                                # Add memories for legal submissions if they were chosen by model and do not duplicate already submitted memory
+                                learner_submitted_counts += 1
+                                r = getReward(pred_state, blank_match, (cid,pos), actual)
+                                new_experience = (state, (cid,pos), r, pred_state)
+                                experience_replay.store([new_experience])
 
                         if(epsilon > 0.1):
                             # Reduce epsilon over time
