@@ -1,4 +1,3 @@
-from cassiopeia import riotapi
 from collections import deque
 from draftstate import DraftState
 from championinfo import getChampionIds, championNameFromId
@@ -58,11 +57,11 @@ def buildMatchPool(num_matches, randomize=True):
 #        "2017/INTL/RR/GREEN",
 #        "2017/INTL/RR/PURPLE",
 #        "2017/INTL/MSI",
-        "2017/INTL/QUALS/NA",
-        "2017/INTL/QUALS/EU",
-        "2017/INTL/QUALS/LCK",
-        "2017/INTL/QUALS/LPL",
-        "2017/INTL/QUALS/LMS",
+#        "2017/INTL/QUALS/NA",
+#        "2017/INTL/QUALS/EU",
+#        "2017/INTL/QUALS/LCK",
+#        "2017/INTL/QUALS/LPL",
+#        "2017/INTL/QUALS/LMS",
         "2017/INTL/WRLDS"
     ]
     match_pool = []

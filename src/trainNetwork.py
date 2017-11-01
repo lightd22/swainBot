@@ -2,18 +2,13 @@ import numpy as np
 import tensorflow as tf
 import random
 import time
+from copy import deepcopy
 
-from cassiopeia import riotapi
 from draftstate import DraftState
-import championinfo as cinfo
 import matchProcessing as mp
 import experienceReplay as er
 from rewards import getReward
 from dueling_networks import self_train
-
-from copy import deepcopy
-import sqlite3
-import draftDbOps as dbo
 
 def trainNetwork(online_net, target_net, training_matches, validation_matches, train_epochs, batch_size, buffer_size, dampen_states = False, load_model = False, verbose = False):
     """
@@ -81,7 +76,7 @@ def trainNetwork(online_net, target_net, training_matches, validation_matches, t
         sess.run(tf.global_variables_initializer())
         if load_model:
             # Open saved model
-            path_to_model = "tmp/models/model_E{}.ckpt".format(50)
+            path_to_model = "tmp/models/model_E{}.ckpt".format(10)
             #path_to_model = "model_predictions/play_ins_rd2/model_play_ins_rd2.ckpt"
             online_net.saver.restore(sess,path_to_model)
             print("\nCheckpoint loaded from {}".format(path_to_model))
@@ -137,12 +132,12 @@ def trainNetwork(online_net, target_net, training_matches, validation_matches, t
 
             for match in shuffled_matches:
                 for team in teams:
-                    # Process this match into individual experiences
+                    # Process match into individual experiences
                     experiences = mp.processMatch(match, team)
                     for experience in experiences:
                         # Some experiences include NULL submissions
-                        # We don't allow the learner to submit NULL picks so skip adding these
-                        # to the replay buffer.
+                        # The learner isn't allowed to submit NULL picks so skip adding these
+                        # to the buffer.
                         state,actual,_,_ = experience
                         (cid,pos) = actual
                         if cid is None:
@@ -160,32 +155,33 @@ def trainNetwork(online_net, target_net, training_matches, validation_matches, t
                                 pred_act = [random.randint(0,state.num_actions-1)]
                             else:
                                 # Let model make prediction
-                                pred_act = sess.run(online_net.prediction,
+                                pred_Q = sess.run(online_net.outQ,
                                                 feed_dict={online_net.input:[state.format_state()],
                                                            online_net.secondary_input:[state.format_secondary_inputs()]})
+                                sorted_actions = pred_Q[0,:].argsort()[::-1]
+                                pred_act = sorted_actions[0:4] # top 5 actions by model
 
-                            pred_act = pred_act[0]
-                            (cid,pos) = state.formatAction(pred_act)
+                            top_action = pred_act[0]
+                            for action in pred_act:
+                                (cid,pos) = state.formatAction(action)
 
-                            pred_state = deepcopy(state)
-                            pred_state.updateState(cid,pos)
+                                pred_state = deepcopy(state)
+                                pred_state.updateState(cid,pos)
 
-                            state_code = pred_state.evaluateState()
-                            if(state_code in DraftState.invalid_states):
-                                # Prediction moves to illegal state, add negative experience
-                                if(team==match["winner"]):
-                                    bad_state_counts["wins"][state_code] += 1
-                                else:
-                                    bad_state_counts["loss"][state_code] += 1
+                                state_code = pred_state.evaluateState()
                                 r = getReward(pred_state, blank_match, (cid,pos), actual)
                                 new_experience = (state, (cid,pos), r, pred_state)
-                                experience_replay.store([new_experience])
-                            elif(not random_submission and (cid,pos) != actual):
-                                # Add memories for legal submissions if they were chosen by model and do not duplicate already submitted memory
-                                learner_submitted_counts += 1
-                                r = getReward(pred_state, blank_match, (cid,pos), actual)
-                                new_experience = (state, (cid,pos), r, pred_state)
-                                experience_replay.store([new_experience])
+                                if(state_code in DraftState.invalid_states):
+                                    # Prediction moves to illegal state, add negative experience
+                                    if(team==match["winner"]):
+                                        bad_state_counts["wins"][state_code] += 1
+                                    else:
+                                        bad_state_counts["loss"][state_code] += 1
+                                    experience_replay.store([new_experience])
+                                elif(not random_submission and (cid,pos) != actual and action == top_action):
+                                    # Add memories for "best" legal submission if it was chosen by model and does not duplicate already submitted memory
+                                    learner_submitted_counts += 1
+                                    experience_replay.store([new_experience])
 
                         if(epsilon > 0.1):
                             # Reduce epsilon over time

@@ -1,6 +1,5 @@
 import random
 import numpy as np
-from copy import deepcopy
 import json
 from draftstate import DraftState
 import championinfo as cinfo
@@ -9,14 +8,14 @@ import experienceReplay as er
 import matchProcessing as mp
 
 import qNetwork
+from model import Model
 import trainNetwork as tn
 import tensorflow as tf
 
 import sqlite3
-import draftDbOps as dbo
 
-from optimizeLearningRate import optimizeLearningRate
 import matplotlib.pyplot as plt
+import time
 
 
 print("")
@@ -35,7 +34,7 @@ worlds_groups = worlds_data["groups"]
 worlds_knockouts = worlds_data["knockouts"]
 
 # Store training match data in a json file (for use later)
-reuse_matches = False
+reuse_matches = True
 if reuse_matches:
     print("Using match data in match_pool.txt.")
     with open('match_pool.txt','r') as infile:
@@ -43,26 +42,31 @@ if reuse_matches:
     validation_ids = data["validation_ids"]
     training_ids = data["training_ids"]
 
+    training_ids = [match_id for match_id in training_ids if match_id not in worlds_groups]
     n_matches = len(validation_ids) + len(training_ids)
     n_training = len(training_ids)
     training_matches = mp.get_matches_by_id(training_ids)
     validation_matches = mp.get_matches_by_id(validation_ids)
 else:
-    n_matches = 162
-    n_training = 152
-    n_val = 10
+#    n_matches = 107
+#    n_training = 97
+#    n_val = 10
 
-    match_data = mp.buildMatchPool(n_matches)
-#    match_pool = match_data["matches"]
-#    training_matches = match_pool[:n_training]
-#    validation_matches = match_pool[n_training:]
-    match_ids = match_data["match_ids"]
-#    match_ids.extend(worlds_play_ins) # Add play in matches to pools
-#    random.shuffle(match_ids)
-#    random.shuffle(worlds_groups)
+    #match_data = mp.buildMatchPool(n_matches)
+    #match_ids = match_data["match_ids"]
+    #validation_ids = match_ids[:n_val]
+    #training_ids = match_ids[n_val:]
 
-    validation_ids = match_ids[:n_val]
-    training_ids = match_ids[n_val:]
+    semi_finals = worlds_knockouts[-9:]
+    random.shuffle(semi_finals)
+
+    match_ids = []
+    match_ids.extend(worlds_groups)
+    match_ids.extend(worlds_knockouts[:-9])
+
+    training_ids = match_ids[:]
+    training_ids.extend(semi_finals[:-2])
+    validation_ids = semi_finals[-2:]
 
     random.shuffle(validation_ids)
     random.shuffle(training_ids)
@@ -80,9 +84,9 @@ filter_size = (32,32,64)
 regularization_coeff = 7.5e-5#1.5e-4
 
 # Training parameters
-batch_size = 32
-buffer_size = 4096
-n_epoch = 30
+batch_size = 16#32
+buffer_size = 2048#4096
+n_epoch = 10
 discount_factor = 0.9
 learning_rate = 2.0e-5#1.0e-4
 
@@ -100,7 +104,7 @@ for i in range(1):
     plt.plot(x,loss)
     plt.ylabel('loss')
     plt.xlabel('epoch')
-    plt.ylim([0,1])
+    #plt.ylim([0,2])
     fig_name = "tmp/loss_figures/annuled_rate/loss_E{}_run_{}.pdf".format(n_epoch,i+1)
     print("Loss figure saved in:{}".format(fig_name),flush=True)
     fig.savefig(fig_name)
@@ -121,37 +125,38 @@ for a in range(state.num_actions):
 xtick_labels = [cinfo.championNameFromId(cid)[:6] for cid in xticks]
 
 tf.reset_default_graph()
-Qnet = qNetwork.Qnetwork("online",input_size, output_size, filter_size, learning_rate, regularization_coeff, discount_factor)
-with tf.Session() as sess:
-    path_to_model = "tmp/models/model_E{}.ckpt".format(n_epoch)
-    Qnet.saver.restore(sess,path_to_model)
-    for exp in experiences:
-        state,act,rew,next_state = exp
-        cid,pos = act
-        if cid == None:
-            continue
-        count += 1
-        form_act = state.getAction(cid,pos)
-        pred_act, pred_Q = sess.run([Qnet.prediction,Qnet.outQ],
-                            feed_dict={Qnet.input:[state.format_state()],Qnet.secondary_input:[state.format_secondary_inputs()]})
-        pred_act = pred_act[0]
-        pred_Q = pred_Q[0,:]
-        p_cid,p_pos = state.formatAction(pred_act)
-        actual = (cinfo.championNameFromId(cid),pos,pred_Q[form_act])
-        pred = (cinfo.championNameFromId(p_cid),p_pos,pred_Q[pred_act])
-        print("pred:{}, actual:{}".format(pred,actual))
-        fig = plt.figure(figsize=(25,5))
-        plt.ylabel('$Q(s,a)$')
-        plt.xlabel('$a$')
-        plt.xticks(xtick_locs, xtick_labels, rotation=70)
-        plt.tick_params(axis='x',which='both',labelsize=6)
-        x = np.arange(len(pred_Q))
-        plt.bar(x,pred_Q, align='center',alpha=0.8,color='b')
-        plt.bar(pred_act, pred_Q[pred_act],align='center',color='r')
-        plt.bar(form_act, pred_Q[form_act],align='center',color='g')
+path_to_model = "tmp/model_E{}.ckpt".format(n_epoch)
+model = Model(path_to_model)
+for exp in experiences:
+    state,act,rew,next_state = exp
+    cid,pos = act
+    if cid == None:
+        continue
+    count += 1
+    form_act = state.getAction(cid,pos)
+    pred_act = model.predict_action(state)
+    pred_Q = model.predict(state)
+    pred_Q = pred_Q[0,:]
 
-        fig_name = "tmp/qval_figs/{}.pdf".format(count)
-        fig.savefig(fig_name)
+    p_cid,p_pos = state.formatAction(pred_act)
+    actual = (cinfo.championNameFromId(cid),pos,pred_Q[form_act])
+    pred = (cinfo.championNameFromId(p_cid),p_pos,pred_Q[pred_act])
+    print("pred:{}, actual:{}".format(pred,actual))
+
+    # Plot Q-val figure
+    fig = plt.figure(figsize=(25,5))
+    plt.ylabel('$Q(s,a)$')
+    plt.xlabel('$a$')
+    plt.xticks(xtick_locs, xtick_labels, rotation=70)
+    plt.tick_params(axis='x',which='both',labelsize=6)
+    x = np.arange(len(pred_Q))
+    plt.bar(x,pred_Q, align='center',alpha=0.8,color='b')
+    plt.bar(pred_act, pred_Q[pred_act],align='center',color='r')
+    plt.bar(form_act, pred_Q[form_act],align='center',color='g')
+
+    fig_name = "tmp/qval_figs/{}.pdf".format(count)
+    fig.savefig(fig_name)
+
 print("")
 print("********************************")
 print("**  Ending Smart Draft Run!   **")

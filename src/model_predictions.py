@@ -13,7 +13,7 @@ import sqlite3
 import math
 
 #path_to_model = "model_predictions/play_ins_rd2/model_play_ins_rd2"
-path_to_model = "tmp/models/model_E100"
+path_to_model = "tmp/models/model_E10"
 print("***")
 print("Loading Model From: {}".format(path_to_model))
 print("***")
@@ -28,7 +28,7 @@ print("***")
 if(specific_team):
     print("Looking at drafts by team:{}".format(specific_team))
 else:
-    print("Looking at drafts by winning team")
+    print("Looking at drafts submitted by winning team")
 print("***")
 
 
@@ -36,15 +36,18 @@ model = Model(path_to_model)
 
 #with open('worlds_matchids_by_stage.txt','r') as infile:
 #    data = json.load(infile)
-#match_ids = data["groups"]
+#match_ids = data["knockouts"][-9:]
+with open('match_pool.txt','r') as infile:
+    data = json.load(infile)
+match_ids = data['validation_ids']
 dbName = "competitiveGameData.db"
 conn = sqlite3.connect("tmp/"+dbName)
 cur = conn.cursor()
-match_ids = dbo.getGameIdsByTournament(cur,"2017/INTL/WRLDS")
+#match_ids = dbo.getGameIdsByTournament(cur,"2017/INTL/WRLDS")
 matches = [dbo.getMatchData(cur,match_id) for match_id in match_ids]
 conn.close()
 if(specific_team):
-    matches = [match for match in matches if (match["blue_team"]=="tsm" or match["red_team"]=="tsm")]
+    matches = [match for match in matches if (match["blue_team"]==specific_team or match["red_team"]==specific_team)]
 
 count = 0
 print("************************")
