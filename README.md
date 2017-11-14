@@ -10,6 +10,7 @@ League of Legends (abbreviated as LoL, or League) is a multiplayer online battle
 - Position 3 (tertiary farm)-> Top
 - Position 4 (farming support)-> Jungle
 - Position 5 (primary support)-> Support<sup>1</sup>
+
 <sup>1</sup> Typically the ADC and Support begin the game together same lane and are collectively called 'Bottom'.
 
 Each champion has distinct set of characteristics and abilities that allows them excel in certain situations and struggle in others. As a of result this diverse cast, it is important that the team
