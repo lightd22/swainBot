@@ -1,4 +1,4 @@
-# Swain Bot
+﻿# Swain Bot
 Created by Devin Light
 
 ## Introduction
@@ -13,7 +13,9 @@ League of Legends (abbreviated as LoL, or League) is a multiplayer online battle
 
 <sup>1</sup> Typically the ADC and Support begin the game together same lane and are collectively called 'Bottom'.
 
-Each champion has distinct set of characteristics and abilities that allows them excel in certain situations and struggle in others. As a of result this diverse cast, it is important that the team
+Each champion has distinct set of characteristics and abilities that allows them excel in certain situations and struggle in others. As a of result, it is important that the team assembled during the drafting phase simultaneously plays into one cohesive set of strengths and disrupts or plays well against the strengths of the opposing draft in order to maximize the odds of victory. The structure of the drafting phase is displayed in Figure 1.
+
+![Figure 1](/common/images/league_draft_structure.png?raw=true "Figure 1")
 
 
 
