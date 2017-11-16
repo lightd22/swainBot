@@ -15,8 +15,9 @@ League of Legends (abbreviated as LoL, or League) is a multiplayer online battle
 
 Each champion has distinct set of characteristics and abilities that allows them excel in certain situations and struggle in others. As a of result, it is important that the team assembled during the drafting phase simultaneously plays into one cohesive set of strengths and disrupts or plays well against the strengths of the opposing draft in order to maximize the odds of victory. The structure of the drafting phase is displayed in Figure 1.
 
-![Figure 1](/common/images/league_draft_structure.png?raw=true "Figure 1")
 
+![Figure 1][fig_1]
+[fig_1]: /common/images/league_draft_structure.png  "Figure 1"
 
 
 ## Disclaimer
