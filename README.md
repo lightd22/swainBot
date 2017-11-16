@@ -15,7 +15,7 @@ League of Legends (abbreviated as LoL, or League) is a multiplayer online battle
 
 Each champion has distinct set of characteristics and abilities that allows them excel in certain situations and struggle in others. As a of result, it is important that the team assembled during the drafting phase simultaneously plays into one cohesive set of strengths and disrupts or plays well against the strengths of the opposing draft in order to maximize the odds of victory. The structure of the drafting phase is displayed in Figure 1.
 
-![Figure 1](/common/images/league_draft_structure.png "Figure 1")
+![Figure 1](common/images/league_draft_structure.png "Figure 1")
 
 ## Disclaimer
 Swain Bot isn’t endorsed by Riot Games and doesn’t reflect the views or opinions of Riot Games or anyone officially involved in producing or managing League of Legends. League of Legends and Riot Games are trademarks or registered trademarks of Riot Games, Inc. League of Legends © Riot Games, Inc.
