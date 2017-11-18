@@ -46,5 +46,11 @@ This section is not designed to be too technical, but rather give some insight i
 - [The DeepMind ATARI paper](https://storage.googleapis.com/deepmind-media/dqn/DQNNaturePaper.pdf)
 - [Dueling DQNs](https://arxiv.org/pdf/1511.06581.pdf)
 - And finally a [few](http://outlace.com/rlpart3.html), [useful](https://www.intelnervana.com/demystifying-deep-reinforcement-learning/), [tutorials](https://medium.com/emergent-future/simple-reinforcement-learning-with-tensorflow-part-0-q-learning-with-tables-and-neural-networks-d195264329d0)
+
+### Representing Draft States and Actions
+Each of the _N_ eligible champions (138 as of this writing) in a draft is represented by a unique integer `champion_id` and every position in the game (five positions per team plus banned champions) is given by a `position_id`. We can represent the _draft state_ as a boolean matrix _S_ whose size is determined by how much information about the positions is available to the drafter:
+- In a _complete_ draft all position information is known so _S_ is an `N x 11` matrix
+- In a _partial_ draft position information is known for the drafter's team whereas only the `champion_id`s are known for the opponent's team so _S_ is an `N x 7` matrix
+
 ## Disclaimer
 Swain Bot isn’t endorsed by Riot Games and doesn’t reflect the views or opinions of Riot Games or anyone officially involved in producing or managing League of Legends. League of Legends and Riot Games are trademarks or registered trademarks of Riot Games, Inc. League of Legends © Riot Games, Inc.
