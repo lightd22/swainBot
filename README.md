@@ -57,7 +57,7 @@ For either completely or partially informed states, the draft can be fully recov
 
 The discount factor is a scalar value between 0 and 1 that governs the present value of future expected rewards. Two common reasons to use a discount factor are to express uncertainty about the future and to capture the extra value of immediate rewards over delayed rewards (e.g. if the reward is financial, an immediate reward is worth more than a delayed reward becuase that immediate reward can be used to earn interest). Typical discount factor values are in the `0.9` to `0.99`. Swain Bot uses a dicount factor of 
 
-<img src="https://raw.githubusercontent.com/lightd22/swainBot/master/common/images/discount_factor.png" height="50%" width="50%">
+<img src="https://raw.githubusercontent.com/lightd22/swainBot/master/common/images/discount_factor.png" height="10%" width="10%">
 
 The reward schedule is a vital component of the MDP and ultimately determines what policy the model will converge towards. As previously discussed, Swain Bot's objective is to first and foremost select the action which moves the state 
 
