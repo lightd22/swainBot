@@ -1,28 +1,10 @@
 import numpy as np
-from championinfo import championNameFromId, validChampionId
+from championinfo import championNameFromId, validChampionId, getChampionIds
+from draft import Draft
 
 class InvalidDraftState(Exception):
     pass
 
-def get_active_team(submission_count):
-    """
-    Gets the active team in the draft based on the number of submissions currently present
-    Args:
-        submission_count (int): number of submissions currently submitted
-    Returns:
-        DraftState.BLUE_TEAM if blue is active, else DraftState.RED_TEAM
-    """
-    blue = DraftState.BLUE_TEAM
-    red = DraftState.RED_TEAM
-    ACTIVE_TEAM = [blue, red, blue, red, blue, red,
-                   blue, red, red, blue, blue, red,
-                   red, blue, red, blue,
-                   red, blue, red]
-    if submission_count > len(ACTIVE_TEAM):
-        raise
-
-    return ACTIVE_TEAM[submission_count]
-    
 class DraftState:
     """
     Args:
@@ -59,14 +41,12 @@ class DraftState:
                       TOO_MANY_BANS, TOO_MANY_PICKS]
 
     DRAFT_COMPLETE = 1
-    BLUE_TEAM = 0
-    RED_TEAM = 1
-    BAN_PHASE_LENGTHS = [6,4] # Number of bans in each ban phase
-    NUM_BANS = sum(BAN_PHASE_LENGTHS) # Total number of bans in draft
-    PICK_PHASE_LENGTHS = [6,4] # Number of picks in each pick phase
-    NUM_PICKS = sum(PICK_PHASE_LENGTHS) # Total number of picks in draft
+    BLUE_TEAM = Draft.BLUE_TEAM
+    RED_TEAM = Draft.RED_TEAM
+    BAN_PHASE = Draft.BAN
+    PICK_PHASE = Draft.PICK
 
-    def __init__(self, team, champ_ids, num_positions = 5):
+    def __init__(self, team, champ_ids = getChampionIds(), num_positions = 5, draft = Draft('default')):
         #TODO (Devin): This should make sure that numChampions >= num_positions
         self.num_champions = len(champ_ids)
         self.num_positions = num_positions
@@ -77,8 +57,11 @@ class DraftState:
         self.picks = []
         self.bans = []
 
-        #TODO (Devin): This should check for an invalid team passed
         self.team = team
+        self.draft_structure = draft
+        # Get phase information from draft
+        self.BAN_PHASE_LENGTHS = self.draft_structure.PHASE_LENGTHS[DraftState.BAN_PHASE]
+        self.PICK_PHASE_LENGTHS = self.draft_structure.PHASE_LENGTHS[DraftState.PICK_PHASE]
 
         # The dicts pos_to_pos_index and pos_index_to_pos contain the mapping
         # from position labels to indices to the state matrix and vice versa.
@@ -87,6 +70,37 @@ class DraftState:
         self.pos_indices.extend(range(2,num_positions+2))
         self.pos_to_pos_index = dict(zip(self.positions,self.pos_indices))
         self.pos_index_to_pos = dict(zip(self.pos_indices,self.positions))
+
+    def reset(self):
+        """
+        Resets draft state back to default values.
+        Args:
+            None
+        Returns:
+            None
+        """
+        self.state[:] = False
+        self.picks = []
+        self.bans = []
+
+    def is_submission_legal(self, champion_id, position):
+        """
+        Checks if submission (champion_id, position) is a valid and legal submission for the current state.
+        Returns:
+            True if submission is legal, False otherwise.
+        """
+        if(not self.canBan(champion_id) or not self.canPick(champion_id)):
+            return False
+        sub_count = len(self.bans)+len(self.picks)
+        phase = self.draft_structure.get_active_phase(sub_count)
+        if phase == DraftState.BAN_PHASE and position != -1:
+            return False
+        if phase == DraftState.PICK_PHASE:
+            pos_index = self.getPositionIndex(position)
+            is_pos_filled = np.amax(self.state[:,pos_index])
+            if(is_pos_filled):
+                return False
+        return True
 
     def getChampId(self,index):
         """
@@ -175,12 +189,9 @@ class DraftState:
         # This is done by counting the number of bans currently submitted. Note that this assumes
         # that state is currently a valid state. If this is not necessarily the case a check can be made using
         # evaluateState().
-        num_bans = len(self.bans)
-        num_picks = len(self.picks)
-        is_pick_phase = False
-        if((num_bans==DraftState.BAN_PHASE_LENGTHS[0] and num_picks < DraftState.PICK_PHASE_LENGTHS[0]) or
-           (num_bans==DraftState.NUM_BANS and num_picks < DraftState.NUM_PICKS)):
-            is_pick_phase = True
+        submission_count = len(self.bans)+len(self.picks)
+        phase = self.draft_structure.get_active_phase(submission_count)
+        is_pick_phase = phase == DraftState.PICK_PHASE
         secondary_inputs = np.append(secondary_inputs, is_pick_phase)
         return secondary_inputs
 
@@ -302,7 +313,7 @@ class DraftState:
         Args:
             champion_id (int): Id of champion to check for valid selection.
         """
-        return ((champion_id not in self.picks) and championinfo.validChampionId(champion_id))
+        return ((champion_id not in self.picks) and validChampionId(champion_id))
 
     def canBan(self, champion_id):
         """
@@ -311,7 +322,7 @@ class DraftState:
         Args:
             champion_id (int): Id of champion to check for valid ban.
         """
-        return ((champion_id not in self.bans) and championinfo.validChampionId(champion_id))
+        return ((champion_id not in self.bans) and validChampionId(champion_id))
 
     def addPick(self, champion_id, position):
         """
@@ -378,36 +389,26 @@ class DraftState:
         # Check for out of phase submissions
         num_bans = len(self.bans)
         num_picks = len(self.picks)
+        sub_count = num_bans+num_picks
 
-        if(num_bans > DraftState.NUM_BANS):
+        if(num_bans > self.draft_structure.NUM_BANS):
             return DraftState.TOO_MANY_BANS
-        if(num_picks > DraftState.NUM_PICKS):
+        if(num_picks > self.draft_structure.NUM_PICKS):
             return DraftState.TOO_MANY_PICKS
 
-        ban_cutoffs = [DraftState.BAN_PHASE_LENGTHS[0], DraftState.NUM_BANS]
-        pick_cutoffs = [DraftState.PICK_PHASE_LENGTHS[0], DraftState.NUM_PICKS]
-        submission_count = num_bans+num_picks
-        if(0<=submission_count<ban_cutoffs[0]):
-            if num_picks != 0:
-                # Invalid number of picks for ban phase 1
-                return DraftState.INVALID_SUBMISSION
-        if(ban_cutoffs[0]<=submission_count<(ban_cutoffs[0]+pick_cutoffs[0])):
-            if num_bans != ban_cutoffs[0]:
-                # Invalid number of bans for pick phase 1
-                return DraftState.INVALID_SUBMISSION
-        if((ban_cutoffs[0]+pick_cutoffs[0])<=submission_count<(ban_cutoffs[1]+pick_cutoffs[0])):
-            if num_picks != pick_cutoffs[0]:
-                # Invalid number of picks for ban phase 2
-                return DraftState.INVALID_SUBMISSION
-        if((ban_cutoffs[1]+pick_cutoffs[0])<=submission_count<=(ban_cutoffs[1]+pick_cutoffs[1])):
-            if num_bans != ban_cutoffs[1]:
-                # Invalid number of bans for pick phase 2
-                return DraftState.INVALID_SUBMISSION
+        # validation is tuple of form (target_ban_count, target_blue_pick_count, target_red_pick_count)
+        validation = self.draft_structure.submission_dist[sub_count]
+        num_opponent_sub = np.count_nonzero(self.state[:,self.getPositionIndex(0)])
+        num_ally_sub = num_picks - opponent_sub
+        if self.team == DraftState.BLUE_TEAM:
+            dist = (num_bans, num_ally_sub, num_opponent_sub)
+        else:
+            dist = (num_bans, num_opponent_sub, num_ally_sub)
+        if(dist != validation):
+            return DraftState.INVALID_SUBMISSION
 
         # State is valid, check if draft is complete
-        num_enemy_picks = np.sum(self.state[:,0])
-        num_ally_picks = np.sum(self.state[:,2:])
-        if(num_ally_picks == self.num_positions and num_enemy_picks == self.num_positions):
+        if(num_ally_sub == self.num_positions and num_opponent_sub == self.num_positions):
             # Draft is valid and complete. Note that it isn't necessary
             # to have the full number of valid bans to register a complete draft. This is
             # because teams can be forced to forefit bans due to disciplinary factor (rare)
@@ -416,3 +417,16 @@ class DraftState:
 
         # Draft is valid, but not complete
         return 0
+
+if __name__=="__main__":
+    state = DraftState(DraftState.BLUE_TEAM)
+    print(state.evaluateState())
+    state.updateState(1,-1)
+    state.updateState(2,-1)
+    state.updateState(3,-1)
+    state.updateState(4,-1)
+    state.updateState(5,-1)
+    state.updateState(6,-1)
+    state.updateState(7,1)
+    state.updateState(8,0)
+    print(state.evaluateState())

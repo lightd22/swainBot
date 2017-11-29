@@ -18,17 +18,20 @@ def get_active_team(submission_count):
                   1,0,0,1] # Second phase picks
     return pick_order[submission_count]
 
-def self_train(sess, explore_prob):
+def self_train(sess, explore_prob, n_experiences=1):
     """
     Runs model currently held in TF Session sess through one self training loop. Returns
     negative memory if model fails to complete draft.
     Args:
         sess (tf.Session()): TF Session used to run model.
         explore_prob (float): Probability that each pick will explore state space by submitting a random action
+        n_experiences (int): Number of experiences desired.
     Returns:
-        experience (s,a,r,s') if network submits illegal action from either side of draft
+        experiences [(s,a,r,s')]: list of expierence tuples from illegal submissions made by either side of draft
         None if network completes draft without illegal actions
     """
+    MAX_DRAFT_ITERATIONS = 100 # Maximum number of drafts to iterate through
+    assert n_experiences > 0, "Number of experiences must be non-negative"
     valid_champ_ids = cinfo.getChampionIds()
     match = {"winner":None} # Blank match for rewards processing
     # Two states are maintained: one corresponding to the perception of the draft
@@ -42,35 +45,44 @@ def self_train(sess, explore_prob):
     online_input = tf.get_default_graph().get_tensor_by_name("online/inputs:0")
     online_secondary_input = tf.get_default_graph().get_tensor_by_name("online/secondary_inputs:0")
 
-    submission_count = 0
-    while(blue_state.evaluateState() != DraftState.DRAFT_COMPLETE and red_state.evaluateState() != DraftState.DRAFT_COMPLETE):
-        active_team = get_active_team(submission_count)
-        inactive_team = 0 if active_team else 1
-        #print("active {}".format(active_team))
-        state = draft[active_team]
-        start = deepcopy(state)
+    experiences = []
+    successful_draft_count = 0
+    while(len(experiences)<n_experiences):
+        if(successful_draft_count > MAX_DRAFT_ITERATIONS):
+            break
+        blue_state.reset()
+        red_state.reset()
+        submission_count = 0
+        while(blue_state.evaluateState() != DraftState.DRAFT_COMPLETE and red_state.evaluateState() != DraftState.DRAFT_COMPLETE):
+            active_team = get_active_team(submission_count)
+            inactive_team = 0 if active_team else 1
 
-        if(random.random() < explore_prob):
-            # Explore state space by submitting random action
-            pred_act = [random.randint(0,state.num_actions-1)]
-        else:
-            pred_act = sess.run(online_pred,
-                            feed_dict={online_input:[state.format_state()],
-                            online_secondary_input:[state.format_secondary_inputs()]})
-        action = state.formatAction(pred_act[0])
-        #print("cid={} pos={}".format(*action))
-        # Update active state
-        state.updateState(*action)
-        if(state.evaluateState() in DraftState.invalid_states):
-            return (start,action,getReward(state,match,action,None),state)
-        # Update inactive state, remembering to mask non-bans submitted by opponent
-        (cid,pos) = action
-        inactive_pos = pos if pos==-1 else 0
-        draft[inactive_team].updateState(cid,inactive_pos)
-        submission_count += 1
+            state = draft[active_team]
+            start = deepcopy(state)
 
-    # Return None if network completes draft without illegal submission
-    return None
+            if(random.random() < explore_prob):
+                # Explore state space by submitting random action
+                pred_act = [random.randint(0,state.num_actions-1)]
+            else:
+                pred_act = sess.run(online_pred,
+                                feed_dict={online_input:[state.format_state()],
+                                online_secondary_input:[state.format_secondary_inputs()]})
+            action = state.formatAction(pred_act[0])
+            if(state.is_submission_legal(*action)):
+                # Update active state
+                state.updateState(*action)
+                # Update inactive state, remembering to mask non-bans submitted by opponent
+                (cid,pos) = action
+                inactive_pos = pos if pos==-1 else 0
+                draft[inactive_team].updateState(cid,inactive_pos)
+                submission_count += 1
+            else:
+                bad_state = deepcopy(state)
+                bad_state.updateState(*action)
+                experiences.append((start,action,getReward(bad_state,match,action,None),bad_state))
+                break
+        successful_draft_count += 1
+    return experiences
 
 def dueling_networks(path_to_model):
     valid_champ_ids = cinfo.getChampionIds()

@@ -162,11 +162,17 @@ class Qnetwork():
 
             # Since the Qnet outputs a vector Q(s,-) of  predicted values for every possible action that can be taken from state s,
             # we need to connect each target value with the appropriate predicted Q(s,a*) = Qout[i,a*[i]].
+            # Main idea is to get indexes into the outQ tensor based on input actions and gather the resulting Q values
             # For some reason this isn't easy for tensorflow to do. So we must manually form the list of
             # [i, actions[i]] index pairs for outQ..
+            #  n_batch = outQ.shape[0] = actions.shape[0]
+            #  n_actions = outQ.shape[1]
             ind = tf.stack([tf.range(tf.shape(self.actions)[0]),self.actions],axis=1)
             # and then "gather" them.
             self.estimatedQ = tf.gather_nd(self.outQ, ind)
+            # Special notes: this is more efficient than indexing into the flattened version of outQ (which I have seen before)
+            # because the gather operation is applied to outQ directly. Apparently this propagates the gradient more efficiently
+            # under specific sparsity conditions (which tf.Variables like outQ satisfy)
 
             # Simple sum-of-squares loss (error) function with regularization. Note that biases do not
             # need to be regularized since they are (generally) not subject to overfitting.
