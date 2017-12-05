@@ -55,11 +55,16 @@ Note that the _S_ is a sparse matrix since for any given state of a draft, there
 
 For either completely or partially informed states, the draft can be fully recovered using the sequence of states `(S_0, S_1,..., S_n)` transitioned through during the draft. This sequence defines a Markov chain since given the current state _s_, the value of the succesor state _s'_ is independent of the states that were transitioned through before _s_. In other words, the states we are able to transition to away from _s_ depend only on _s_ itself, and not on the states that were seen on the way to _s_. To complete the framework of drafting as a Markov Decision Process (MDP) we must still define a reward schedule and discount factor. 
 
-The discount factor is a scalar value between 0 and 1 that governs the present value of future expected rewards. Two common reasons to use a discount factor are to express uncertainty about the future and to capture the extra value of immediate rewards over delayed rewards (e.g. if the reward is financial, an immediate reward is worth more than a delayed reward becuase that immediate reward can be used to earn interest). Typical discount factor values are in the `0.9` to `0.99`. Swain Bot uses a dicount factor of 
+The discount factor is a scalar value between 0 and 1 that governs the present value of future expected rewards. Two common reasons to use a discount factor are to express uncertainty about the future and to capture the extra value of immediate rewards over delayed rewards (e.g. if the reward is financial, an immediate reward is worth more than a delayed reward becuase that immediate reward can be used to earn interest). Typical discount factor values are in the `0.9` to `0.99`. Swain Bot uses `discount_factor = 0.9`.
 
-<img src="https://raw.githubusercontent.com/lightd22/swainBot/master/common/images/discount_factor.png" height="10%" width="10%">
-
-The reward schedule is a vital component of the MDP and ultimately determines what policy the model will converge towards. As previously discussed, Swain Bot's objective is to first and foremost select the action which moves the state 
+The reward schedule is a vital component of the MDP and ultimately determines what policy the model will converge towards. As previously discussed, Swain Bot's long-term objective is to select actions which move towards a winning state while in the short term it should place some value on actions which are likely to be taken. The ideal reward schedule should combine these two objectives so that Swain Bot predicts both good and probable actions. We will approach this by associating larger magnitude rewards with _terminal_ states and smaller magnitude rewards with non-terminal states. A terminal state _s_ occurs in one of three scenarios:
+1. _s_ represents a valid, complete draft which resulted in a win
+2. _s_ represents a valid, complete draft which resulted in a loss
+3. _s_ represents an invalid draft which cannot be played
+All other states are considered to be valid, but non-terminal. An invalid state is one in which one or more of the following conditions are satisfied:
+1. _s_ represents an incorrect number of picks or bans for the phase of the draft described by that state (e.g. any number of picks submitted during Ban Phase 1, four picks associated with blue side during Pick Phase 1, or two consecutive picks associated with red side during Pick Phase 2)
+2. _s_ represents at least one champion selected in more than one position (e.g. picked and banned, picked by both teams, or picked by a one team in more than one role)
+3. _s_ represents at least one non-ban position with more than one champion selected in that position. For partially complete drafts the opposing team position must have no more than five submissions represented. 
 
 ## Disclaimer
 Swain Bot isn’t endorsed by Riot Games and doesn’t reflect the views or opinions of Riot Games or anyone officially involved in producing or managing League of Legends. League of Legends and Riot Games are trademarks or registered trademarks of Riot Games, Inc. League of Legends © Riot Games, Inc.
