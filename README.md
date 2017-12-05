@@ -67,10 +67,9 @@ All other states are considered to be valid, but non-terminal. An invalid state 
 2. _s_ represents at least one champion selected in more than one position (e.g. picked and banned, picked by both teams, or picked by a one team in more than one role)
 3. _s_ represents at least one non-ban position with more than one champion selected in that position. For partially complete drafts the opposing team position must have no more than five submissions represented.
 The reward schedule is defined in two parts depending on if _s_ is a terminal state. If _s_ is terminal, the reward is given by
-![Figure 2](common/images/reward_sched_term.png "Figure 2")
 <img src="common/images/reward_sched_term.png" width="400">
 If _s_ is non-terminal, the reward has the following form
-![Figure 3](common/images/reward_sched_non-term.png "Figure 3")
+<img src="common/images/reward_sched_non-term.png" width="400">
 where _a*_ is the action taken during the memory. 
 
 ## Disclaimer
