@@ -12,6 +12,7 @@ class Model:
         self._predict_action = tf.get_default_graph().get_tensor_by_name("online/prediction:0")
         self._primary_input = tf.get_default_graph().get_tensor_by_name("online/inputs:0")
         self._secondary_input = tf.get_default_graph().get_tensor_by_name("online/secondary_inputs:0")
+        #self._train = tf.get_default_graph().get_tensor_by_name("online/update")
 
     def __del__(self):
         self.sess.close()

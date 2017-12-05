@@ -86,7 +86,7 @@ regularization_coeff = 7.5e-5#1.5e-4
 # Training parameters
 batch_size = 16#32
 buffer_size = 2048#4096
-n_epoch = 10
+n_epoch = 12
 discount_factor = 0.9
 learning_rate = 2.0e-5#1.0e-4
 
@@ -125,7 +125,7 @@ for a in range(state.num_actions):
 xtick_labels = [cinfo.championNameFromId(cid)[:6] for cid in xticks]
 
 tf.reset_default_graph()
-path_to_model = "tmp/model_E{}.ckpt".format(n_epoch)
+path_to_model = "tmp/model_E{}".format(n_epoch)
 model = Model(path_to_model)
 for exp in experiences:
     state,act,rew,next_state = exp

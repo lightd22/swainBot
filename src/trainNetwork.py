@@ -77,7 +77,6 @@ def trainNetwork(online_net, target_net, training_matches, validation_matches, t
         if load_model:
             # Open saved model
             path_to_model = "tmp/models/model_E{}.ckpt".format(10)
-            #path_to_model = "model_predictions/play_ins_rd2/model_play_ins_rd2.ckpt"
             online_net.saver.restore(sess,path_to_model)
             print("\nCheckpoint loaded from {}".format(path_to_model))
 
@@ -125,10 +124,15 @@ def trainNetwork(online_net, target_net, training_matches, validation_matches, t
             shuffled_matches = random.sample(training_matches,len(training_matches))
 
             # Run model through a self-training iteration, including exploration
-            exp = self_train(sess, epsilon)
-            # If self training results in illegal state, add it to memory
-            if exp:
-                experience_replay.store([exp])
+            experiences = self_train(sess, epsilon, n_experiences=20)
+            # If self training results in illegal states, add it to memory
+            if experiences:
+                print("adding {} self-trained experiences..".format(len(experiences)))
+                for exp in experiences:
+                    _,_,r,_ = exp
+                    print("reward (should be negative) = {}".format(r))
+                experience_replay.store(experiences)
+                learner_submitted_counts += len(experiences)
 
             for match in shuffled_matches:
                 for team in teams:
@@ -229,12 +233,13 @@ def trainNetwork(online_net, target_net, training_matches, validation_matches, t
                             # Experience replay stores action = (champion_id, position) pairs
                             # these need to be converted into the corresponding index of the input vector to the Qnet
                             actions = np.array([startState.getAction(*exp[1]) for exp in training_batch])
-                            _ = sess.run(online_net.update,
+                            _,estQ,estQ2 = sess.run([online_net.update,online_net.estimatedQ, online_net.estimatedQ2],
                                      feed_dict={online_net.input:np.stack([exp[0].format_state() for exp in training_batch],axis=0),
                                                 online_net.secondary_input:np.stack([exp[0].format_secondary_inputs() for exp in training_batch],axis=0),
                                                 online_net.actions:actions,
                                                 online_net.target:targetQ,
                                                 online_net.dropout_keep_prob:0.5})
+                            print(estQ-estQ2)
                             if(total_steps % target_update_frequency == 0):
                                 # After the online network has been updated, update target network
                                 _ = sess.run(target_update)
