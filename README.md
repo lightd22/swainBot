@@ -70,9 +70,11 @@ All other states are valid, but non-terminal. An invalid state is one in which o
 3. _s_ represents at least one non-ban position with more than one champion selected in that position. For partially complete drafts the opposing team position must have no more than five submissions represented.
 
 The reward schedule is defined in two parts depending on if _s_ is a terminal state. If _s_ is terminal, the reward is given by
+
 <img src="common/images/reward_sched_term.png" width="400">
 
 If _s_ is non-terminal, the reward has the more simple form
+
 <img src="common/images/reward_sched_non-term.png" width="360">
 
 where _a_* is the action taken during the original memory. 
@@ -93,8 +95,11 @@ Data augmentation refers to modifying existing training data in order to effecti
 Experience replay provides a mechanism for separating the generation of memories from learning from those memories. In experience replay, each experience associated with a draft is stored into a pool of experiences spanning many drafts. The Q-learning update is applied to a minibatch of randomly sampled experiences contained in the pool. This is important because consecutive experiences generated from the same draft are strongly correlated and learning from them all simultaneously using SGD is not only inefficient, but may even lead to a local minimum. By randomizing the samples drawn from the replay buffer, the correlation between experiences is broken. Additionally, each memory is potentially used in multiple updates, improving overall data efficiency. 
 
 The default DQN algorithm selects is action "greedily" by taking the maximum over the estimated action-values when selecting it's recommended action. A side effect of this maximization is that the DQN tends to learn overestimated values. Unfortunately this over optimistism is often non-uniformly distributed across actions and can degrade performance of the learned policy. Furthermore, this overestimation also tends to grow as the number of actions increases. As of this writing, there are 822 (137 champions each selectable in 6 positions) possible actions during each stage of drafting. As a result, it is desirable to control this overestimation as much as possible. The DDQN proposed by van Hesselt et. al. attempts to limit this overestimation by semi-decoupling action selection from evaluation using two networks: an "online" network and a "target" network. The online network represents the most up-to-date parameters, while the target network is a periodic snapshot of the online network. In simplest terms the original update for DQN
+
 `update = reward + discount_factor*max_a Q(s',a')`
+
 is replaced with 
+
 `update = reward + discount_factor*Q_target(s',max_a Q_online(s',a))` 
 
 ## Disclaimer
