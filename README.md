@@ -96,11 +96,13 @@ Experience replay provides a mechanism for separating the generation of memories
 
 The default DQN algorithm selects is action "greedily" by taking the maximum over the estimated action-values when selecting it's recommended action. A side effect of this maximization is that the DQN tends to learn overestimated values. Unfortunately this over optimistism is often non-uniformly distributed across actions and can degrade the performance of the learned policy. Furthermore, this overestimation also tends to grow as the number of actions increases. As of this writing, there are 822 (137 champions each selectable in 6 positions) possible actions during each stage of drafting. As a result, it is desirable to control this overestimation as much as possible. The DDQN algorithm proposed by van Hesselt et. al. attempts to limit this overestimation by pseudo-decoupling action selection from evaluation utilizing two networks: an "online" network and a "target" network. The online network represents the most up-to-date parameters, while the target network is a periodic snapshot of the online network. In simplest terms the original update for DQN
 
-`update = reward + discount_factor*max_a{Q(s',a')}`
+`update = reward + discount_factor*max_a'{Q(s',a')}`
 
 is replaced with 
 
-`update = reward + discount_factor*Q_target(s',max_a{Q_online(s',a)})` 
+`update = reward + discount_factor*Q_target(s',max_a'{Q_online(s',a')})`.
+
+Note that this doesn't truely decouple action selection and evaluation because the target network is a copy of a previous online network.
 
 ## Disclaimer
 Swain Bot isn’t endorsed by Riot Games and doesn’t reflect the views or opinions of Riot Games or anyone officially involved in producing or managing League of Legends. League of Legends and Riot Games are trademarks or registered trademarks of Riot Games, Inc. League of Legends © Riot Games, Inc.
