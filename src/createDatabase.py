@@ -130,6 +130,7 @@ if __name__ == "__main__":
         print("Querying: {}".format("/".join([year, region, tournament])))
         gameData = queryWiki(year, region, tournament)
         for game in gameData:
+            print(game["tourn_game_id"])
             seen_bans = set()
             print("{} v {}".format(game["blue_team"], game["red_team"]))
             bans = game["bans"]["blue"] + game["bans"]["red"]
