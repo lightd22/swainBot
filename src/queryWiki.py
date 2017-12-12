@@ -103,12 +103,11 @@ def queryWiki(year, region, tournament):
         raw_text = page_data[page]["revisions"][0]["*"].replace(" ","").replace("\\n"," ")
         print(page_data[page]["title"])
         # string representation of blue and red teams, ordered by game
-        blue_teams = parseRawText("(team1=\w+\s?\w*)",raw_text)
-        red_teams = parseRawText("(team2=\w+\s?\w*)",raw_text)
+        blue_teams = parseRawText("(team1=(\w+\s?)*)",raw_text)
+        red_teams = parseRawText("(team2=(\w+\s?)*",raw_text)
 
-        #TODO(Devin): Match scores can't easily be read from lol.gamepedia responses.
-#        blueScores = parseRawText("(team1score=[0-9])",raw_text)
-#        redScores = parseRawText("(team2score=[0-9])",raw_text)
+        blueScores = parseRawText("(team1score=[0-9])",raw_text)
+        redScores = parseRawText("(team2score=[0-9])",raw_text)
 
         # winning_teams holds which team won for each parsed game
         # winner = 1 -> first team won (i.e blue team)
@@ -121,12 +120,32 @@ def queryWiki(year, region, tournament):
 
         # bans holds the string identifiers of submitted bans for each team in the parsed game
         # ex: bans[k] = list of bans for kth game on the page
-        blue_bans = parseRawText("(team1bans=\w[\w\s'.,]+)", raw_text)
-        blue_bans = [blue_bans[k].split(',') for k in range(len(blue_bans))]
-        red_bans = parseRawText("(team2bans=\w[\w\s'.,]+)", raw_text)
-        red_bans = [red_bans[k].split(',') for k in range(len(red_bans))]
+        all_blue_bans = parseRawText("(blueban[0-9]=\w[\w\s',.]+)", raw_text)
+        all_red_bans = parseRawText("(redban[0-9]=\w[\w\s',.]+)", raw_text)
+        bans_per_team = len(all_blue_bans)//num_games_on_page
+        assert bans_per_team == len(all_red_bans)//num_games_on_page
+
+        blue_bans = []
+        red_bans = []
+        for k in range(num_games_on_page):
+            blue_bans.append(all_blue_bans[bans_per_team*k:bans_per_team*(k+1)])
+            red_bans.append(all_red_bans[bans_per_team*k:bans_per_team*(k+1)])
 
         # blue_picks[i] = list of picks for kth game on the page
+        all_blue_picks = parseRawText("(bluepick[0-9]=\w[\w\s',.]+)", raw_text)
+        all_blue_roles = parseRawText("(bluepick[0-9]role=\w[\w\s',.]+)", raw_text)
+        all_red_picks = parseRawText("(redpick[0-9]=\w[\w\s',.]+)", raw_text)
+        all_red_roles = parseRawText("(redpick[0-9]role=\w[\w\s',.]+)", raw_text)
+        picks_per_team = len(all_blue_picks)//num_games_on_page
+        assert picks_per_team == len(all_red_picks)//num_games_on_page
+
+        blue_picks = []
+        red_picks = []
+
+        for k in range(num_games_on_page):
+            picks = all_blue_picks[picks_per_team*k:picks_per_team*(k+1)]
+            positions = positionStringToId(all_blue_roles[picks_per_team*k:picks_per_team*(k+1)])
+            blue_picks.append(list(zip(picks,positions)))
         blue_picks = parseRawText("(team1picks=\w[\w\s'.,]+)", raw_text)
         blue_picks = [blue_picks[k].split(',') for k in range(len(blue_picks))]
         red_picks = parseRawText("(team2picks=\w[\w\s'.,]+)", raw_text)
@@ -292,7 +311,7 @@ def cleanChampionNames(names):
     return cleanedNames
 
 if __name__ == "__main__":
-    gameData = queryWiki("2017", "EU_LCS", "Summer_Split")
+    gameData = queryWiki("2017", "NA_LCS", "Summer_Split")
     #gameData = queryWiki("2016", "International", "WRLDS")
     #gameData = queryWiki("2017", "International", "MSI")
     print("**********************************************")
