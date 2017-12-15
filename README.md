@@ -34,8 +34,7 @@ Every model tasked with approaching a difficult problem is predicated on some nu
 
 2. Swain Bot does not recieve information about either the patch the game was played on or the teams involved in the match. Not including the patch allows us to stretch the data as much as we can given the restricted pool. Although the effectiveness of a champion might change as they are tuned between patches, it is unlikely that they are changed so much that the situations that the champion would normally be picked in are dramatically different. Nevertheless substantial champion changes have occured in the past, usually in the form of a total redesign. Additionally, although team data for competitive matches is available during the draft, Swain Bot's primary objective is to identify the most effective submissions for a given draft state rather than predict what a specific team might select in that situation.  It would be possible to combine Swain Bot's output with information about a team's drafting tendencies (using ensemble techniques like stacking) to produce a final prediction which both suits the draft and is likely to be chosen by the team. However we will leave this work for later.
 
-3. Swain Bot's objective is to associate the combination of a state and a potential submission with a value and to suggest taking the action which has the highest value. This valuation should be based primarily on what is likely to win the draft (or move us towards a winning state), and partly on what is likely to be done. 
-Although these two goals may be correllated (a champion that is highly-valued might also be the one selected most frequently) they are not necessarily the same since, for example, teams may be biased towards or against specific strategies or champions.
+3. Swain Bot's objective is to associate the combination of a state and a potential submission with a value and to suggest taking the action which has the highest value. This valuation should be based primarily on what is likely to win the draft (or move us towards a winning state), and partly on what is likely to be done. Although these two goals may be correllated (a champion that is highly-valued might also be the one selected most frequently) they are not necessarily the same since, for example, teams may be biased towards or against specific strategies or champions.
 
 4. Swain Bot's objective to estimate the value of submissions for a given draft state is commonly approached using techniques from Reinforcement Learning (RL). RL methods have been successfully used in a variety of situations such as teaching robots how to move, playing ATARI games, and even [playing DOTA2](https://blog.openai.com/dota-2/). A common element to most RL applications is the ability to automatically explore and evaluate states as they are encountered in a simulated environment. However, Swain Bot is not capable of automatically playing out the drafts in order to evaluate them (yet..) and so is dependent on the data it observes originating from games that were previously played. This scenario is reminiscent of a Supervised Learning (SL) problem called behavioral cloning, where the task is to learn and replicate the policy outlined by an expert. However, behavioral cloning does not include the estimation of values associated with actions and attempts to directly mimic the expert policy. Swain Bot instead implements an RL algorithm to estimate action values (Q-Learning), but trained using expertly-generated data. In practice this means that the predictions made by Swain Bot can only have an expectation of accuracy when following trajectories that are similiar to the paths prescribed by the training data (which we will see later).
 
@@ -208,9 +207,22 @@ Phase 1 Recommendations:
   Position 5: Count 423, Ratio 0.237
 ```
 Swain Bot agrees with the meta in using early picks to secure a bot lane. However, by comparison it is more likely to suggest a solo lane pick in the first phase instead of a jungler. This effect was also seen in the actual drafts towards the end of the tournament where solo lane picks like Galio and Malzahar became increasingly valuable and took over what would have likely been jungler picks in the earlier stages.
- 
-## Looking Ahead
 
+## Looking Ahead
+Even with the promising results so far, Swain Bot is far from complete. Here are just a few things that could be worth looking into for the future:
+
+- Compared with the massive number of possibilities for drafting, we're still limited to the relatively tiny pool of drafts coming from competitive play. Ideally we would have access to detailed draft data for the millions of games played across all skill levels through [Riot's API](https://developer.riotgames.com), but unfortunately the API does not present submissions in draft order (yet). If we could have one wish this would be it. There is some hope for the future with the recently announced competitive 5v5 [Clash mode].
+
+- Build a sequence of models each using a small number of patches or a single patch for data. This could help improve Swain Bot's meta adaptation between patches by ensembling this sequence to make predictions from mutiple metas while data from a new patch is being processed.
+
+- Including some form of team data for competitive drafts, either as a model input or as an additional layer on top of the current model structure. Swain Bot's current iteration implicitly assumes that every team is able to play every champion at the highest level. Despite being the best players in the world, this is certainly not true. By adding information about the drafting teams, we could improve Swain Bot's ability to make suggestions which suit both the meta and the drafting team.
+
+- Exploring alternative models (in particular Actor-Critic Policy Gradient). The DDQN model Swain Bot implements is by no means a poor one, but in the constantly evolving world of machine learning it is no longer cutting-edge. In particular our implementation of DDQN is deterministic, meaning that when presented with the same input state the model will always output the same action. If recommendations made by Swain Bot were to be used in practice to assemble a draft, this could be potentially abused by our opponents. Policy gradient methods parameterize the policy directly and are able to represent both stochastic and deterministic policies. 
+
+- Reducing the required training time using GPUs and/or services like AWS.
+
+## Conclusion
+Thank you for taking the time to read through this project! Working on Swain Bot gave me an excuse to dive into machine learning and was a huge motivator to keep grinding.. especially early on when nothing was stable. I also want to give a huge thank you to Crystal for supporting me in my now year-long diversion into machine learning and both being someone to lean on through the hard times and someone to celebrate with during the good times. I couldn't have done this without you.
 
 
 ## Disclaimer
