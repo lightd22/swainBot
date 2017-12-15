@@ -1,6 +1,6 @@
 ﻿# Swain Bot
 Created by Devin Light
-
+A [web version of Swain Bot](swainbot.herokuapp.com) (hosted on Heroku) is available to play with. (Note: this model has a limited number of concurrent users and is much slower than the local version because it is hosted using the free tier offered by Heroku)
 ## Introduction
 ### What is League of Legends?
 League of Legends (abbreviated as LoL, or League) is a multiplayer online battle arena (MOBA) game developed by Riot Games which features two teams of five players each competing in head-to-head matches with the ultimate goal of destroying the opposing teams nexus structure. The game boasts millions of monthly players and a large competitive scene involving dozens of teams participating in both national and international tournaments. The game takes place across two broadly defined phases. In the first phase (or Drafting phase), each side takes turns assembling their team by selecting a unique character (called a champion) from a pool of almost 140 (as of this writing) without replacement. Then, in the second phase (or Play phase), each player in the match takes control of one of the champions chosen by their team and attempts to claim victory. Although not strictly required by the game, over the years players usually elect to play their champion in one of five roles named after the location on the map in which they typically start the game, and often corresponding to the amount of resources that player will have devoted to them:
@@ -21,11 +21,10 @@ Each champion has distinct set of characteristics and abilities that allows them
 Swain Bot (named after the champion Swain whose moniker is "The Master Tactician") is a machine learning application built in Python and using Google's Tensorflow framework. Swain Bot is designed to analyze the drafting phase of competitive League of Legends matches. Given a state of the draft which includes full information of our team's submissions (champions and positions) and partial information of the opponent's submissions (champions only), Swain Bot attemps to suggest picks and bans that are well-suited for our draft.
 
 ### What do we hope to do with Swain Bot?
-Our objective with Swain Bot is to be able to provide insight into a few questions concering League's draft phase:
-- Can we estimate how valuable certain submissions are for a given state of the draft?
+Our objective with Swain Bot is to be able to provide insight into a few questions about League's draft phase:
+- Can we estimate how valuable each submission is for a given state of the draft?
 - Is there a common structure or theme to how professional League teams draft?
-- Can we identify where losing drafts go awry?
-- Can we estimate the "winner" of a completed draft?
+- Can we identify the differences between a winning and a losing draft?
 
 ## Assumptions and Limitations
 Every model tasked with approaching a difficult problem is predicated on some number assumptions which in turn define the boundaries that the model can safely be applied. Swain Bot is no exception, so here we outline and discuss some of the explicit assumptions being made going into the construction of the underlying model Swain Bot uses to make its predictions. Some of the assumptions are more impactful than others and some could be removed in the future to improve Swain Bot's performance, but are in place for now for various reasons.
@@ -81,7 +80,7 @@ where _a_* is the action taken during the original memory. The actual values the
 
 ### Deep Q-Learning (DQN)
 With the framework describing drafting as an MDP, we can apply a Q-Learning algorithm to estimate `Q(s,a)`, the maximum expected future reward taking action `a` from state `s`. With 138 total champions and 20 chosen at a time to appear in the final draft state, there are roughly `6.07x10^{23}` possible ending states, making a tabular Q-learning method out of the question. Observing that the input state matrix `s` can be interpreted as a monochomatic image, we opt to use a simple convolutional neural network (CNN) to estimate the value function for an arbitrary state. For a great (and freely available) introduction to CNNs, see Stanford's [CS231n](http://cs231n.stanford.edu/). The selected model's architecture consists of 5 total layers:
-- 3 layers 3x3 stride CONV + ReLU + 2x2 MaxPool
+- 3 CONV (3x3 stride) + ReLU + 2x2 MaxPool layers
 - 1 FC + ReLU layer
 - 1 FC linearly activated output layer
 
@@ -100,9 +99,20 @@ The default DQN algorithm selects is action "greedily" by taking the maximum ove
 
 is replaced with 
 
-`update = reward + discount_factor*Q_target(s',max_a'{Q_online(s',a')})`.
+`update = reward + discount_factor*Q_target(s', max_a'{Q_online(s',a')})`.
 
-Note that this doesn't truely decouple action selection and evaluation because the target network is a copy of a previous online network.
+Note that this doesn't truly decouple action selection and evaluation because the target network is a copy of a previous online network.
+
+## Results
+### Evaluating the Model
+In addition to the "eyeball test" of Swain Bot's predictions (i.e. no illegal submissions, correct number of roles, overall "meta-feel" of drafts, etc.), we're also interested in a quantitative measure of performance. One approach is to treat predictions as we would with a classifier and measure the fraction of predictions which agree with what was actually submitted in a winning draft. However, it's important to recall that our objective is to predict valuable submissions which may not necessarily overlap with what a specific team is likely to submit. It is often the case that multiple submissions have roughly equal value (this is particularly true for bans and early submissions) and that selecting from them is mostly a function of the biases of the drafting team. Since team identities aren't included as part of the input, it is unrealistic to expect the model to match the exact submission made for every team. A simple way to try and compensate for this is to group the top `k` submissions and regard these as a set of "good" picks according to the model. Then we measure accuracy as the fraction of submissions made that are contained in the predicted "good" submission pools for each state. 
+
+Another approach is to examine the difference in estimated Q-values between the top prediction (`max_a{Q(s,a)}`) and the actual submission (`Q(s,a*)`). The difference between these two values estimates how far off the actual action that was submitted is from taking over the top prediction. If `a*` is really a good submission for this state this difference should be relatively small. If we use this to compute a normalized mean square error over a set of states we should get an estimate of the model performance:
+
+<img src="common/images/nms_error.png" width="360">
+
+Notice that if the model were to assign all actions the same value then this measure of error would be trivially zero. So just like the classification measure of accuracy, this measure of error is not perfect.
+
 
 ## Disclaimer
 Swain Bot isn’t endorsed by Riot Games and doesn’t reflect the views or opinions of Riot Games or anyone officially involved in producing or managing League of Legends. League of Legends and Riot Games are trademarks or registered trademarks of Riot Games, Inc. League of Legends © Riot Games, Inc.
