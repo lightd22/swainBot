@@ -103,15 +103,33 @@ is replaced with
 
 Note that this doesn't truly decouple action selection and evaluation because the target network is a copy of a previous online network.
 
-## Results
+## Analysis
 ### Evaluating the Model
-In addition to the "eyeball test" of Swain Bot's predictions (i.e. no illegal submissions, correct number of roles, overall "meta-feel" of drafts, etc.), we're also interested in a quantitative measure of performance. One approach is to treat predictions as we would with a classifier and measure the fraction of predictions which agree with what was actually submitted in a winning draft. However, it's important to recall that our objective is to predict valuable submissions which may not necessarily overlap with what a specific team is likely to submit. It is often the case that multiple submissions have roughly equal value (this is particularly true for bans and early submissions) and that selecting from them is mostly a function of the biases of the drafting team. Since team identities aren't included as part of the input, it is unrealistic to expect the model to match the exact submission made for every team. A simple way to try and compensate for this is to group the top `k` submissions and regard these as a set of "good" picks according to the model. Then we measure accuracy as the fraction of submissions made that are contained in the predicted "good" submission pools for each state. 
+In addition to the "eyeball test" of Swain Bot's predictions (i.e. no illegal submissions, correct number of roles, overall "meta-feel" of drafts, etc.), we're also interested in a quantitative measure of performance. 
 
-Another approach is to examine the difference in estimated Q-values between the top prediction (`max_a{Q(s,a)}`) and the actual submission (`Q(s,a*)`). The difference between these two values estimates how far off the actual action that was submitted is from taking over the top prediction. If `a*` is really a good submission for this state this difference should be relatively small. If we use this to compute a normalized mean square error over a set of states we should get an estimate of the model performance:
+One approach is to treat predictions as we would with a classifier and measure the fraction of predictions which agree with what was actually submitted in a winning draft. However, it's important to recall that our objective is to predict valuable submissions which may not necessarily overlap with what a specific team is likely to submit. It is often the case that multiple submissions are suited for the draft and as a result each have roughly equal value (this is particularly true for bans and early submissions). Selecting amongst these valid picks is mostly a function of the biases of the drafting team. Since team identities aren't included as part of the input, it is unrealistic to expect the model to match the exact submission made for every team. A simple way to try and compensate for this is to group the top `k` submissions and regard these as a set of "good" picks according to the model. Then we measure accuracy as the fraction of submissions made that are contained in the predicted "good" submission pools for each state. 
+
+Another approach is to examine the difference in estimated Q-values between the top prediction (`max_a{Q(s,a)}`) and the actual submission (`Q(s,a*)`). The difference between these two values estimates how far off the actual action that was submitted is from taking over the top prediction. If `a*` is really a good submission for this state this difference should be relatively small. If we use this to compute a normalized mean squared error over a set of states we should get an estimate of the model performance:
 
 <img src="common/images/nms_error.png" width="360">
 
-Notice that if the model were to assign all actions the same value then this measure of error would be trivially zero. So just like the classification measure of accuracy, this measure of error is not perfect.
+Note that if the model were to assign all actions the same value then this measure of error would be trivially zero. So just like the classification measure of accuracy, this measure of error is not perfect. Nevertheless the combination gives some insight into how the model performs.
+
+### Training Data
+The model was trained in two stages. For the first stage, data was obtained from matches from the 2017 Summer Season and 2017 Worlds Championship Qualifiers for five major international regions:
+- North America (NA LCS)
+- Europe (EU LCS)
+- China (LPL)
+- Korea (LCK)
+- Taiwan, Hong Kong, & Macau (LMS)
+
+Between the two training stages the model went through a dampening iteration (in which the value of all predictions were reduced) in order to simulate a change in metas associated with the gap in time between the Summer Season and Worlds Championships. The second stage of training used data from the 119 matches played during the 2017 World Championship with 3 matches from the knockout stages held out for validation. The model learned on each match in the training set for 100 epochs (i.e. each match was seen 100 times in expectation).
+
+Validation Matches
+<img src="common/images/validation_matches.png" width="360">
+
+## Looking Ahead
+
 
 
 ## Disclaimer
