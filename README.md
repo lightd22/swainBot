@@ -19,12 +19,12 @@ Each champion has distinct set of characteristics and abilities that allows them
 ![Figure 1](common/images/league_draft_structure.png "Figure 1")
 
 ### What is Swain Bot?
-Swain Bot (named after the champion Swain whose moniker is "The Master Tactician") is a machine learning application built in Python and using Google's Tensorflow framework. Swain Bot is designed to analyze the drafting phase of competitive League of Legends matches. Given a state of the draft which includes full information of our team's submissions (champions and positions) and partial information of the opponent's submissions (champions only), Swain Bot attemps to suggest picks and bans that are well-suited for our draft.
+Swain Bot (named after the champion Swain whose moniker is "The Master Tactician") is a machine learning application built in Python using Google's Tensorflow framework. Swain Bot is designed to analyze the drafting phase of competitive League of Legends matches. Given a state of the draft which includes full information of our team's submissions (champions and positions) and partial information of the opponent's submissions (champions only), Swain Bot attemps to suggest picks and bans that are well-suited for our draft.
 
 ### What do we hope to do with Swain Bot?
-Our objective with Swain Bot is to be able to provide insight into a few questions about League's draft phase:
-- Can we estimate how valuable each submission is for a given state of the draft?
-- Is there a common structure or theme to how professional League teams draft?
+Knowing the best pick for a given draft situation can dramatically improve a team's odds of success. Our objective with Swain Bot is to help provide insight into League's crucial draft phase by attempting to answer questions like:
+- Can we estimate how valuable each submission is for a given state of the draft? 
+- Is there a common structure or theme to how professional League teams draft? 
 - Can we identify the differences between a winning and a losing draft?
 
 ## Assumptions and Limitations
@@ -32,7 +32,7 @@ Every model tasked with approaching a difficult problem is predicated on some nu
 
 1. Swain Bot is limited to data from recorded professionally played games from the "Big 5" regions (NALCS, EULCS, LCK, LPL, and LMS). Limiting potential data sources to competitive leagues is very restrictive when compared to the pool of amature matches played on local servers across the world. However, this assumption is in place as a result of changes in Riot's (otherwise exceptional) API which effectively randomizes the order in which the champion submissions for a draft are presented, rendering it impossible to recover the sequence of draft states that make up the complete information regarding the draft. Should the API be changed in the future Swain Bot will be capable of learning from amature matches as well. 
 
-2. Swain Bot does not recieve information about either the patch the game was played on or the teams involved in the match. Not including the patch allows us to stretch the data as much as we can given the restricted pool. Although the effectiveness of a champion might change as they are tuned between patches, it is unlikely that they are changed so much that the situations that the champion would normally be picked in are dramatically different. Nevertheless substantial champion changes have occured in the past, usually in the form of a total redesign. Additionally, although team data for competitive matches is available during the draft, Swain Bot's primary objective is to identify the most effective submissions for a given draft state rather than predict what a specific team might select in that situation.  Nevertheless it would be possible to combine Swain Bot's output with information about a team's drafting tendencies (using ensemble techniques like stacking) to produce a final prediction which both suits the draft and is likely to be chosen by the team. However we will leave this work for later.
+2. Swain Bot does not recieve information about either the patch the game was played on or the teams involved in the match. Not including the patch allows us to stretch the data as much as we can given the restricted pool. Although the effectiveness of a champion might change as they are tuned between patches, it is unlikely that they are changed so much that the situations that the champion would normally be picked in are dramatically different. Nevertheless substantial champion changes have occured in the past, usually in the form of a total redesign. Additionally, although team data for competitive matches is available during the draft, Swain Bot's primary objective is to identify the most effective submissions for a given draft state rather than predict what a specific team might select in that situation.  It would be possible to combine Swain Bot's output with information about a team's drafting tendencies (using ensemble techniques like stacking) to produce a final prediction which both suits the draft and is likely to be chosen by the team. However we will leave this work for later.
 
 3. Swain Bot's objective is to associate the combination of a state and a potential submission with a value and to suggest taking the action which has the highest value. This valuation should be based primarily on what is likely to win the draft (or move us towards a winning state), and partly on what is likely to be done. 
 Although these two goals may be correllated (a champion that is highly-valued might also be the one selected most frequently) they are not necessarily the same since, for example, teams may be biased towards or against specific strategies or champions.
@@ -64,9 +64,9 @@ The reward schedule is a vital component of the MDP and determines what policy t
 2. _s_ represents a valid, complete draft which resulted in a loss
 3. _s_ represents an invalid draft (which cannot be played)
 
-All other states are valid, but non-terminal. An invalid state is one in which one or more of the following conditions are satisfied:
+All other states are valid, but non-terminal. An invalid state _s_ is one in which one or more of the following conditions are satisfied:
 1. _s_ represents an incorrect number of picks or bans for the phase of the draft described by that state (e.g. any number of picks submitted during Ban Phase 1, four picks associated with blue side during Pick Phase 1, or two consecutive picks associated with red side during Pick Phase 2)
-2. _s_ represents at least one champion selected in more than one position (e.g. picked and banned, picked by both teams, or picked by a one team in more than one role)
+2. _s_ represents at least one champion selected in more than one position (e.g. picked and banned, picked by both teams, or picked by a team in more than one role)
 3. _s_ represents at least one non-ban position with more than one champion selected in that position. For partially complete drafts the opposing team position must have no more than five submissions represented.
 
 The reward schedule is defined in two parts depending on if _s_ is a terminal state. If _s_ is terminal, the reward is given by
@@ -94,7 +94,7 @@ Data augmentation refers to modifying existing training data in order to effecti
 
 Experience replay provides a mechanism for separating the generation of memories from learning from those memories. In experience replay, each experience associated with a draft is stored into a pool of experiences spanning many drafts. The Q-learning update is applied to a minibatch of randomly sampled experiences contained within the pool. This is important because consecutive experiences generated from the same draft are strongly correlated and learning from them all simultaneously using SGD is not only inefficient, but may even lead to a local suboptimal minimum. By randomizing the samples drawn from the replay buffer, the correlation between experiences is broken. Additionally, each memory is potentially used in multiple updates, improving overall data efficiency. 
 
-The default DQN algorithm selects is action "greedily" by taking the maximum over the estimated action-values when selecting it's recommended action. A side effect of this maximization is that the DQN tends to learn overestimated values. Unfortunately this over optimistism is often non-uniformly distributed across actions and can degrade the performance of the learned policy. Furthermore, this overestimation also tends to grow as the number of actions increases. As of this writing, there are 822 (137 champions each selectable in 6 positions) possible actions during each stage of drafting. As a result, it is desirable to control this overestimation as much as possible. The DDQN algorithm proposed by van Hesselt et. al. attempts to limit this overestimation by pseudo-decoupling action selection from evaluation utilizing two networks: an "online" network and a "target" network. The online network represents the most up-to-date parameters, while the target network is a periodic snapshot of the online network. In simplest terms the original update for DQN
+The default DQN algorithm selects actions "greedily" by taking the maximum over the estimated action-values. A side effect of this maximization is that the DQN tends to learn overestimated values. Unfortunately this over optimistism is often non-uniformly distributed across actions and can degrade the performance of the learned policy. Furthermore, this overestimation also tends to grow as the number of actions increases. As of this writing, there are 822 (137 champions each selectable in 6 positions) possible actions during each stage of drafting. As a result, it is desirable to control this overestimation as much as possible. The DDQN algorithm proposed by van Hesselt et. al. attempts to limit this overestimation by pseudo-decoupling action selection from evaluation utilizing two networks: an "online" network and a "target" network. The online network represents the most up-to-date parameters, while the target network is a periodic snapshot of the online network. In simplest terms the original update for DQN
 
 `update = reward + discount_factor*max_a'{Q(s',a')}`
 
@@ -138,28 +138,77 @@ The figure below illustrates the drafting phases of each match. The left side of
 
 <img src="common/images/validation_matches.png" width="700">
 
-The table below lists the classification (top 1), "good" set (top 5), and normalized root mean square error (l2 error):
+The table below lists the classification (top 1), "good" set classification (top 5), and normalized root mean square error (l2 error) for three catagories: all submissions predicted (full), all submissions excluding the first phase of bans (no round 1 bans), and picks only (no bans).
 
 ```
 Norm Information:
  Full
   Num_predictions = 30
   top 1: acc: 0.3
-  top 5: acc: 0.6
-  l2 error: 1.006
+  top 5: acc: 0.6333
+  l2 error: 0.8688
 ---
  No Round 1 Bans
   Num_predictions = 21
   top 1: acc: 0.381
-  top 5: acc: 0.7619
-  l2 error: 1.195
+  top 5: acc: 0.8571
+  l2 error: 1.03
 ---
- No bans
+ No Bans
   Num_predictions = 15
-  top 1: acc: 0.4
-  top 5: acc: 0.8
-  l2 error: 0.6071
+  top 1: acc: 0.4667
+  top 5: acc: 0.8667
+  l2 error: 0.849
 ```
+
+Starting with the top 1 classification accuracy it's apparent that predicting the exact submission at every stage in the draft is difficult for the model, which achieves an abysmal 30-45% accuracy across the three catagories. This is likely due to a combination of lacking information about which teams are drafting (which would allow the model to account for submissions that are either "comfort picks" or picks that a team is biased against) and the uneven weighting between winning submissions and likely submissions. For the top 5 classification accuracy the model improves significantly, particularly when the first three bans are ignored. Combined with a stable l2 error this indicates that the model does in fact associate elevated values for the actual submissions from winning drafts even if they are not the exact submission the model predicts. Finally, the jump in performance between the full set of predictions and the predictions excluding the first phase of banning generally holds true. In contrast, the difference in performance after further removing the second phase of bans is smaller. This suggests that earlier submissions in the draft are significantly more difficult to predict than later ones. This might be due to a combination of factors. First, since these submissions are the furthest away from the most rewarding states (which are seen at the end of the draft) the uncertainty in the possible directions a draft can go is near its maximum. Second, even after it's complete the first phase of bans adds relatively little information to the draft when compared with the information gained after several picks have been made. Finally, the first ban submissions are also significantly influenced by team biases since they tend to revolve around the picks you and your opponent are likely to make.
+
+For completeness here is the table for all 2017 Worlds matches (including the play-in stages):
+```
+Norm Information:
+ Full
+  Num_predictions = 1190
+  top 1: acc: 0.4008
+  top 5: acc: 0.6958
+  l2 error: 1.879
+---
+ No Round 1 Bans
+  Num_predictions = 833
+  top 1: acc: 0.5162
+  top 5: acc: 0.8331
+  l2 error: 2.221
+---
+ No Bans
+  Num_predictions = 595
+  top 1: acc: 0.5899
+  top 5: acc: 0.9059
+  l2 error: 1.4
+```
+
+Worlds 2017 was dominated by the "Ardent Censor" meta which favored hard-scaling position 1 carries combined with position 5 supports that could abuse the item Ardent Censor (an item which amplified the damage output of the position 1 pick). This made using early picks to secure a favorable bot lane matchup extremely popular. The remaining pick from the first phase tended to be spent selecting a safe jungler like Jarvan IV, Sejuani, or Gragas. As a result, if we look at the distrubution of positions made during the first phase of each of the 119 drafts conducted at 2017 Worlds we can see a strong bias against the solo lanes (positions 2 and 3). 
+
+```
+Phase 1: Actual
+  Position 1: Count 111, Ratio 0.311
+  Position 2: Count  28, Ratio 0.0784
+  Position 3: Count  24, Ratio 0.0672
+  Position 4: Count  92, Ratio 0.258
+  Position 5: Count 102, Ratio 0.286
+
+```
+
+We can compare this with the positions of the top 5 recomendations made by Swain Bot during the first pick phase:
+
+```
+Phase 1 Recommendations:
+  Position 1: Count 569, Ratio 0.319
+  Position 2: Count 233, Ratio 0.131
+  Position 3: Count 250, Ratio 0.14
+  Position 4: Count 310, Ratio 0.174
+  Position 5: Count 423, Ratio 0.237
+```
+Swain Bot agrees with the meta in using early picks to secure a bot lane. However, by comparison it is more likely to suggest a solo lane pick in the first phase instead of a jungler. This effect was also seen in the actual drafts towards the end of the tournament where solo lane picks like Galio and Malzahar became increasingly valuable and took over what would have likely been jungler picks in the earlier stages.
+ 
 ## Looking Ahead
 
 
