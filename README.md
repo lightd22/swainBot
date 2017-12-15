@@ -1,9 +1,10 @@
 ﻿# Swain Bot
 Created by Devin Light
-A [web version of Swain Bot](swainbot.herokuapp.com) (hosted on Heroku) is available to play with. (Note: this model has a limited number of concurrent users and is much slower than the local version because it is hosted using the free tier offered by Heroku)
+
+A [web version of Swain Bot](https://swainbot.herokuapp.com) (hosted on Heroku) is available to play with. (Note: this model has a limited number of concurrent users and is much slower than the local version because it is hosted using the free tier offered by Heroku)
 ## Introduction
 ### What is League of Legends?
-League of Legends (abbreviated as LoL, or League) is a multiplayer online battle arena (MOBA) game developed by Riot Games which features two teams of five players each competing in head-to-head matches with the ultimate goal of destroying the opposing teams nexus structure. The game boasts millions of monthly players and a large competitive scene involving dozens of teams participating in both national and international tournaments. The game takes place across two broadly defined phases. In the first phase (or Drafting phase), each side takes turns assembling their team by selecting a unique character (called a champion) from a pool of almost 140 (as of this writing) without replacement. Then, in the second phase (or Play phase), each player in the match takes control of one of the champions chosen by their team and attempts to claim victory. Although not strictly required by the game, over the years players usually elect to play their champion in one of five roles named after the location on the map in which they typically start the game, and often corresponding to the amount of resources that player will have devoted to them:
+League of Legends (abbreviated as LoL, or League) is a multiplayer online battle arena (MOBA) game developed by Riot Games which features two teams of five players each competing in head-to-head matches with the ultimate goal of destroying the opposing team's nexus structure. The game boasts millions of monthly players and a large competitive scene involving dozens of teams participating in both national and international tournaments. The game takes place across two broadly defined phases. In the first phase (or Drafting phase), each side takes turns assembling their team by selecting a unique character (called a champion) from a pool of almost 140 (as of this writing) without replacement. Then, in the second phase (or Play phase), each player in the match takes control of one of the champions chosen by their team and attempts to claim victory. Although not strictly required by the game, over the years players usually elect to play their champion in one of five roles named after the location on the map in which they typically start the game, and often corresponding to the amount of resources that player will have devoted to them:
 
 - Position 1 (primary farm)-> ADC/Marksman<sup>1</sup>
 - Position 2 (secondary farm)-> Middle
@@ -135,8 +136,30 @@ Of the three validation matches selected from the knockout stages of 2017 Worlds
 
 The figure below illustrates the drafting phases of each match. The left side of the draft represents the submissions made by the blue side, while the right side depicts submissions made by the red side. 
 
-<img src="common/images/validation_matches.png" width="500">
+<img src="common/images/validation_matches.png" width="700">
 
+The table below lists the classification (top 1), "good" set (top 5), and normalized root mean square error (l2 error):
+
+```
+Norm Information:
+ Full
+  Num_predictions = 30
+  top 1: acc: 0.3
+  top 5: acc: 0.6
+  l2 error: 1.006
+---
+ No Round 1 Bans
+  Num_predictions = 21
+  top 1: acc: 0.381
+  top 5: acc: 0.7619
+  l2 error: 1.195
+---
+ No bans
+  Num_predictions = 15
+  top 1: acc: 0.4
+  top 5: acc: 0.8
+  l2 error: 0.6071
+```
 ## Looking Ahead
 
 
