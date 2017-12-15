@@ -116,6 +116,8 @@ Another approach is to examine the difference in estimated Q-values between the 
 Note that if the model were to assign all actions the same value then this measure of error would be trivially zero. So just like the classification measure of accuracy, this measure of error is not perfect. Nevertheless the combination gives some insight into how the model performs.
 
 ### Training Data
+Match data was pulled from [lol.gamepedia.com](https://lol.gamepedia.com).
+
 The model was trained in two stages. For the first stage, data was obtained from matches from the 2017 Summer Season and 2017 Worlds Championship Qualifiers for five major international regions:
 - North America (NA LCS)
 - Europe (EU LCS)
@@ -123,9 +125,20 @@ The model was trained in two stages. For the first stage, data was obtained from
 - Korea (LCK)
 - Taiwan, Hong Kong, & Macau (LMS)
 
-Between the two training stages the model went through a dampening iteration (in which the value of all predictions were reduced) in order to simulate a change in metas associated with the gap in time between the Summer Season and Worlds Championships. The second stage of training used data from the 119 matches played during the 2017 World Championship with 3 matches from the knockout stages held out for validation. The model learned on each match in the training set for 100 epochs (i.e. each match was seen 100 times in expectation).
+Between the two training stages the model went through a dampening iteration (in which the value of all predictions were reduced) in order to simulate a change in metas associated with the gap in time between the Summer Season and Worlds Championships. The second stage of training used data from the 119 matches played during the 2017 World Championship with 3 randomly selected matches from the knockout stages held out for validation. The model learned on each match in the training set for 100 epochs (i.e. each match was seen 100 times in expectation).
 
-Validation Matches
+### Validation Matches
+Of the three validation matches selected from the knockout stages of 2017 Worlds, two came from the group stage and one came from the finals matches.
+
+Groups
+- Longzhu (LZ) vs Gigabyte Marines (GAM) Game 2
+- Team Solo Mid (TSM) vs Team World Elite (WE) Game 1
+
+Finals
+- Samsung Galaxy (SSG) vs SK Telecom T1 (SKT) Game 2
+
+The figure below illustrates the drafting phases of each match. The left side of the draft represents the submissions made by the blue side, while the right side depicts submissions made by the red side. 
+
 <img src="common/images/validation_matches.png" width="360">
 
 ## Looking Ahead
