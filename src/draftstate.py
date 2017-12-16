@@ -399,7 +399,7 @@ class DraftState:
         # validation is tuple of form (target_ban_count, target_blue_pick_count, target_red_pick_count)
         validation = self.draft_structure.submission_dist[sub_count]
         num_opponent_sub = np.count_nonzero(self.state[:,self.getPositionIndex(0)])
-        num_ally_sub = num_picks - opponent_sub
+        num_ally_sub = num_picks - num_opponent_sub
         if self.team == DraftState.BLUE_TEAM:
             dist = (num_bans, num_ally_sub, num_opponent_sub)
         else:

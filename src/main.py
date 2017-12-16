@@ -32,6 +32,7 @@ worlds_play_ins = worlds_data["play_ins_rd1"]
 worlds_play_ins.extend(worlds_data["play_ins_rd2"])
 worlds_groups = worlds_data["groups"]
 worlds_knockouts = worlds_data["knockouts"]
+worlds_finals = worlds_data["finals"]
 
 # Store training match data in a json file (for use later)
 reuse_matches = True
@@ -42,31 +43,23 @@ if reuse_matches:
     validation_ids = data["validation_ids"]
     training_ids = data["training_ids"]
 
-    training_ids = [match_id for match_id in training_ids if match_id not in worlds_groups]
+#    training_ids.extend(worlds_play_ins)
+
     n_matches = len(validation_ids) + len(training_ids)
     n_training = len(training_ids)
     training_matches = mp.get_matches_by_id(training_ids)
     validation_matches = mp.get_matches_by_id(validation_ids)
 else:
-#    n_matches = 107
-#    n_training = 97
-#    n_val = 10
-
-    #match_data = mp.buildMatchPool(n_matches)
-    #match_ids = match_data["match_ids"]
-    #validation_ids = match_ids[:n_val]
-    #training_ids = match_ids[n_val:]
-
-    semi_finals = worlds_knockouts[-9:]
-    random.shuffle(semi_finals)
+    n_val = 3
 
     match_ids = []
     match_ids.extend(worlds_groups)
-    match_ids.extend(worlds_knockouts[:-9])
+    match_ids.extend(worlds_knockouts)
+    match_ids.extend(worlds_finals)
+    random.shuffle(match_ids)
 
-    training_ids = match_ids[:]
-    training_ids.extend(semi_finals[:-2])
-    validation_ids = semi_finals[-2:]
+    validation_ids = match_ids[:n_val]
+    training_ids = match_ids[n_val:]
 
     random.shuffle(validation_ids)
     random.shuffle(training_ids)
@@ -76,6 +69,13 @@ else:
     with open('match_pool.txt','w') as outfile:
         json.dump({"training_ids":training_ids,"validation_ids":validation_ids},outfile)
 
+print("***")
+print("Validation matches:")
+count = 0
+for match in validation_matches:
+    count += 1
+    print("Match: {:2} id: {:4} {:6} vs {:6} winner: {:2}".format(count, match["id"], match["blue_team"], match["red_team"], match["winner"]))
+print("***")
 # Network parameters
 state = DraftState(DraftState.BLUE_TEAM,valid_champ_ids)
 input_size = state.format_state().shape
@@ -86,7 +86,7 @@ regularization_coeff = 7.5e-5#1.5e-4
 # Training parameters
 batch_size = 16#32
 buffer_size = 2048#4096
-n_epoch = 12
+n_epoch = 25
 discount_factor = 0.9
 learning_rate = 2.0e-5#1.0e-4
 
@@ -134,8 +134,9 @@ for exp in experiences:
         continue
     count += 1
     form_act = state.getAction(cid,pos)
-    pred_act = model.predict_action(state)
-    pred_Q = model.predict(state)
+    pred_act = model.predict_action([state])
+    pred_act = pred_act[0]
+    pred_Q = model.predict([state])
     pred_Q = pred_Q[0,:]
 
     p_cid,p_pos = state.formatAction(pred_act)

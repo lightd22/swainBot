@@ -12,8 +12,9 @@ import tensorflow as tf
 import sqlite3
 import math
 
-#path_to_model = "model_predictions/play_ins_rd2/model_play_ins_rd2"
-path_to_model = "tmp/models/model_E10"
+#path_to_model = "model_predictions/finals/model_E12"
+path_to_model = "tmp/models/dec/14/second_run/model_E25"
+#path_to_model = "tmp/model_E25"
 print("***")
 print("Loading Model From: {}".format(path_to_model))
 print("***")
@@ -34,12 +35,17 @@ print("***")
 
 model = Model(path_to_model)
 
-#with open('worlds_matchids_by_stage.txt','r') as infile:
-#    data = json.load(infile)
-#match_ids = data["knockouts"][-9:]
-with open('match_pool.txt','r') as infile:
+with open('worlds_matchids_by_stage.txt','r') as infile:
     data = json.load(infile)
-match_ids = data['validation_ids']
+match_ids = data["groups"]
+match_ids.extend(data["knockouts"])
+match_ids.extend(data["finals"])
+match_ids.extend(data["play_ins_rd1"])
+match_ids.extend(data["play_ins_rd2"])
+#with open('match_pool.txt','r') as infile:
+#    data = json.load(infile)
+#match_ids = data['validation_ids']
+#match_ids.extend(data['training_ids'])
 dbName = "competitiveGameData.db"
 conn = sqlite3.connect("tmp/"+dbName)
 cur = conn.cursor()
@@ -71,6 +77,8 @@ full_diag = {"top1":0, "topk":0, "l2":[],"k":k}
 no_rd1_ban_diag = {"top1":0, "topk":0, "l2":[],"k":k}
 no_ban_diag = {"top1":0, "topk":0, "l2":[],"k":k}
 model_diagnostics = {"full":full_diag, "no_rd1_ban":no_rd1_ban_diag, "no_bans":no_ban_diag}
+position_distributions = {"phase_1":[0,0,0,0,0], "phase_2":[0,0,0,0,0]}
+actual_pos_distributions = {"phase_1":[0,0,0,0,0], "phase_2":[0,0,0,0,0]}
 for match in matches:
     if(specific_team):
         team = DraftState.RED_TEAM if match["red_team"]==specific_team else DraftState.BLUE_TEAM
@@ -111,7 +119,7 @@ for match in matches:
 
         rank = submitted_row['rank'].iloc[0]
         err = submitted_row['error'].iloc[0]
-        # Norms measuring for all submissions
+        # Norms measuring all submissions
         if(rank == 0):
             model_diagnostics["full"]["top1"] += 1
         if(rank < k):
@@ -136,10 +144,37 @@ for match in matches:
 
         print(" Top predictions:")
         print(df.head()) # Print top 5 choices for network
-        df.to_pickle("{}/match{}_pick{}.pkl".format(out_dir,count,pick_count))
+        #df.to_pickle("{}/match{}_pick{}.pkl".format(out_dir,count,pick_count))
+
+        # Position distribution for picks
+        if(pos > 0):
+            top_pos = df.head()["pos"].values.tolist()
+            if(pick_count <=5):
+                actual_pos_distributions["phase_1"][pos-1] += 1
+                for pos in top_pos:
+                    position_distributions["phase_1"][pos-1] += 1
+            else:
+                actual_pos_distributions["phase_2"][pos-1] += 1
+                for pos in top_pos:
+                    position_distributions["phase_2"][pos-1] += 1
 
         pick_count += 1
     count += 1
+
+print("******************")
+print("Pick position distributions:")
+for phase in ["phase_1", "phase_2"]:
+    print("{}: Recommendations".format(phase))
+    count = sum(position_distributions[phase])
+    for pos in range(len(position_distributions[phase])):
+        pos_ratio = position_distributions[phase][pos] / count
+        print("  Position {}: Count {:3}, Ratio {:.3}".format(pos+1, position_distributions[phase][pos], pos_ratio))
+
+    print("{}: Actual".format(phase))
+    count = sum(actual_pos_distributions[phase])
+    for pos in range(len(actual_pos_distributions[phase])):
+        pos_ratio = actual_pos_distributions[phase][pos] / count
+        print("  Position {}: Count {:3}, Ratio {:.3}".format(pos+1, actual_pos_distributions[phase][pos], pos_ratio))
 
 print("******************")
 print("Norm Information:")
@@ -147,7 +182,7 @@ for key in model_diagnostics.keys():
     print(" {}".format(key))
     err_list = model_diagnostics[key]["l2"]
     err = math.sqrt((sum([e**2 for e in err_list])/len(err_list)))
-    num_predictions = len(err_list)#10*count
+    num_predictions = len(err_list)
     top1 = model_diagnostics[key]["top1"]
     topk = model_diagnostics[key]["topk"]
     k = model_diagnostics[key]["k"]
