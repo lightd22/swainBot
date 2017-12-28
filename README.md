@@ -63,10 +63,10 @@ The reward schedule is a vital component of the MDP and determines what policy t
 2. a valid, complete draft which resulted in a loss
 3. an invalid draft (which cannot be played)
 
-All other states are valid, but non-terminal. An invalid state _s_ is one in which one or more of the following conditions are satisfied:
-1. _s_ represents an incorrect number of picks or bans for the phase of the draft described by that state (e.g. any number of picks submitted during Ban Phase 1, four picks submitted by blue side during Pick Phase 1, two consecutive picks associated with red side during Pick Phase 2, etc.)
-2. _s_ represents at least one champion selected in more than one position (e.g. picked and banned, picked by both teams, or picked by a team in more than one role)
-3. _s_ represents at least one non-ban actionable position with more than one champion submitted in that position. For partially complete drafts the opposing team position must also have no more than five submissions represented at any given time.
+All other states are valid, but non-terminal. An invalid state _s_ is one in which one or more of the following conditions are satisfied where _s_ represents:
+1. an incorrect number of picks or bans for the phase of the draft described by that state (e.g. any number of picks submitted during Ban Phase 1, four picks submitted by blue side during Pick Phase 1, two consecutive picks associated with red side during Pick Phase 2, etc.)
+2. at least one champion selected in more than one position (e.g. picked and banned, picked by both teams, or picked by a team in more than one role)
+3. at least one non-ban actionable position with more than one champion submitted in that position. For partially complete drafts the opposing team position must also have no more than five submissions represented at any given time.
 
 The empirically determined reward schedule is defined in two parts depending on if _s_ is a terminal state. If _s_ is terminal, the reward is given by
 
