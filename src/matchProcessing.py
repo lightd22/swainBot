@@ -1,6 +1,6 @@
 from collections import deque
 from draftstate import DraftState
-from championinfo import getChampionIds, championNameFromId
+from champion_info import get_champion_ids, champion_name_from_id
 from rewards import getReward
 from copy import deepcopy
 
@@ -107,7 +107,7 @@ def processMatch(match, team, augment_data=True):
     both winning drafts (positive reinforcement) and losing drafts (negative reinforcement) when training.
     """
     experiences = []
-    valid_champ_ids = getChampionIds()
+    valid_champ_ids = get_champion_ids()
 
     # This section controls data agumentation of the match. Certain submissions in the draft are
     # submitted consecutively by the same team during the same phase (ie team1 pick0 -> team1 pick1).

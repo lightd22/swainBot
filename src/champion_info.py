@@ -11,9 +11,9 @@ from myRiotApiKey import api_key
 class Box:
     pass
 __m = Box()
-__m.championNameFromId = None
-__m.championIdFromName = None
-__m.validChampionIds = None
+__m.champion_name_from_id = None
+__m.champion_id_from_name = None
+__m.valid_champion_ids = None
 __m.championAliases = {
 "blitz": "blitzcrank",
 "gp": "gangplank",
@@ -38,7 +38,7 @@ __m.championAliases = {
 "kayne": "kayn"
 }
 
-# This is a flag to make championinfo methods look for data stored locally
+# This is a flag to make champion_info methods look for data stored locally
 # rather than query the API. Useful if API is out.
 look_local = True
 
@@ -61,18 +61,18 @@ class AliasException(Exception):
         self.errors = errors
         self.message = message
 
-def convertChampionAlias(alias):
+def convert_champion_alias(alias):
     """
     Args:
         alias (string): lowercase and pruned string alias for a champion
     Returns:
         name (string): lowercase and pruned string name for champion
 
-    convertChampionAlias converts a given champion alias (ie "blitz")
+    convert_champion_alias converts a given champion alias (ie "blitz")
     and returns the version of that champions proper name which is suitable for passing to
-    championIdFromName(). If no such alias can be found, this raises an AliasException.
+    champion_id_from_name(). If no such alias can be found, this raises an AliasException.
 
-    Example: name = convertChampionAlias("blitz") will yield name = "blitzcrank"
+    Example: name = convert_champion_alias("blitz") will yield name = "blitzcrank"
     """
     null_champion = ["none","lossofban"]
     if (alias in null_champion):
@@ -89,54 +89,54 @@ def convertChampionAlias(alias):
         print("*****")
         raise
 
-def championNameFromId(champion_id):
+def champion_name_from_id(champion_id):
     """
     Args:
         champion_id (int): Integer Id corresponding to the desired champion name.
     Returns:
         name (string): String name of requested champion. If no such champion can be found, returns NULL
 
-    getChampionNameFromId takes a requested champion_id number and returns the string name of that champion using a championNameFromId dictionary.
+    champion_name_from_id takes a requested champion_id number and returns the string name of that champion using a champion_name_from_id dictionary.
     If the dictonary has not yet been populated, this creates the dictionary using cassiopeia's interface to Riot's API.
     """
-    if __m.championNameFromId is None:
-       populateChampionDictionary()
+    if __m.champion_name_from_id is None:
+       populate_champion_dictionary()
 
-    if (champion_id in __m.championNameFromId):
-        return __m.championNameFromId[champion_id]
+    if (champion_id in __m.champion_name_from_id):
+        return __m.champion_name_from_id[champion_id]
     return None
 
-def championIdFromName(champion_name):
+def champion_id_from_name(champion_name):
     """
     Args:
         champion_name (string): lowercase and pruned string label corresponding to the desired champion id.
     Returns:
         id (int): id of requested champion. If no such champion can be found, returns NULL
 
-    getChampionIdFromName takes a requested champion name and returns the id label of that champion using a championIdFromName dictionary.
+    champion_id_from_name takes a requested champion name and returns the id label of that champion using a champion_id_from_name dictionary.
     If the dictonary has not yet been populated, this creates the dictionary using cassiopeia's interface to Riot's API.
     Note that champion_name should be all lowercase and have any non-alphanumeric characters (including whitespace) removed.
     """
-    if __m.championIdFromName is None:
-       populateChampionDictionary()
+    if __m.champion_id_from_name is None:
+       populate_champion_dictionary()
 
-    if (champion_name in __m.championIdFromName):
-        return __m.championIdFromName[champion_name]
+    if (champion_name in __m.champion_id_from_name):
+        return __m.champion_id_from_name[champion_name]
     return None
 
-def validChampionId(champion_id):
+def valid_champion_id(champion_id):
     """
     Checks to see if champion_id corresponds to a valid champion id code.
     Returns: True if champion_id is valid. False otherwise.
     Args:
         champion_id (int): Id of champion to be verified.
     """
-    if __m.championNameFromId is None:
-       populateChampionDictionary()
+    if __m.champion_name_from_id is None:
+       populate_champion_dictionary()
 
-    return champion_id in __m.validChampionIds
+    return champion_id in __m.valid_champion_ids
 
-def getChampionIds():
+def get_champion_ids():
     """
     Returns a sorted list of valid champion IDs.
     Args:
@@ -144,12 +144,12 @@ def getChampionIds():
     Returns:
         validIds (list(ints)): sorted list of valid champion IDs.
     """
-    if __m.validChampionIds is None:
-        populateChampionDictionary()
+    if __m.valid_champion_ids is None:
+        populate_champion_dictionary()
 
-    return __m.validChampionIds[:]
+    return __m.valid_champion_ids[:]
 
-def populateChampionDictionary():
+def populate_champion_dictionary():
     """
     Args:
         None
@@ -175,16 +175,16 @@ def populateChampionDictionary():
             continue
         champion = Champion(value)
         champions.append(champion)
-        
-    __m.championNameFromId = {champion.id: champion.name for champion in champions}
-    __m.championIdFromName = {re.sub("[^A-Za-z0-9]+", "", champion.name.lower()): champion.id for champion in champions}
-    __m.validChampionIds = sorted(__m.championNameFromId.keys())
-    if not __m.championNameFromId:
+
+    __m.champion_name_from_id = {champion.id: champion.name for champion in champions}
+    __m.champion_id_from_name = {re.sub("[^A-Za-z0-9]+", "", champion.name.lower()): champion.id for champion in champions}
+    __m.valid_champion_ids = sorted(__m.champion_name_from_id.keys())
+    if not __m.champion_name_from_id:
         return False
     return True
 
 def create_Champion_fixture():
-    valid_ids = getChampionIds()
+    valid_ids = get_champion_ids()
     champions = []
     model = 'predict.Champion'
     for cid in valid_ids:
@@ -193,7 +193,7 @@ def create_Champion_fixture():
         champion["pk"] = cid
         fields = {}
         fields["id"] = cid
-        fields["display_name"] = championNameFromId(cid)
+        fields["display_name"] = champion_name_from_id(cid)
         champion["fields"] = fields
         champions.append(champion)
     with open('champions_fixture.json','w') as outfile:

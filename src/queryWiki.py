@@ -1,7 +1,7 @@
 import json # JSON tools
 import requests # URL api tools
 import re # regex tools
-from championinfo import convertChampionAlias, championIdFromName
+from champion_info import convert_champion_alias, champion_id_from_name
 
 def queryWiki(year, region, tournament):
     """
@@ -293,8 +293,8 @@ def cleanChampionNames(names):
     """
     cleanedNames = []
     for name in names:
-        if championIdFromName(name) is None:
-            name = convertChampionAlias(name)
+        if champion_id_from_name(name) is None:
+            name = convert_champion_alias(name)
         cleanedNames.append(name)
     return cleanedNames
 

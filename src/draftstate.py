@@ -1,5 +1,5 @@
 import numpy as np
-from championinfo import championNameFromId, validChampionId, getChampionIds
+from champion_info import champion_name_from_id, valid_champion_id, get_champion_ids
 from draft import Draft
 
 class InvalidDraftState(Exception):
@@ -46,7 +46,7 @@ class DraftState:
     BAN_PHASE = Draft.BAN
     PICK_PHASE = Draft.PICK
 
-    def __init__(self, team, champ_ids = getChampionIds(), num_positions = 5, draft = Draft('default')):
+    def __init__(self, team, champ_ids = get_champion_ids(), num_positions = 5, draft = Draft('default')):
         #TODO (Devin): This should make sure that numChampions >= num_positions
         self.num_champions = len(champ_ids)
         self.num_positions = num_positions
@@ -272,7 +272,7 @@ class DraftState:
         # Submitted picks of the form (champ_id, pos) correspond with the selection champion = champion_id in position = pos.
         # Bans are given pos = -1 and enemy picks pos = 0. However, this is not how they are stored in the state array.
         # Finally this doesn't match indexing used for state array and action vector indexing (which follow state indexing).
-        if((position < -1) or (position > self.num_positions) or (not validChampionId(champion_id))):
+        if((position < -1) or (position > self.num_positions) or (not valid_champion_id(champion_id))):
             return False
 
         index = self.champ_id_to_state_index[champion_id]
@@ -290,11 +290,11 @@ class DraftState:
         print("=== Begin Draft State ===")
         print("There are {num_picks} picks and {num_bans} bans completed in this draft. \n".format(num_picks=len(self.picks),num_bans=len(self.bans)))
 
-        print("Banned Champions: {0}".format(list(map(championNameFromId, self.bans))))
-        print("Picked Champions: {0}".format(list(map(championNameFromId, self.picks))))
+        print("Banned Champions: {0}".format(list(map(champion_name_from_id, self.bans))))
+        print("Picked Champions: {0}".format(list(map(champion_name_from_id, self.picks))))
         pos_index = self.getPositionIndex(0)
         enemy_draft_ids = list(map(self.getChampId, list(np.where(self.state[:,pos_index])[0])))
-        print("Enemy Draft: {0}".format(list(map(championNameFromId,enemy_draft_ids))))
+        print("Enemy Draft: {0}".format(list(map(champion_name_from_id,enemy_draft_ids))))
 
         print("Ally Draft:")
         for pos_index in range(2,len(self.state[0,:])): # Iterate through each position columns in state
@@ -302,7 +302,7 @@ class DraftState:
             if not champ_index.size: # No pick is found for this position, create a filler string
                 draft_name = "--"
             else:
-                draft_name = championNameFromId(self.getChampId(champ_index[0]))
+                draft_name = champion_name_from_id(self.getChampId(champ_index[0]))
             print("Position {p}: {c}".format(p=pos_index-1,c=draft_name))
         print("=== End Draft State ===")
 
@@ -313,7 +313,7 @@ class DraftState:
         Args:
             champion_id (int): Id of champion to check for valid selection.
         """
-        return ((champion_id not in self.picks) and validChampionId(champion_id))
+        return ((champion_id not in self.picks) and valid_champion_id(champion_id))
 
     def canBan(self, champion_id):
         """
@@ -322,7 +322,7 @@ class DraftState:
         Args:
             champion_id (int): Id of champion to check for valid ban.
         """
-        return ((champion_id not in self.bans) and validChampionId(champion_id))
+        return ((champion_id not in self.bans) and valid_champion_id(champion_id))
 
     def addPick(self, champion_id, position):
         """
@@ -332,7 +332,7 @@ class DraftState:
             champion_id (int): Id of champion to add to pick list.
             position (int): Position of champion to be selected. If position = 0 this is interpreted as a selection submitted by the opposing team.
         """
-        if((position < 0) or (position > self.num_positions) or (not validChampionId(champion_id))):
+        if((position < 0) or (position > self.num_positions) or (not valid_champion_id(champion_id))):
             return False
         self.picks.append(champion_id)
         index = self.getStateIndex(champion_id)
@@ -347,7 +347,7 @@ class DraftState:
         Args:
             champion_id (int): Id of champion to add to bans.
         """
-        if(not validChampionId(champion_id)):
+        if(not valid_champion_id(champion_id)):
             return False
         self.bans.append(champion_id)
         index = self.getStateIndex(champion_id)

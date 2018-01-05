@@ -1,6 +1,6 @@
 import sqlite3
 import re
-from championinfo import championIdFromName,championNameFromId, convertChampionAlias, AliasException
+from championinfo import champion_id_from_name,champion_name_from_id, convert_champion_alias, AliasException
 
 regionsDict = {"NA_LCS":"NA", "EU_LCS":"EU", "LCK":"LCK", "LPL":"LPL",
                 "LMS":"LMS", "International":"INTL"}
@@ -229,10 +229,10 @@ def insertBan(cursor, gameData):
                         banId = None
                     else:
 #                        print("ban={}".format(ban))
-                        banId = championIdFromName(ban)
+                        banId = champion_id_from_name(ban)
                         # If no such champion name is found, try looking for an alias
                         if banId is None:
-                            banId = championIdFromName(convertChampionAlias(ban))
+                            banId = champion_id_from_name(convert_champion_alias(ban))
                     selectionOrder += 1
                     vals = (gameId,banId,selectionOrder,side)
                     cursor.execute("INSERT INTO ban(game_id, champion_id, selection_order, side_id) VALUES(?,?,?,?)", vals)
@@ -273,10 +273,10 @@ def insertPick(cursor, gameData):
                         # but being consistent with insertPick())
                         pickId = None
                     else:
-                        pickId = championIdFromName(pick)
+                        pickId = champion_id_from_name(pick)
                         # If no such champion name is found, try looking for an alias
                         if pickId is None:
-                            pickId = championIdFromName(convertChampionAlias(pick))
+                            pickId = champion_id_from_name(convert_champion_alias(pick))
                     selectionOrder += 1
                     vals = (gameId,pickId,position,selectionOrder,side)
                     cursor.execute("INSERT INTO pick(game_id, champion_id, position_id, selection_order, side_id) VALUES(?,?,?,?,?)", vals)

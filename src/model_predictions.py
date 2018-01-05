@@ -104,7 +104,7 @@ for match in matches:
         submitted_action_id = state.getAction(*act)
 
         data = [(a,*state.formatAction(a),predicted_q_values[a]) for a in range(len(predicted_q_values))]
-        data = [(a,cinfo.championNameFromId(cid),pos,Q) for (a,cid,pos,Q) in data]
+        data = [(a,cinfo.champion_name_from_id(cid),pos,Q) for (a,cid,pos,Q) in data]
         df = pd.DataFrame(data, columns=['act_id','cname','pos','Q(s,a)'])
 
         df.sort_values('Q(s,a)',ascending=False,inplace=True)

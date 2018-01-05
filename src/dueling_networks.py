@@ -5,7 +5,7 @@ import tensorflow as tf
 import random
 
 from draftstate import DraftState
-import championinfo as cinfo
+import champion_info as cinfo
 import draftDbOps as dbo
 from rewards import getReward
 import qNetwork
@@ -32,7 +32,7 @@ def self_train(sess, explore_prob, n_experiences=1):
     """
     MAX_DRAFT_ITERATIONS = 100 # Maximum number of drafts to iterate through
     assert n_experiences > 0, "Number of experiences must be non-negative"
-    valid_champ_ids = cinfo.getChampionIds()
+    valid_champ_ids = cinfo.get_champion_ids()
     match = {"winner":None} # Blank match for rewards processing
     # Two states are maintained: one corresponding to the perception of the draft
     # according to each of the teams.
@@ -85,7 +85,7 @@ def self_train(sess, explore_prob, n_experiences=1):
     return experiences
 
 def dueling_networks(path_to_model):
-    valid_champ_ids = cinfo.getChampionIds()
+    valid_champ_ids = cinfo.get_champion_ids()
     # Two states are maintained: one corresponding to the perception of the draft
     # according to each of the teams.
     blue_state = DraftState(DraftState.BLUE_TEAM,valid_champ_ids)

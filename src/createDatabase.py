@@ -1,7 +1,7 @@
 import sqlite3
 import json
 from queryWiki import queryWiki
-from championinfo import championIdFromName,championNameFromId, convertChampionAlias, AliasException
+from champion_info import champion_id_from_name, champion_name_from_id, convert_champion_alias, AliasException
 import re
 import pandas as pd
 import draftDbOps as dbo

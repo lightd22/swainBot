@@ -2,7 +2,7 @@ import random
 import numpy as np
 import json
 from draftstate import DraftState
-import championinfo as cinfo
+import champion_info as cinfo
 
 import experienceReplay as er
 import matchProcessing as mp
@@ -23,7 +23,7 @@ print("********************************")
 print("** Beginning Swain Bot Run! **")
 print("********************************")
 
-valid_champ_ids = cinfo.getChampionIds()
+valid_champ_ids = cinfo.get_champion_ids()
 print("Number of valid championIds: {}".format(len(valid_champ_ids)))
 
 with open('worlds_matchids_by_stage.txt','r') as infile:
@@ -122,7 +122,7 @@ for a in range(state.num_actions):
     if cid not in xticks:
         xticks.append(cid)
         xtick_locs.append(a)
-xtick_labels = [cinfo.championNameFromId(cid)[:6] for cid in xticks]
+xtick_labels = [cinfo.champion_name_from_id(cid)[:6] for cid in xticks]
 
 tf.reset_default_graph()
 path_to_model = "tmp/model_E{}".format(n_epoch)
@@ -140,8 +140,8 @@ for exp in experiences:
     pred_Q = pred_Q[0,:]
 
     p_cid,p_pos = state.formatAction(pred_act)
-    actual = (cinfo.championNameFromId(cid),pos,pred_Q[form_act])
-    pred = (cinfo.championNameFromId(p_cid),p_pos,pred_Q[pred_act])
+    actual = (cinfo.champion_name_from_id(cid),pos,pred_Q[form_act])
+    pred = (cinfo.champion_name_from_id(p_cid),p_pos,pred_Q[pred_act])
     print("pred:{}, actual:{}".format(pred,actual))
 
     # Plot Q-val figure
