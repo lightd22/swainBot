@@ -9,7 +9,7 @@ import match_processing as mp
 
 import qNetwork
 from model import Model
-import trainNetwork as tn
+import train_network as tn
 import tensorflow as tf
 
 import sqlite3
@@ -96,7 +96,7 @@ for i in range(1):
     target_net = qNetwork.Qnetwork("target",input_size, output_size, filter_size, learning_rate, regularization_coeff, discount_factor)
     n_epoch = n_epoch*(i+1)
     print("Learning on {} matches for {} epochs. lr {:.4e} reg {:4e}".format(len(training_matches),n_epoch, learning_rate, regularization_coeff),flush=True)
-    loss,train_acc = tn.trainNetwork(online_net,target_net,training_matches,validation_matches,n_epoch,batch_size,buffer_size,dampen_states=False,load_model=True,verbose=True)
+    loss,train_acc = tn.train_network(online_net,target_net,training_matches,validation_matches,n_epoch,batch_size,buffer_size,dampen_states=False,load_model=True,verbose=True)
     print("Learning complete!")
     print("..final training accuracy: {:.4f}".format(train_acc))
     x = [i+1 for i in range(len(loss))]

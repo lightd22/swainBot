@@ -7,7 +7,7 @@ import random
 from draftstate import DraftState
 import champion_info as cinfo
 import draftDbOps as dbo
-from rewards import getReward
+from rewards import get_reward
 import qNetwork
 
 def get_active_team(submission_count):
@@ -79,7 +79,7 @@ def self_train(sess, explore_prob, n_experiences=1):
             else:
                 bad_state = deepcopy(state)
                 bad_state.update(*action)
-                experiences.append((start,action,getReward(bad_state,match,action,None),bad_state))
+                experiences.append((start,action,get_reward(bad_state,match,action,None),bad_state))
                 break
         successful_draft_count += 1
     return experiences

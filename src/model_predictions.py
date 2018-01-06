@@ -1,6 +1,6 @@
 import experience_replay as er
 import match_processing as mp
-import championinfo as cinfo
+import champion_info as cinfo
 import draft_db_ops as dbo
 from draftstate import DraftState
 from model import Model
