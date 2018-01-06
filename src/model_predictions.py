@@ -1,5 +1,5 @@
-import experienceReplay as er
-import matchProcessing as mp
+import experience_replay as er
+import match_processing as mp
 import championinfo as cinfo
 import draft_db_ops as dbo
 from draftstate import DraftState
@@ -85,7 +85,7 @@ for match in matches:
     else:
         team = DraftState.RED_TEAM if match["winner"]==1 else DraftState.BLUE_TEAM
 
-    experiences = mp.processMatch(match, team)
+    experiences = mp.process_match(match, team)
 
     pick_count = 0
     print("")

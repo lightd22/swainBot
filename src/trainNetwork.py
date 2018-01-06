@@ -5,8 +5,8 @@ import time
 from copy import deepcopy
 
 from draftstate import DraftState
-import matchProcessing as mp
-import experienceReplay as er
+import match_processing as mp
+import experience_replay as er
 from rewards import getReward
 from dueling_networks import self_train
 
@@ -138,7 +138,7 @@ def trainNetwork(online_net, target_net, training_matches, validation_matches, t
             for match in shuffled_matches:
                 for team in teams:
                     # Process match into individual experiences
-                    experiences = mp.processMatch(match, team)
+                    experiences = mp.process_match(match, team)
                     for experience in experiences:
                         # Some experiences include NULL submissions
                         # The learner isn't allowed to submit NULL picks so skip adding these
@@ -329,7 +329,7 @@ def validate_model(sess, validation_data, online_net, target_net):
         # Loss is only computed for winning side of drafts
         team = DraftState.RED_TEAM if match["winner"]==1 else DraftState.BLUE_TEAM
         # Process match into individual experiences
-        experiences = mp.processMatch(match, team)
+        experiences = mp.process_match(match, team)
         for exp in experiences:
             _,act,_,_ = exp
             (cid,pos) = act
@@ -338,7 +338,7 @@ def validate_model(sess, validation_data, online_net, target_net):
                 continue
             val_replay.store([exp])
 
-    n_experiences = val_replay.getBufferSize()
+    n_experiences = val_replay.get_buffer_size()
     val_experiences = val_replay.sample(n_experiences)
     state,_,_,_ = val_experiences[0]
     val_states = np.zeros((n_experiences,)+state.format_state().shape)
@@ -397,7 +397,7 @@ def score_match(sess, Qnet, match, team):
     actions = []
     states = []
     secondary_inputs = []
-    experiences = mp.processMatch(match,team)
+    experiences = mp.process_match(match,team)
     for exp in experiences:
         start,(cid,pos),_,_ = exp
         if cid is None:

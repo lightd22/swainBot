@@ -4,8 +4,8 @@ import json
 from draftstate import DraftState
 import champion_info as cinfo
 
-import experienceReplay as er
-import matchProcessing as mp
+import experience_replay as er
+import match_processing as mp
 
 import qNetwork
 from model import Model
@@ -112,7 +112,7 @@ for i in range(1):
 # Look at predicted Q values for states in a randomly drawn match
 match = random.sample(training_matches,1)[0]
 team = DraftState.RED_TEAM if match["winner"]==1 else DraftState.BLUE_TEAM
-experiences = mp.processMatch(match,team)
+experiences = mp.process_match(match,team)
 count = 0
 # x labels for q val plots
 xticks = []

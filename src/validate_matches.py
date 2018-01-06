@@ -1,4 +1,4 @@
-import matchProcessing as mp
+import match_processing as mp
 from draftstate import DraftState
 
 def validate_matches(match_list):
@@ -11,12 +11,12 @@ def validate_matches(match_list):
     for match in match_list:
         match_count += 1
         print("Match {}".format(match_count))
-        experiences = mp.processMatch(match,DraftState.BLUE_TEAM)
-        experiences = mp.processMatch(match,DraftState.RED_TEAM)
+        experiences = mp.process_match(match,DraftState.BLUE_TEAM)
+        experiences = mp.process_match(match,DraftState.RED_TEAM)
 
     return None
 
 if __name__ == "__main__":
-    match_data = mp.buildMatchPool(1085,randomize=False)
+    match_data = mp.build_match_pool(1085,randomize=False)
     match_list = match_data["matches"]
     result = validate_matches(match_list)
