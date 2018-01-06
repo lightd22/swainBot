@@ -6,7 +6,7 @@ import random
 
 from draftstate import DraftState
 import champion_info as cinfo
-import draftDbOps as dbo
+import draft_db_ops as dbo
 from rewards import get_reward
 import qNetwork
 
