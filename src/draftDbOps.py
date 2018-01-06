@@ -1,6 +1,6 @@
 import sqlite3
 import re
-from championinfo import champion_id_from_name,champion_name_from_id, convert_champion_alias, AliasException
+from champion_info import champion_id_from_name,champion_name_from_id, convert_champion_alias, AliasException
 
 regionsDict = {"NA_LCS":"NA", "EU_LCS":"EU", "LCK":"LCK", "LPL":"LPL",
                 "LMS":"LMS", "International":"INTL"}

@@ -77,9 +77,8 @@ if __name__ == "__main__":
     createTables(cur, tableNames, columnInfo, clobber = False)
 
     year = "2017"
-#    regions = ["EU_LCS","NA_LCS","LPL","LMS","LCK"]
-    regions = []
-    tournaments = ["Summer_Split", "Summer_Playoffs"]
+    regions = ["EU_LCS","NA_LCS","LPL","LMS","LCK"]
+    tournaments = ["Summer_Season", "Summer_Playoffs"]
     for region in regions:
         for tournament in tournaments:
             print("Querying: {}".format(year+"/"+region+"/"+tournament))
@@ -112,19 +111,22 @@ if __name__ == "__main__":
                             print("   Duplicate pos found! {}".format(pos))
                             print("  ".format(seen_positions))
 
-            print("Attempting to insert {} games..".format(len(gameData)))
-            status = dbo.insertTeam(cur,gameData)
-            status = dbo.insertGame(cur,gameData)
-            status = dbo.insertBan(cur,gameData)
-            status = dbo.insertPick(cur,gameData)
-            print("Committing changes to db..")
-            conn.commit()
+#            print("Attempting to insert {} games..".format(len(gameData)))
+#            status = dbo.insertTeam(cur,gameData)
+#            status = dbo.insertGame(cur,gameData)
+#            status = dbo.insertBan(cur,gameData)
+#            status = dbo.insertPick(cur,gameData)
+#            print("Committing changes to db..")
+#            conn.commit()
 
 #    print(json.dumps(game, indent=4, sort_keys=True))
 
     year = "2017"
     region = "International"
-    tournaments = ["WRLDS"]
+    tournaments = ["WORLDS/Play-In", "WORLDS/Main_Event",
+                    "WORLDS_QUALS/NA", "WORLDS_QUALS/EU",
+                    "WORLDS_QUALS/LCK", "WORLDS_QUALS/LPL",
+                    "WORLDS_QUALS/LMS", "MSI/Play-In", "MSI/Main_Event"]
 
     for tournament in tournaments:
         print("Querying: {}".format("/".join([year, region, tournament])))
@@ -157,13 +159,13 @@ if __name__ == "__main__":
                     else:
                         print("   Duplicate pos found! {}".format(pos))
                         print("  ".format(seen_positions))
-        print("Attempting to insert {} games..".format(len(gameData)))
-        status = dbo.insertTeam(cur,gameData)
-        status = dbo.insertGame(cur,gameData)
-        status = dbo.insertBan(cur,gameData)
-        status = dbo.insertPick(cur,gameData)
-        print("Committing changes to db..")
-        conn.commit()
+#        print("Attempting to insert {} games..".format(len(gameData)))
+#        status = dbo.insertTeam(cur,gameData)
+#        status = dbo.insertGame(cur,gameData)
+#        status = dbo.insertBan(cur,gameData)
+#        status = dbo.insertPick(cur,gameData)
+#        print("Committing changes to db..")
+#        conn.commit()
 
     query = (
     "SELECT game_id, champion_id, selection_order, side_id"

@@ -39,6 +39,7 @@ __m.championAliases = {
 "zil": "zilean",
 "naut": "nautilus",
 "morg": "morgana",
+"ez": "ezreal"
 }
 
 # This is a flag to make champion_info methods look for data stored locally

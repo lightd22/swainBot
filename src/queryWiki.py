@@ -40,15 +40,6 @@ def queryWiki(year, region, tournament):
 
     # Semi-standardized page suffixes for pick/ban pages
     page_suffixes = ["", "/Bracket_Stage", "/4-6", "/4-7", "/7-9", "/7-10", "/8-10"]
-    print(page_suffixes)
-#    max_week = 2
-#    for suffix in page_suffixes:
-#        new_suffixes = []
-#        for i in range(max_week):
-#            new_suffixes.append("/".join([suffix,"Week_{}".format(i+1)]))
-#        print(new_suffixes)
-#    page_suffixes.extend(new_suffixes)
-#    page_suffixes.extend(["/Knockout_Stage", "/Play-In_Stage/Round_1", "/Play-In_Stage/Round_2"])
 
     formatted_regions = {"NA_LCS":"League_Championship_Series/North_America",
                         "EU_LCS":"League_Championship_Series/Europe",
@@ -73,7 +64,6 @@ def queryWiki(year, region, tournament):
     else:
         formatted_region = formatted_regions[region]
         formatted_year = "_".join([year,"Season"])
-        #formatted_year = "_".join([year,formatted_region])
         title_root = [formatted_region, formatted_year, tournament]
     title_root.append("Picks_and_Bans")
     title_root = "/".join(title_root)
@@ -121,7 +111,7 @@ def queryWiki(year, region, tournament):
         # ex: bans[k] = list of bans for kth game on the page
         all_blue_bans = parseRawText("(blueban[0-9]=\w[\w\s',.]+)", raw_text)
         all_red_bans = parseRawText("(redban[0-9]=\w[\w\s',.]+)", raw_text)
-        assert len(all_blue_bans)==len(all_red_bans)
+        assert len(all_blue_bans)==len(all_red_bans), "blue bans: {}, red bans: {}".format(len(all_blue_bans),len(all_red_bans))
         bans_per_team = len(all_blue_bans)//num_games_on_page
 
         # blue_picks[i] = list of picks for kth game on the page
@@ -129,20 +119,9 @@ def queryWiki(year, region, tournament):
         all_blue_roles = parseRawText("(bluepick[0-9]role=\w[\w\s',.]+)", raw_text)
         all_red_picks = parseRawText("(redpick[0-9]=\w[\w\s',.]+)", raw_text)
         all_red_roles = parseRawText("(redpick[0-9]role=\w[\w\s',.]+)", raw_text)
-        assert len(all_blue_picks)==len(all_red_picks)
-        assert len(all_blue_roles)==len(all_red_roles), "blue roles {}, red roles {}".format(len(all_blue_roles),len(all_red_roles))
+        assert len(all_blue_picks)==len(all_red_picks), "blue picks: {}, red picks: {}".format(len(all_blue_picks),len(all_red_picks))
+        assert len(all_blue_roles)==len(all_red_roles), "blue roles: {}, red roles: {}".format(len(all_blue_roles),len(all_red_roles))
         picks_per_team = len(all_blue_picks)//num_games_on_page
-
-        print(bans_per_team)
-        print(picks_per_team)
-        print(len(all_blue_bans))
-        print(len(all_red_bans))
-        print(len(all_blue_picks))
-        print(len(all_blue_roles))
-        print(len(all_red_picks))
-        print(len(all_red_roles))
-        for role in all_blue_roles:
-            print(role)
 
         # Clean fields involving chanmpion names, looking for aliases if necessary
         all_blue_bans = cleanChampionNames(all_blue_bans)
@@ -309,7 +288,7 @@ def cleanChampionNames(names):
     return cleanedNames
 
 if __name__ == "__main__":
-    gameData = queryWiki("2017", "EU_LCS", "Summer_Season")
+    gameData = queryWiki("2017", "LMS", "Summer_Season")
     #gameData = queryWiki("2017", "International", "WORLDS_QUALS/NA")
     #gameData = queryWiki("2017", "International", "MSI")
     print("**********************************************")
