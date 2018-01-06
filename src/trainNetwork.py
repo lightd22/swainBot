@@ -168,12 +168,12 @@ def trainNetwork(online_net, target_net, training_matches, validation_matches, t
 
                             top_action = pred_act[0]
                             for action in pred_act:
-                                (cid,pos) = state.formatAction(action)
+                                (cid,pos) = state.format_action(action)
 
                                 pred_state = deepcopy(state)
-                                pred_state.updateState(cid,pos)
+                                pred_state.update(cid,pos)
 
-                                state_code = pred_state.evaluateState()
+                                state_code = pred_state.evaluate()
                                 r = getReward(pred_state, blank_match, (cid,pos), actual)
                                 new_experience = (state, (cid,pos), r, pred_state)
                                 if(state_code in DraftState.invalid_states):
@@ -211,7 +211,7 @@ def trainNetwork(online_net, target_net, training_matches, validation_matches, t
                                     # To dampen states (usually done after major patches or when the meta shifts)
                                     # we replace winning rewards with 0. (essentially a loss).
                                     reward = 0.
-                                state_code = endingState.evaluateState()
+                                state_code = endingState.evaluate()
                                 if(state_code==DraftState.DRAFT_COMPLETE or state_code in DraftState.invalid_states):
                                     # Action moves to terminal state
                                     updates.append(reward)
@@ -233,7 +233,7 @@ def trainNetwork(online_net, target_net, training_matches, validation_matches, t
                             # Update online net using target Q
                             # Experience replay stores action = (champion_id, position) pairs
                             # these need to be converted into the corresponding index of the input vector to the Qnet
-                            actions = np.array([startState.getAction(*exp[1]) for exp in training_batch])
+                            actions = np.array([startState.get_action(*exp[1]) for exp in training_batch])
                             _ = sess.run(online_net.update,
                                      feed_dict={online_net.input:np.stack([exp[0].format_state() for exp in training_batch],axis=0),
                                                 online_net.secondary_input:np.stack([exp[0].format_secondary_inputs() for exp in training_batch],axis=0),
@@ -350,8 +350,8 @@ def validate_model(sess, validation_data, online_net, target_net):
         val_states[n,:,:] = start.format_state()
         val_secondary_inputs[n,:] = start.format_secondary_inputs()
         (cid,pos) = act
-        val_actions[n] = start.getAction(cid,pos)
-        state_code = finish.evaluateState()
+        val_actions[n] = start.get_action(cid,pos)
+        state_code = finish.evaluate()
         if(state_code==DraftState.DRAFT_COMPLETE or state_code in DraftState.invalid_states):
             # Action moves to terminal state
             val_targets[n] = rew
@@ -403,7 +403,7 @@ def score_match(sess, Qnet, match, team):
         if cid is None:
             # Ignore missing bans (if present)
             continue
-        actions.append(start.getAction(cid,pos))
+        actions.append(start.get_action(cid,pos))
         states.append(start.format_state())
         secondary_inputs.append(start.format_secondary_inputs())
 

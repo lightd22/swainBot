@@ -1,7 +1,7 @@
 import experienceReplay as er
 import matchProcessing as mp
 import championinfo as cinfo
-import draftDbOps as dbo
+import draft_db_ops as dbo
 from draftstate import DraftState
 from model import Model
 
@@ -49,8 +49,8 @@ match_ids.extend(data["play_ins_rd2"])
 dbName = "competitiveGameData.db"
 conn = sqlite3.connect("tmp/"+dbName)
 cur = conn.cursor()
-#match_ids = dbo.getGameIdsByTournament(cur,"2017/INTL/WRLDS")
-matches = [dbo.getMatchData(cur,match_id) for match_id in match_ids]
+#match_ids = dbo.get_game_ids_by_tournament(cur,"2017/INTL/WRLDS")
+matches = [dbo.get_match_data(cur,match_id) for match_id in match_ids]
 conn.close()
 if(specific_team):
     matches = [match for match in matches if (match["blue_team"]==specific_team or match["red_team"]==specific_team)]
@@ -101,9 +101,9 @@ for match in matches:
 
         predicted_q_values = model.predict([state])
         predicted_q_values = predicted_q_values[0,:]
-        submitted_action_id = state.getAction(*act)
+        submitted_action_id = state.get_action(*act)
 
-        data = [(a,*state.formatAction(a),predicted_q_values[a]) for a in range(len(predicted_q_values))]
+        data = [(a,*state.format_action(a),predicted_q_values[a]) for a in range(len(predicted_q_values))]
         data = [(a,cinfo.champion_name_from_id(cid),pos,Q) for (a,cid,pos,Q) in data]
         df = pd.DataFrame(data, columns=['act_id','cname','pos','Q(s,a)'])
 

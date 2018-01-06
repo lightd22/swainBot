@@ -53,7 +53,7 @@ def self_train(sess, explore_prob, n_experiences=1):
         blue_state.reset()
         red_state.reset()
         submission_count = 0
-        while(blue_state.evaluateState() != DraftState.DRAFT_COMPLETE and red_state.evaluateState() != DraftState.DRAFT_COMPLETE):
+        while(blue_state.evaluate() != DraftState.DRAFT_COMPLETE and red_state.evaluate() != DraftState.DRAFT_COMPLETE):
             active_team = get_active_team(submission_count)
             inactive_team = 0 if active_team else 1
 
@@ -67,18 +67,18 @@ def self_train(sess, explore_prob, n_experiences=1):
                 pred_act = sess.run(online_pred,
                                 feed_dict={online_input:[state.format_state()],
                                 online_secondary_input:[state.format_secondary_inputs()]})
-            action = state.formatAction(pred_act[0])
+            action = state.format_action(pred_act[0])
             if(state.is_submission_legal(*action)):
                 # Update active state
-                state.updateState(*action)
+                state.update(*action)
                 # Update inactive state, remembering to mask non-bans submitted by opponent
                 (cid,pos) = action
                 inactive_pos = pos if pos==-1 else 0
-                draft[inactive_team].updateState(cid,inactive_pos)
+                draft[inactive_team].update(cid,inactive_pos)
                 submission_count += 1
             else:
                 bad_state = deepcopy(state)
-                bad_state.updateState(*action)
+                bad_state.update(*action)
                 experiences.append((start,action,getReward(bad_state,match,action,None),bad_state))
                 break
         successful_draft_count += 1
@@ -100,7 +100,7 @@ def dueling_networks(path_to_model):
         online_secondary_input = tf.get_default_graph().get_tensor_by_name("online/secondary_inputs:0")
 
         submission_count = 0
-        while(blue_state.evaluateState() != DraftState.DRAFT_COMPLETE and red_state.evaluateState() != DraftState.DRAFT_COMPLETE):
+        while(blue_state.evaluate() != DraftState.DRAFT_COMPLETE and red_state.evaluate() != DraftState.DRAFT_COMPLETE):
             active_team = get_active_team(submission_count)
             inactive_team = 0 if active_team else 1
             print("active {}".format(active_team))
@@ -108,13 +108,13 @@ def dueling_networks(path_to_model):
             pred_act = sess.run(online_pred,
                                 feed_dict={online_input:[state.format_state()],
                                 online_secondary_input:[state.format_secondary_inputs()]})
-            cid,pos = state.formatAction(pred_act[0])
+            cid,pos = state.format_action(pred_act[0])
             print("cid={} pos={}".format(cid,pos))
             # Update active state
-            state.updateState(cid,pos)
+            state.update(cid,pos)
             # Update inactive state, remembering to mask non-bans submitted by opponent
             inactive_pos = pos if pos==-1 else 0
-            draft[inactive_team].updateState(cid,inactive_pos)
+            draft[inactive_team].update(cid,inactive_pos)
             submission_count += 1
 
     return draft
@@ -125,5 +125,5 @@ if __name__ == "__main__":
     print("Restoring model: {}".format(path_to_model))
 
     draft = dueling_networks(path_to_model)
-    draft[0].displayState()
-    draft[1].displayState()
+    draft[0].display()
+    draft[1].display()

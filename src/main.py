@@ -118,7 +118,7 @@ count = 0
 xticks = []
 xtick_locs = []
 for a in range(state.num_actions):
-    cid,pos = state.formatAction(a)
+    cid,pos = state.format_action(a)
     if cid not in xticks:
         xticks.append(cid)
         xtick_locs.append(a)
@@ -133,13 +133,13 @@ for exp in experiences:
     if cid == None:
         continue
     count += 1
-    form_act = state.getAction(cid,pos)
+    form_act = state.get_action(cid,pos)
     pred_act = model.predict_action([state])
     pred_act = pred_act[0]
     pred_Q = model.predict([state])
     pred_Q = pred_Q[0,:]
 
-    p_cid,p_pos = state.formatAction(pred_act)
+    p_cid,p_pos = state.format_action(pred_act)
     actual = (cinfo.champion_name_from_id(cid),pos,pred_Q[form_act])
     pred = (cinfo.champion_name_from_id(p_cid),p_pos,pred_Q[pred_act])
     print("pred:{}, actual:{}".format(pred,actual))

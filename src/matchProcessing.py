@@ -5,7 +5,7 @@ from rewards import getReward
 from copy import deepcopy
 
 import sqlite3
-import draftDbOps as dbo
+import draft_db_ops as dbo
 
 import random
 import json
@@ -19,7 +19,7 @@ def get_matches_by_id(match_ids):
     cur = conn.cursor()
     match_data = []
     for match_id in match_ids:
-        match = dbo.getMatchData(cur, match_id)
+        match = dbo.get_match_data(cur, match_id)
         match_data.append(match)
     conn.close()
     return match_data
@@ -67,7 +67,7 @@ def buildMatchPool(num_matches, randomize=True):
     match_pool = []
     # Build list of eligible match ids
     for tournament in tournaments:
-        game_ids = dbo.getGameIdsByTournament(cur, tournament)
+        game_ids = dbo.get_game_ids_by_tournament(cur, tournament)
         match_pool.extend(game_ids)
 
     print("Number of available matches for training={}".format(len(match_pool)))
@@ -81,7 +81,7 @@ def buildMatchPool(num_matches, randomize=True):
 
     selected_matches = []
     for match_id in selected_match_ids:
-        match = dbo.getMatchData(cur, match_id)
+        match = dbo.get_match_data(cur, match_id)
         selected_matches.append(match)
     conn.close()
     return {"match_ids":selected_match_ids, "matches":selected_matches}
@@ -172,14 +172,14 @@ def processMatch(match, team, augment_data=True):
             if position != -1:
                 position = 0
 
-        draft.updateState(pick, position)
+        draft.update(pick, position)
 
     # Once the queue is empty, store last memory. This is case 2 above.
     # There is always an outstanding memory at the completion of the draft.
     # RED_TEAM always gets last pick. Therefore:
     #   if team = BLUE_TEAM -> There is an outstanding memory from last RED_TEAM submission
     #   if team = RED_TEAM -> Memory is open from just before our last submission
-    if(draft.evaluateState() == DraftState.DRAFT_COMPLETE):
+    if(draft.evaluate() == DraftState.DRAFT_COMPLETE):
         assert finish_memory == True
         r = getReward(draft, match, a, a)
         s_next = deepcopy(draft)
@@ -187,8 +187,8 @@ def processMatch(match, team, augment_data=True):
         experiences.append(memory)
     else:
         print("{} vs {}".format(match["blue_team"],match["red_team"]))
-        draft.displayState()
-        print("Error code {}".format(draft.evaluateState()))
+        draft.display()
+        print("Error code {}".format(draft.evaluate()))
         print("Number of experiences {}".format(len(experiences)))
         for experience in experiences:
             _,a,_,_ = experience

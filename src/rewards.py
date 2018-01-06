@@ -17,7 +17,7 @@ def getReward(state, match, submitted_action, actual_action):
         3) state is complete, valid but the submission was made by the losing team -> reward = +2.5
         3) state is valid, but incomplete  -> reward = 0
     """
-    status = state.evaluateState()
+    status = state.evaluate()
     if(status in ds.invalid_states):
         return -10.
 
