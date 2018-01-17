@@ -128,7 +128,7 @@ class Qnetwork():
             self.dropout1 = tf.nn.dropout(pool3_flat,self.dropout_keep_prob)
             self.secondary_input = tf.placeholder(tf.float32, (None,)+self._secondary_input_shape, name="secondary_inputs")
 
-            self.fc_input = tf.concat([self.dropout1,self.secondary_input],axis=1)
+            self.fc_input = tf.concat([self.dropout1, self.secondary_input],axis=1)
             #self.fc_input = tf.concat([pool3_flat,self.secondary_input],axis=1)
             fc1_input_size = int(self.fc_input.shape[1])
             fc1_output_size = fc1_input_size//2

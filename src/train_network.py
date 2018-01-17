@@ -9,6 +9,7 @@ import match_processing as mp
 import experience_replay as er
 from rewards import get_reward
 from dueling_networks import self_train
+import pandas as pd
 
 def train_network(online_net, target_net, training_matches, validation_matches, train_epochs, batch_size, buffer_size, dampen_states = False, load_model = False, verbose = False):
     """
@@ -56,13 +57,13 @@ def train_network(online_net, target_net, training_matches, validation_matches, 
     assert(pre_training_steps <= buffer_size), "Replay not large enough for pre-training!"
     assert(pre_training_steps >= batch_size), "Buffer not allowed to fill enough before sampling!"
     # Number of steps to force learner to observe submitted actions, rather than submit its own actions
-    observations = 2000
+    observations = 2*num_episodes*20#2000
     epsilon = 0.5 # Initial probability of letting the learner submit its own action
     eps_decay_rate = 1./(25*20*len(training_matches)) # Rate at which epsilon decays per submission
     # Number of steps to take between training
     update_freq = 1 # There are 10 submissions per match per side
-    overwrite_initial_lr = 2.0e-5 # Overwrite default lr for network
-    lr_decay_freq = 5 # Decay learning rate after a set number of epochs
+    overwrite_initial_lr = None#2.0e-5 # Overwrite default lr for network
+    lr_decay_freq = 20 # Decay learning rate after a set number of epochs
     min_learning_rate = 1.e-8 # Minimum learning rate allowed to decay to
 
     teams = [DraftState.BLUE_TEAM, DraftState.RED_TEAM]
@@ -77,7 +78,7 @@ def train_network(online_net, target_net, training_matches, validation_matches, 
         if load_model:
             # Open saved model
             path_to_model = "tmp/model_E{}.ckpt".format(25)
-            #path_to_model = "model_predictions/play_ins_rd2/model_play_ins_rd2.ckpt"
+            #path_to_model = "model_predictions/validation/run_4/model_E25.ckpt"
             online_net.saver.restore(sess,path_to_model)
             print("\nCheckpoint loaded from {}".format(path_to_model))
 
@@ -313,19 +314,19 @@ def create_target_initialization_ops(target_scope, online_scope):
     """
     return create_target_update_ops(target_scope, online_scope, tau=1.0, name="target_init")
 
-def validate_model(sess, validation_data, online_net, target_net):
+def validate_model(sess, data, online_net, target_net):
     """
     Validates given model by computing loss and absolute accuracy for validation data using current Qnet estimates.
     Args:
         sess (tensorflow Session): TF Session to run model in
-        validation_data (list(dict)): list of matches to validate against
+        data (list(dict)): list of matches to validate against
         online_net (qNetwork): "live" Q-network to be validated
         target_net (qNetwork): target Q-network used to generate target values
     Returns:
         stats (tuple(float)): list of statistical measures of performance. stats = (loss,acc)
     """
-    val_replay = er.ExperienceBuffer(10*len(validation_data))
-    for match in validation_data:
+    replay = er.ExperienceBuffer(10*len(data))
+    for match in data:
         # Loss is only computed for winning side of drafts
         team = DraftState.RED_TEAM if match["winner"]==1 else DraftState.BLUE_TEAM
         # Process match into individual experiences
@@ -336,25 +337,24 @@ def validate_model(sess, validation_data, online_net, target_net):
             if cid is None:
                 # Skip null actions such as missing/skipped bans
                 continue
-            val_replay.store([exp])
+            replay.store([exp])
 
-    n_experiences = val_replay.get_buffer_size()
-    val_experiences = val_replay.sample(n_experiences)
-    state,_,_,_ = val_experiences[0]
-    val_states = np.zeros((n_experiences,)+state.format_state().shape)
-    val_secondary_inputs = np.zeros((n_experiences,)+state.format_secondary_inputs().shape)
-    val_actions = np.zeros((n_experiences,))
-    val_targets = np.zeros((n_experiences,))
+    n_experiences = replay.get_buffer_size()
+    experiences = replay.sample(n_experiences)
+    state,_,_,_ = experiences[0]
+    states = np.zeros((n_experiences,)+state.format_state().shape)
+    secondary_inputs = np.zeros((n_experiences,)+state.format_secondary_inputs().shape)
+    actions = np.zeros((n_experiences,))
+    targets = np.zeros((n_experiences,))
     for n in range(n_experiences):
-        start,act,rew,finish = val_experiences[n]
-        val_states[n,:,:] = start.format_state()
-        val_secondary_inputs[n,:] = start.format_secondary_inputs()
-        (cid,pos) = act
-        val_actions[n] = start.get_action(cid,pos)
+        start,act,rew,finish = experiences[n]
+        states[n,:,:] = start.format_state()
+        secondary_inputs[n,:] = start.format_secondary_inputs()
+        actions[n] = start.get_action(*act)
         state_code = finish.evaluate()
         if(state_code==DraftState.DRAFT_COMPLETE or state_code in DraftState.invalid_states):
             # Action moves to terminal state
-            val_targets[n] = rew
+            targets[n] = rew
         else:
             # Each row in predictedQ gives estimated Q(s',a) values for each possible action for the input state s'.
             predicted_Q = sess.run(target_net.outQ,
@@ -362,25 +362,41 @@ def validate_model(sess, validation_data, online_net, target_net):
                             target_net.secondary_input:[finish.format_secondary_inputs()]})
             # To get max_{a} Q(s',a) values take max along *rows* of predictedQ.
             max_Q = np.max(predicted_Q,axis=1)[0]
-            val_targets[n] = (rew + online_net.discount_factor*max_Q)
+            targets[n] = (rew + online_net.discount_factor*max_Q)
 
-    loss,pred_actions = sess.run([online_net.loss, online_net.prediction],
-                          feed_dict={online_net.input:val_states,
-                                online_net.secondary_input:val_secondary_inputs,
-                                online_net.actions:val_actions,
-                                online_net.target:val_targets})
+    loss, pred_actions, pred_Q = sess.run([online_net.loss, online_net.prediction, online_net.outQ],
+                          feed_dict={online_net.input:states,
+                                online_net.secondary_input:secondary_inputs,
+                                online_net.actions:actions,
+                                online_net.target:targets})
     accurate_predictions = 0.
-    for match in validation_data:
-        actions = []
-        states = []
-        blue_score = score_match(sess,online_net,match,DraftState.BLUE_TEAM)
-        red_score = score_match(sess,online_net,match,DraftState.RED_TEAM)
-        predicted_winner = DraftState.BLUE_TEAM if blue_score >= red_score else DraftState.RED_TEAM
-        match_winner = DraftState.RED_TEAM if match["winner"]==1 else DraftState.BLUE_TEAM
-        if predicted_winner == match_winner:
-            accurate_predictions +=1
-    val_accuracy = accurate_predictions/len(validation_data)
-    return (loss, val_accuracy)
+    target_rank = 5
+    for n in range(n_experiences):
+        _,act,_,_ = experiences[n]
+        submitted_action_id = state.get_action(*act)
+
+        data = [(a,pred_Q[n,a]) for a in range(pred_Q.shape[1])]
+        df = pd.DataFrame(data, columns=['act_id','Q'])
+        df.sort_values('Q',ascending=False,inplace=True)
+        df.reset_index(drop=True,inplace=True)
+        df['rank'] = df.index
+        submitted_row = df[df['act_id']==submitted_action_id]
+        rank = submitted_row['rank'].iloc[0]
+        if rank < target_rank:
+            accurate_predictions += 1
+
+    accuracy = accurate_predictions/n_experiences
+#    for match in data:
+#        actions = []
+#        states = []
+#        blue_score = score_match(sess,online_net,match,DraftState.BLUE_TEAM)
+#        red_score = score_match(sess,online_net,match,DraftState.RED_TEAM)
+#        predicted_winner = DraftState.BLUE_TEAM if blue_score >= red_score else DraftState.RED_TEAM
+#        match_winner = DraftState.RED_TEAM if match["winner"]==1 else DraftState.BLUE_TEAM
+#        if predicted_winner == match_winner:
+#            accurate_predictions +=1
+#    accuracy = accurate_predictions/len(data)
+    return (loss, accuracy)
 
 def score_match(sess, Qnet, match, team):
     """

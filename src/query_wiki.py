@@ -166,11 +166,14 @@ def query_wiki(year, region, tournament):
                 tournGameId += 1
                 bans = {"blue": blue_bans[k], "red":red_bans[k]}
                 picks = {"blue": blue_picks[k], "red":red_picks[k]}
+                blue = {"bans": blue_bans[k], "picks":blue_picks[k]}
+                red = {"bans": red_bans[k], "picks":red_picks[k]}
                 gameData = {"region": region, "year":year, "tournament": tournament,
                             "blue_team": blue_teams[k], "red_team": red_teams[k],
                             "winning_team": winning_teams[k],
                             "blue_score":blue_scores[k], "red_score":red_scores[k],
-                            "bans": bans, "picks": picks, "tourn_game_id": tournGameId}
+                            "bans": bans, "picks": picks, "blue":blue, "red":red,
+                            "tourn_game_id": tournGameId}
                 formattedData.append(gameData)
 
     return formattedData

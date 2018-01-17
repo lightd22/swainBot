@@ -34,6 +34,9 @@ worlds_groups = worlds_data["groups"]
 worlds_knockouts = worlds_data["knockouts"]
 worlds_finals = worlds_data["finals"]
 
+all_worlds_matches = worlds_play_ins+worlds_groups+worlds_knockouts+worlds_finals
+random.shuffle(all_worlds_matches)
+
 # Store training match data in a json file (for use later)
 reuse_matches = True
 if reuse_matches:
@@ -49,6 +52,7 @@ if reuse_matches:
     n_training = len(training_ids)
     training_matches = mp.get_matches_by_id(training_ids)
     validation_matches = mp.get_matches_by_id(validation_ids)
+    print(n_matches, n_training, len(validation_ids))
 else:
     n_val = 3
 
@@ -75,18 +79,32 @@ count = 0
 for match in validation_matches:
     count += 1
     print("Match: {:2} id: {:4} {:6} vs {:6} winner: {:2}".format(count, match["id"], match["blue_team"], match["red_team"], match["winner"]))
+    for team in ["blue", "red"]:
+        bans = match[team]["bans"]
+        picks = match[team]["picks"]
+        pretty_bans = []
+        pretty_picks = []
+        for ban in bans:
+            pretty_bans.append(cinfo.champion_name_from_id(ban[0]))
+        for pick in picks:
+            pretty_picks.append((cinfo.champion_name_from_id(pick[0]), pick[1]))
+        print("{} bans:{}".format(team, pretty_bans))
+        print("{} picks:{}".format(team, pretty_picks))
+    print("")
 print("***")
+
 # Network parameters
 state = DraftState(DraftState.BLUE_TEAM,valid_champ_ids)
 input_size = state.format_state().shape
 output_size = state.num_actions
-filter_size = (32,32,64)
+filter_size = (64,128,256)
 regularization_coeff = 7.5e-5#1.5e-4
+load_model = False
 
 # Training parameters
 batch_size = 16#32
-buffer_size = 2048#4096
-n_epoch = 25
+buffer_size = 4096#2048
+n_epoch = 100
 discount_factor = 0.9
 learning_rate = 2.0e-5#1.0e-4
 
@@ -94,9 +112,13 @@ for i in range(1):
     tf.reset_default_graph()
     online_net = qNetwork.Qnetwork("online",input_size, output_size, filter_size, learning_rate, regularization_coeff, discount_factor)
     target_net = qNetwork.Qnetwork("target",input_size, output_size, filter_size, learning_rate, regularization_coeff, discount_factor)
-    n_epoch = n_epoch*(i+1)
+
+    training_ids = []
+    training_ids.extend(data["training_ids"])
+    training_ids.extend(mp.build_match_pool(950)["match_ids"])
+    training_matches = mp.get_matches_by_id(training_ids)
     print("Learning on {} matches for {} epochs. lr {:.4e} reg {:4e}".format(len(training_matches),n_epoch, learning_rate, regularization_coeff),flush=True)
-    loss,train_acc = tn.train_network(online_net,target_net,training_matches,validation_matches,n_epoch,batch_size,buffer_size,dampen_states=False,load_model=True,verbose=True)
+    loss,train_acc = tn.train_network(online_net,target_net,training_matches,validation_matches,n_epoch,batch_size,buffer_size,dampen_states=False,load_model=load_model,verbose=True)
     print("Learning complete!")
     print("..final training accuracy: {:.4f}".format(train_acc))
     x = [i+1 for i in range(len(loss))]

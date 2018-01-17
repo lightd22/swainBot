@@ -12,9 +12,9 @@ import tensorflow as tf
 import sqlite3
 import math
 
-#path_to_model = "model_predictions/finals/model_E12"
-path_to_model = "tmp/models/dec/14/second_run/model_E25"
-#path_to_model = "tmp/model_E25"
+#path_to_model = "model_predictions/validation/run_4/model_E25"
+#path_to_model = "tmp/models/model_E60"
+path_to_model = "tmp/model_E100"
 print("***")
 print("Loading Model From: {}".format(path_to_model))
 print("***")
@@ -35,16 +35,16 @@ print("***")
 
 model = Model(path_to_model)
 
-with open('worlds_matchids_by_stage.txt','r') as infile:
-    data = json.load(infile)
-match_ids = data["groups"]
-match_ids.extend(data["knockouts"])
-match_ids.extend(data["finals"])
-match_ids.extend(data["play_ins_rd1"])
-match_ids.extend(data["play_ins_rd2"])
-#with open('match_pool.txt','r') as infile:
+#with open('worlds_matchids_by_stage.txt','r') as infile:
 #    data = json.load(infile)
-#match_ids = data['validation_ids']
+#match_ids = data["groups"]
+#match_ids.extend(data["knockouts"])
+#match_ids.extend(data["finals"])
+#match_ids.extend(data["play_ins_rd1"])
+#match_ids.extend(data["play_ins_rd2"])
+with open('match_pool.txt','r') as infile:
+    data = json.load(infile)
+match_ids = data['validation_ids']
 #match_ids.extend(data['training_ids'])
 dbName = "competitiveGameData.db"
 conn = sqlite3.connect("tmp/"+dbName)
@@ -76,7 +76,8 @@ k = 5 # Rank to look for in topk range
 full_diag = {"top1":0, "topk":0, "l2":[],"k":k}
 no_rd1_ban_diag = {"top1":0, "topk":0, "l2":[],"k":k}
 no_ban_diag = {"top1":0, "topk":0, "l2":[],"k":k}
-model_diagnostics = {"full":full_diag, "no_rd1_ban":no_rd1_ban_diag, "no_bans":no_ban_diag}
+second_phase_only = {"top1":0, "topk":0, "l2":[],"k":k}
+model_diagnostics = {"full":full_diag, "no_rd1_ban":no_rd1_ban_diag, "no_bans":no_ban_diag, "phase_2_only":second_phase_only}
 position_distributions = {"phase_1":[0,0,0,0,0], "phase_2":[0,0,0,0,0]}
 actual_pos_distributions = {"phase_1":[0,0,0,0,0], "phase_2":[0,0,0,0,0]}
 for match in matches:
@@ -134,6 +135,14 @@ for match in matches:
                 model_diagnostics["no_rd1_ban"]["topk"] += 1
             model_diagnostics["no_rd1_ban"]["l2"].append(err)
 
+        # Norms excluding round 1 completely
+        if(pick_count > 5):
+            if(rank == 0):
+                model_diagnostics["phase_2_only"]["top1"] += 1
+            if(rank < k):
+                model_diagnostics["phase_2_only"]["topk"] += 1
+            model_diagnostics["phase_2_only"]["l2"].append(err)
+
         # Norms excluding all bans
         if(pos != -1):
             if(rank == 0):
@@ -178,7 +187,7 @@ for phase in ["phase_1", "phase_2"]:
 
 print("******************")
 print("Norm Information:")
-for key in model_diagnostics.keys():
+for key in sorted(model_diagnostics.keys()):
     print(" {}".format(key))
     err_list = model_diagnostics[key]["l2"]
     err = math.sqrt((sum([e**2 for e in err_list])/len(err_list)))

@@ -22,7 +22,7 @@ def get_reward(state, match, submitted_action, actual_action):
         return -10.
 
     reward = 0.
-    winner = getWinningTeam(match)
+    winner = get_winning_team(match)
     if(status == ds.DRAFT_COMPLETE and winner is not None):
         if(state.team == winner):
             reward += 5.
@@ -36,7 +36,7 @@ def get_reward(state, match, submitted_action, actual_action):
 
     return reward
 
-def getWinningTeam(match):
+def get_winning_team(match):
     """
     Args:
         match (dict): match dictionary with pick and ban data for a single game.
@@ -46,7 +46,7 @@ def getWinningTeam(match):
           val = DraftState.BLUE_TEAM if blue team won
           val = None if match does not have data for winning team
 
-    getWinningTeam returns the winning team of the input match encoded as an integer according to DraftState.
+    get_winning_team returns the winning team of the input match encoded as an integer according to DraftState.
     """
     if match["winner"]==0:
         return ds.BLUE_TEAM
