@@ -14,7 +14,7 @@ import math
 
 #path_to_model = "model_predictions/validation/run_4/model_E25"
 #path_to_model = "tmp/models/model_E60"
-path_to_model = "tmp/model_E100"
+path_to_model = "tmp/model_E10"
 print("***")
 print("Loading Model From: {}".format(path_to_model))
 print("***")

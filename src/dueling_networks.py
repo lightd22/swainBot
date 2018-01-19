@@ -43,7 +43,7 @@ def self_train(sess, explore_prob, n_experiences=1):
 
     online_pred = tf.get_default_graph().get_tensor_by_name("online/prediction:0")
     online_input = tf.get_default_graph().get_tensor_by_name("online/inputs:0")
-    online_secondary_input = tf.get_default_graph().get_tensor_by_name("online/secondary_inputs:0")
+    online_valid_actions = tf.get_default_graph().get_tensor_by_name("online/valid_actions:0")
 
     experiences = []
     successful_draft_count = 0
@@ -66,7 +66,7 @@ def self_train(sess, explore_prob, n_experiences=1):
             else:
                 pred_act = sess.run(online_pred,
                                 feed_dict={online_input:[state.format_state()],
-                                online_secondary_input:[state.format_secondary_inputs()]})
+                                online_valid_actions:[state.get_valid_actions()]})
             action = state.format_action(pred_act[0])
             if(state.is_submission_legal(*action)):
                 # Update active state
@@ -97,7 +97,7 @@ def dueling_networks(path_to_model):
         online_out = tf.get_default_graph().get_tensor_by_name("online/outputs:0")
         online_pred = tf.get_default_graph().get_tensor_by_name("online/prediction:0")
         online_input = tf.get_default_graph().get_tensor_by_name("online/inputs:0")
-        online_secondary_input = tf.get_default_graph().get_tensor_by_name("online/secondary_inputs:0")
+        online_valid_actions = tf.get_default_graph().get_tensor_by_name("online/valid_actions:0")
 
         submission_count = 0
         while(blue_state.evaluate() != DraftState.DRAFT_COMPLETE and red_state.evaluate() != DraftState.DRAFT_COMPLETE):
@@ -107,7 +107,7 @@ def dueling_networks(path_to_model):
             state = draft[active_team]
             pred_act = sess.run(online_pred,
                                 feed_dict={online_input:[state.format_state()],
-                                online_secondary_input:[state.format_secondary_inputs()]})
+                                online_valid_actions:[state.get_valid_actions()]})
             cid,pos = state.format_action(pred_act[0])
             print("cid={} pos={}".format(cid,pos))
             # Update active state

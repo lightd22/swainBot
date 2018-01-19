@@ -104,7 +104,7 @@ load_model = False
 # Training parameters
 batch_size = 16#32
 buffer_size = 4096#2048
-n_epoch = 100
+n_epoch = 10
 discount_factor = 0.9
 learning_rate = 2.0e-5#1.0e-4
 
@@ -115,7 +115,7 @@ for i in range(1):
 
     training_ids = []
     training_ids.extend(data["training_ids"])
-    training_ids.extend(mp.build_match_pool(950)["match_ids"])
+    #training_ids.extend(mp.build_match_pool(950)["match_ids"])
     training_matches = mp.get_matches_by_id(training_ids)
     print("Learning on {} matches for {} epochs. lr {:.4e} reg {:4e}".format(len(training_matches),n_epoch, learning_rate, regularization_coeff),flush=True)
     loss,train_acc = tn.train_network(online_net,target_net,training_matches,validation_matches,n_epoch,batch_size,buffer_size,dampen_states=False,load_model=load_model,verbose=True)

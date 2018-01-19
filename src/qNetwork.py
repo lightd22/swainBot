@@ -45,7 +45,7 @@ class Qnetwork():
         self._n_layers = self._n_hidden_layers + 2
 
         with tf.variable_scope(self._name):
-            self.learning_rate = tf.Variable(learning_rate,trainable=False, name="learning_rate")
+            self.learning_rate = tf.Variable(learning_rate, trainable=False, name="learning_rate")
 
             # Incoming state matrices are of size input_size = (nChampions, nPos+2)
             # 'None' here means the input tensor will flex with the number of training
@@ -54,6 +54,7 @@ class Qnetwork():
             # Reshape input for conv layer to be a tensor of shape [None, nChampions, nPos+2, 1]
             # The extra '1' dimension added at the end represents the number of input channels
             # (normally color channels for an image).
+
             conv_input = tf.expand_dims(self.input,-1)
 
             # First convolutional layer:
@@ -126,28 +127,29 @@ class Qnetwork():
             pool3_flat = tf.reshape(self.pool3, [-1, dim])
             self.dropout_keep_prob = tf.placeholder_with_default(1.0,shape=())
             self.dropout1 = tf.nn.dropout(pool3_flat,self.dropout_keep_prob)
-            self.secondary_input = tf.placeholder(tf.float32, (None,)+self._secondary_input_shape, name="secondary_inputs")
 
-            self.fc_input = tf.concat([self.dropout1, self.secondary_input],axis=1)
-            #self.fc_input = tf.concat([pool3_flat,self.secondary_input],axis=1)
-            fc1_input_size = int(self.fc_input.shape[1])
+            fc1_input_size = int(self.dropout1.shape[1])
             fc1_output_size = fc1_input_size//2
 
             self.fc1_weights = Qnetwork.weight_variable([fc1_input_size,fc1_output_size],"fc1_weight")
             self.fc1_biases = Qnetwork.bias_variable([fc1_output_size],"fc1_bias")
 
-            self.fc1 = tf.nn.relu(tf.add(tf.matmul(self.fc_input, self.fc1_weights), self.fc1_biases),name="fc1")
+            self.fc1 = tf.nn.relu(tf.add(tf.matmul(self.dropout1, self.fc1_weights), self.fc1_biases),name="fc1")
             self.dropout2 = tf.nn.dropout(self.fc1,self.dropout_keep_prob)
 
             # FC output layer
             self.fc2_weights = Qnetwork.weight_variable([fc1_output_size,output_shape],"fc2_weight")
             self.fc2_biases = Qnetwork.bias_variable([output_shape],"fc2_bias")
-            self.outQ = tf.add(tf.matmul(self.dropout2, self.fc2_weights), self.fc2_biases, name="outputs")
+            self.outQ = tf.add(tf.matmul(self.dropout2, self.fc2_weights), self.fc2_biases, name="q_vals")
 
-            # Predicted optimal action
             self.valid_actions = tf.placeholder(tf.bool, shape=self.outQ.shape, name="valid_actions")
-            self.prediction  = tf.argmax(tf.where(self.valid_actions, self.outQ, tf.scalar_mul(-np.inf,tf.ones_like(self.outQ))), axis=1, name="prediction")
-            #self.prediction = tf.argmax(self.outQ, axis=1, name="prediction")
+            self.valid_outQ = tf.where(self.valid_actions, self.outQ, tf.scalar_mul(-np.inf,tf.ones_like(self.outQ)), name="valid_q_vals")
+
+            # Max Q value amongst valid actions
+            self.max_Q = tf.reduce_max(self.valid_outQ, axis=1, name="max_Q")
+
+            # Predicted optimal action amongst valid actions
+            self.prediction  = tf.argmax(self.valid_outQ, axis=1, name="prediction")
 
             # Loss function and optimization:
             # The inputs self.target and self.actions are indexed by training example. If

@@ -8,7 +8,6 @@ from draftstate import DraftState
 import match_processing as mp
 import experience_replay as er
 from rewards import get_reward
-from dueling_networks import self_train
 import pandas as pd
 
 def train_network(online_net, target_net, training_matches, validation_matches, train_epochs, batch_size, buffer_size, dampen_states = False, load_model = False, verbose = False):
@@ -57,8 +56,8 @@ def train_network(online_net, target_net, training_matches, validation_matches, 
     assert(pre_training_steps <= buffer_size), "Replay not large enough for pre-training!"
     assert(pre_training_steps >= batch_size), "Buffer not allowed to fill enough before sampling!"
     # Number of steps to force learner to observe submitted actions, rather than submit its own actions
-    observations = 2*num_episodes*20#2000
-    epsilon = 0.5 # Initial probability of letting the learner submit its own action
+    observations = 2000 #2*num_episodes*20
+    epsilon = 0.0 # Initial probability of letting the learner submit its own action
     eps_decay_rate = 1./(25*20*len(training_matches)) # Rate at which epsilon decays per submission
     # Number of steps to take between training
     update_freq = 1 # There are 10 submissions per match per side
@@ -125,17 +124,6 @@ def train_network(online_net, target_net, training_matches, validation_matches, 
             # Shuffle match presentation order
             shuffled_matches = random.sample(training_matches,len(training_matches))
 
-            # Run model through a self-training iteration, including exploration
-            experiences = self_train(sess, epsilon, n_experiences=20)
-            # If self training results in illegal states, add it to memory
-            if experiences:
-                print("adding {} self-trained experiences..".format(len(experiences)))
-#                for exp in experiences:
-#                    _,_,r,_ = exp
-#                    print("reward (should be negative) = {}".format(r))
-                experience_replay.store(experiences)
-                learner_submitted_counts += len(experiences)
-
             for match in shuffled_matches:
                 for team in teams:
                     # Process match into individual experiences
@@ -158,12 +146,12 @@ def train_network(online_net, target_net, training_matches, validation_matches, 
                             if(random.random() < epsilon):
                                 random_submission = True
                                 # Explore state space by submitting random action and checking if that action is legal
-                                pred_act = [random.randint(0,state.num_actions-1)]
+                                pred_act = random.sample(state.get_valid_actions(form="list"),1)
                             else:
                                 # Let model make prediction
-                                pred_Q = sess.run(online_net.outQ,
-                                                feed_dict={online_net.input:[state.format_state()],
-                                                           online_net.secondary_input:[state.format_secondary_inputs()]})
+                                pred_Q = sess.run(online_net.valid_outQ,
+                                    feed_dict={online_net.input:[state.format_state()],
+                                               online_net.valid_actions:[state.get_valid_actions()]})
                                 sorted_actions = pred_Q[0,:].argsort()[::-1]
                                 pred_act = sorted_actions[0:4] # top 5 actions by model
 
@@ -222,10 +210,9 @@ def train_network(online_net, target_net, training_matches, validation_matches, 
                                     # Each row in predicted_Q gives estimated Q(s',a) values for all possible actions for the input state s'.
                                     predicted_action = sess.run(online_net.prediction,
                                                         feed_dict={online_net.input:[endingState.format_state()],
-                                                                   online_net.secondary_input:[endingState.format_secondary_inputs()]})[0]
+                                                                   online_net.valid_actions:[endingState.get_valid_actions()]})[0]
                                     predicted_Q = sess.run(target_net.outQ,
-                                                        feed_dict={target_net.input:[endingState.format_state()],
-                                                                   target_net.secondary_input:[endingState.format_secondary_inputs()]})
+                                                        feed_dict={target_net.input:[endingState.format_state()]})
                                     updates.append(reward + online_net.discount_factor*predicted_Q[0,predicted_action])
 
                             targetQ = np.array(updates)
@@ -237,7 +224,6 @@ def train_network(online_net, target_net, training_matches, validation_matches, 
                             actions = np.array([startState.get_action(*exp[1]) for exp in training_batch])
                             _ = sess.run(online_net.update,
                                      feed_dict={online_net.input:np.stack([exp[0].format_state() for exp in training_batch],axis=0),
-                                                online_net.secondary_input:np.stack([exp[0].format_secondary_inputs() for exp in training_batch],axis=0),
                                                 online_net.actions:actions,
                                                 online_net.target:targetQ,
                                                 online_net.dropout_keep_prob:0.5})
@@ -342,33 +328,32 @@ def validate_model(sess, data, online_net, target_net):
     n_experiences = replay.get_buffer_size()
     experiences = replay.sample(n_experiences)
     state,_,_,_ = experiences[0]
-    states = np.zeros((n_experiences,)+state.format_state().shape)
-    secondary_inputs = np.zeros((n_experiences,)+state.format_secondary_inputs().shape)
-    actions = np.zeros((n_experiences,))
-    targets = np.zeros((n_experiences,))
-    for n in range(n_experiences):
-        start,act,rew,finish = experiences[n]
-        states[n,:,:] = start.format_state()
-        secondary_inputs[n,:] = start.format_secondary_inputs()
-        actions[n] = start.get_action(*act)
+    states = []
+    actions = []
+    targets = []
+    for exp in experiences:
+        start, act, rew, finish = exp
+
+        states.append(start)
+        actions.append(start.get_action(*act))
+
         state_code = finish.evaluate()
         if(state_code==DraftState.DRAFT_COMPLETE or state_code in DraftState.invalid_states):
             # Action moves to terminal state
-            targets[n] = rew
+            target = rew
         else:
-            # Each row in predictedQ gives estimated Q(s',a) values for each possible action for the input state s'.
-            predicted_Q = sess.run(target_net.outQ,
+            max_Q = sess.run(target_net.max_Q,
                             feed_dict={target_net.input:[finish.format_state()],
-                            target_net.secondary_input:[finish.format_secondary_inputs()]})
-            # To get max_{a} Q(s',a) values take max along *rows* of predictedQ.
-            max_Q = np.max(predicted_Q,axis=1)[0]
-            targets[n] = (rew + online_net.discount_factor*max_Q)
+                            target_net.valid_actions:[finish.get_valid_actions()]})
+            target = (rew + online_net.discount_factor*max_Q[0])
 
-    loss, pred_actions, pred_Q = sess.run([online_net.loss, online_net.prediction, online_net.outQ],
-                          feed_dict={online_net.input:states,
-                                online_net.secondary_input:secondary_inputs,
-                                online_net.actions:actions,
-                                online_net.target:targets})
+        targets.append(target)
+
+    loss, pred_actions, pred_Q = sess.run([online_net.loss, online_net.prediction, online_net.valid_outQ],
+                          feed_dict={online_net.input:np.stack([state.format_state() for state in states],axis=0),
+                                online_net.actions:np.array(actions),
+                                online_net.target:np.array(targets),
+                                online_net.valid_actions:np.stack([state.get_valid_actions() for state in states],axis=0)})
     accurate_predictions = 0.
     target_rank = 5
     for n in range(n_experiences):
@@ -412,7 +397,6 @@ def score_match(sess, Qnet, match, team):
     score = 0.
     actions = []
     states = []
-    secondary_inputs = []
     experiences = mp.process_match(match,team)
     for exp in experiences:
         start,(cid,pos),_,_ = exp
@@ -421,12 +405,10 @@ def score_match(sess, Qnet, match, team):
             continue
         actions.append(start.get_action(cid,pos))
         states.append(start.format_state())
-        secondary_inputs.append(start.format_secondary_inputs())
 
     # Feed states forward and get scores for submitted actions
     predicted_Q = sess.run(Qnet.outQ,
-                    feed_dict={Qnet.input:np.stack(states,axis=0),
-                               Qnet.secondary_input:np.stack(secondary_inputs,axis=0)})
+                    feed_dict={Qnet.input:np.stack(states,axis=0)})
     assert len(actions) == predicted_Q.shape[0], "Number of actions doesn't match number of Q estimates!"
     for i in range(len(actions)):
         score += predicted_Q[i,actions[i]]

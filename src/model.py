@@ -8,10 +8,10 @@ class Model:
         self.sess.run(tf.global_variables_initializer())
         saver = tf.train.import_meta_graph("{path}.ckpt.meta".format(path=path_to_model))
         saver.restore(self.sess,"{path}.ckpt".format(path=path_to_model))
-        self._predict_q_values = tf.get_default_graph().get_tensor_by_name("online/outputs:0")
+        self._predict_q_values = tf.get_default_graph().get_tensor_by_name("online/valid_q_vals:0")
         self._predict_action = tf.get_default_graph().get_tensor_by_name("online/prediction:0")
         self._primary_input = tf.get_default_graph().get_tensor_by_name("online/inputs:0")
-        self._secondary_input = tf.get_default_graph().get_tensor_by_name("online/secondary_inputs:0")
+        self._valid_actions = tf.get_default_graph().get_tensor_by_name("online/valid_actions:0")
         #self._train = tf.get_default_graph().get_tensor_by_name("online/update")
 
     def __del__(self):
@@ -27,11 +27,11 @@ class Model:
               predicted_Q[k,:] holds Q-values for state states[k]
         """
         primary_inputs = [state.format_state() for state in states]
-        secondary_inputs = [state.format_secondary_inputs() for state in states]
+        valid_actions = [state.get_valid_actions() for state in states]
 
         predicted_Q = self.sess.run(self._predict_q_values,
                                 feed_dict={self._primary_input:primary_inputs,
-                                self._secondary_input:secondary_inputs})
+                                self._valid_actions:valid_actions})
         return predicted_Q
 
     def predict_action(self, states):
@@ -43,9 +43,9 @@ class Model:
             predicted_action (numpy array): array of integer representations of actions recommended by model.
         """
         primary_inputs = [state.format_state() for state in states]
-        secondary_inputs = [state.format_secondary_inputs() for state in states]
+        valid_actions = [state.get_valid_actions() for state in states]
 
         predicted_actions = self.sess.run(self._predict_action,
                                 feed_dict={self._primary_input:primary_inputs,
-                                self._secondary_input:secondary_inputs})
+                                self._valid_actions:valid_actions})
         return predicted_actions

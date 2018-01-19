@@ -100,8 +100,8 @@ class DraftState:
         # Check if draft is complete or invalid
         if(self.evaluate()):
             if(form == "list"):
-                return np.empty_like(self.state[:,1:].reshape(-1))
-            else
+                return np.array([])
+            else:
                 return np.zeros_like(self.state[:,1:].reshape(-1))
 
         sub_count = len(self.bans)+len(self.picks)
