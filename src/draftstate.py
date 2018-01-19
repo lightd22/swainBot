@@ -56,6 +56,7 @@ class DraftState:
         self.state = np.zeros((self.num_champions, self.num_positions+2), dtype=bool)
         self.picks = []
         self.bans = []
+        self.selected_pos = []
 
         self.team = team
         self.draft_structure = draft
@@ -82,6 +83,44 @@ class DraftState:
         self.state[:] = False
         self.picks = []
         self.bans = []
+        self.selected_pos = []
+
+    def get_valid_actions(self, form="mask"):
+        """
+        Returns a valid actions for the current state.
+        Input:
+            self.state
+            form (string): default returns actions as a mask. "list" returns actions as a list of ids
+        Returns:
+            action_ids (list[bool/int]): valid actions that can be taken from state. If form = "list" ids are returned as a list of action_ids,
+                otherwise actions are returned as a boolean mask
+
+        If the draft is complete or in an invalid state, get_valid_actions will return an empty list of actions.
+        """
+        # Check if draft is complete or invalid
+        if(self.evaluate()):
+            if(form == "list"):
+                return np.empty_like(self.state[:,1:].reshape(-1))
+            else
+                return np.zeros_like(self.state[:,1:].reshape(-1))
+
+        sub_count = len(self.bans)+len(self.picks)
+        phase = self.draft_structure.get_active_phase(sub_count)
+        champ_available = np.logical_not(np.amax(self.state[:,:],axis=1))
+        pos_available = [pos for pos in range(1, self.num_positions+1) if pos not in self.selected_pos]
+        valid_actions = np.zeros_like(self.state[:,1:])
+        if(phase == Draft.BAN):
+            # only bans are (potentially) valid during ban phase
+            valid_actions[:,0] = champ_available
+        else:
+            # only picks are (potentially) valid during pick phase
+            for pos in pos_available:
+                valid_actions[:,pos] = champ_available
+
+        if(form == "list"):
+            return np.nonzero(valid_actions.reshape(-1))
+        else:
+            return valid_actions.reshape(-1)
 
     def is_submission_legal(self, champion_id, position):
         """
@@ -225,15 +264,14 @@ class DraftState:
 
     def get_action(self, champion_id, position):
         """
-        Given a (championId, position) submission pair. Return the corresponding action index in the flattened state array.
+        Given a (champion_id, position) submission pair. Return the corresponding action index in the flattened actionable state array.
         Args:
-            championId (int): Valid id of a champion to be picked/banned.
+            champion_id (int): id of a champion to be picked/banned.
             position (int): Position of champion to be selected. The value of position determines if championId is interpreted as a pick or ban:
                 position = -1 -> champion ban submitted.
-                position = 0 -> champion selection submitted by the opposing team.
                 0 < position <= num_positions -> champion selection submitted by our team for pos = position
         Returns:
-            action (int): Action to be interpreted as index into the flattened state vector. If no such action can be found, returns -1
+            action (int): Action to be interpreted as index into the flattened actionable state vector. If no such action can be found, returns -1
 
         Note: get_action() explicitly indexes into 'actionable state' matrix which excludes the portion of the state
         matrix corresponding to opponent team submission. In practice this means that a = format_action(cid,pos) will
@@ -248,8 +286,7 @@ class DraftState:
             return -1
         # Convert position index for full state matrix into index for actionable state
         pos_index -= 1
-        actionable_state = self.state[:,1:]
-        action = np.ravel_multi_index((state_index,pos_index),actionable_state.shape)
+        action = np.ravel_multi_index((state_index,pos_index),self.state[:,1:].shape)
         return action
 
     def update(self, champion_id, position):
@@ -281,6 +318,7 @@ class DraftState:
             self.bans.append(champion_id)
         else:
             self.picks.append(champion_id)
+            self.selected_pos.append(position)
 
         self.state[index,pos_index] = True
         return True
@@ -335,6 +373,7 @@ class DraftState:
         if((position < 0) or (position > self.num_positions) or (not valid_champion_id(champion_id))):
             return False
         self.picks.append(champion_id)
+        self.selected_pos.append(position)
         index = self.get_state_index(champion_id)
         pos_index = self.get_position_index(position)
         self.state[index,pos_index] = True
@@ -421,12 +460,41 @@ class DraftState:
 if __name__=="__main__":
     state = DraftState(DraftState.BLUE_TEAM)
     print(state.evaluate())
+    print(state.num_actions)
+    state.display()
+    actions = state.get_valid_actions()
+    print(actions)
+
     state.update(1,-1)
     state.update(2,-1)
     state.update(3,-1)
     state.update(4,-1)
     state.update(5,-1)
     state.update(6,-1)
+
     state.update(7,1)
     state.update(8,0)
+    state.update(9,0)
+
+    new_actions = state.get_valid_actions()
+    print(new_actions)
+    print("")
+    for aid in range(len(new_actions)):
+        if(new_actions[aid]):
+            print(state.format_action(aid))
+
+    state.update(10,2)
+    state.update(11,3)
+    state.update(12,0)
+
+    state.update(13,-1)
+    state.update(14,-1)
+    state.update(15,-1)
+    state.update(16,-1)
+
+    state.update(17,0)
+    state.update(18,5)
+    state.update(19,4)
+
+    state.display()
     print(state.evaluate())

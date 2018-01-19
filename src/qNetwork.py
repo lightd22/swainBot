@@ -145,7 +145,9 @@ class Qnetwork():
             self.outQ = tf.add(tf.matmul(self.dropout2, self.fc2_weights), self.fc2_biases, name="outputs")
 
             # Predicted optimal action
-            self.prediction = tf.argmax(self.outQ, axis=1, name="prediction")
+            self.valid_actions = tf.placeholder(tf.bool, shape=self.outQ.shape, name="valid_actions")
+            self.prediction  = tf.argmax(tf.where(self.valid_actions, self.outQ, tf.scalar_mul(-np.inf,tf.ones_like(self.outQ))), axis=1, name="prediction")
+            #self.prediction = tf.argmax(self.outQ, axis=1, name="prediction")
 
             # Loss function and optimization:
             # The inputs self.target and self.actions are indexed by training example. If

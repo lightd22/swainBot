@@ -100,6 +100,8 @@ class Draft(object):
         """
         if submission_count > len(self._draft_structure):
             raise
+        elif submission_count == len(self._draft_structure):
+            return None
         (team, sub_type) = self._draft_structure[submission_count]
         return team
 
@@ -113,6 +115,8 @@ class Draft(object):
         """
         if submission_count > len(self._draft_structure):
             raise
+        elif submission_count == len(self._draft_structure):
+            return None
         (team, sub_type) = self._draft_structure[submission_count]
         return sub_type
 
