@@ -41,7 +41,7 @@ Every model tasked with approaching a difficult problem is predicated on some nu
 ## Methods
 This section is not designed to be too technical, but rather give some insight into how Swain Bot is implemented and some important modifications that helped with the learning process. For some excellent and thorough discussions on RL, check out the following:
 - [David Silver's course on RL](http://www0.cs.ucl.ac.uk/staff/d.silver/web/Teaching.html) [(with video lectures)](https://www.youtube.com/watch?v=2pWv7GOvuf0)
-- [Reinforcement Learning](http://incompleteideas.net/sutton/book/the-book.html) By Sutton and Barto
+- [Reinforcement Learning](http://incompleteideas.net/book/the-book-2nd.html) By Sutton and Barto
 - [The DeepMind ATARI paper](https://storage.googleapis.com/deepmind-media/dqn/DQNNaturePaper.pdf)
 - [Dueling DQNs](https://arxiv.org/pdf/1511.06581.pdf)
 - And finally a [few](http://outlace.com/rlpart3.html), [useful](https://www.intelnervana.com/demystifying-deep-reinforcement-learning/), [tutorials](https://medium.com/emergent-future/simple-reinforcement-learning-with-tensorflow-part-0-q-learning-with-tables-and-neural-networks-d195264329d0)
