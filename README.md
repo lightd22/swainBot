@@ -138,6 +138,8 @@ Of the three validation matches selected from the knockout stages of 2017 Worlds
 The figure below illustrates the drafts from each match. The left side of the draft represents the submissions made by the blue side, while the right side depicts submissions made by the red side. 
 
 <img src="common/images/validation_matches.png" width="700">
+<img src="common/images/val_matches_1.png" width="700">
+<img src="common/images/val_matches_2.png" width="700">
 
 The table below lists the classification (top 1), "good" set classification (top 5), and normalized root mean square error (l2 error) for three categories: all submissions predicted (full), all submissions excluding the first phase of bans (no round 1 bans), and picks only (no bans).
 
