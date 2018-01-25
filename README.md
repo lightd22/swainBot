@@ -19,7 +19,7 @@ Each champion has distinct set of characteristics and abilities that allows them
 ![Figure 1](common/images/league_draft_structure.png "Figure 1")
 
 ### What is Swain Bot?
-Swain Bot (named after the champion Swain whose moniker is "The Master Tactician") is a machine learning application built in Python using Google's Tensorflow framework. Swain Bot is designed to analyze the drafting phase of competitive League of Legends matches. Given a state of the draft which includes full information of our team's submissions (champions and positions) and partial information of the opponent's submissions (champions only), Swain Bot attempts to suggest picks and bans that are well-suited for our draft.
+Swain Bot (named after the champion Swain who is associated with being a ruthless master tactician/general) is a machine learning application built in Python using Google's Tensorflow framework. Swain Bot is designed to analyze the drafting phase of competitive League of Legends matches. Given a state of the draft which includes full information of our team's submissions (champions and positions) and partial information of the opponent's submissions (champions only), Swain Bot attempts to suggest picks and bans that are well-suited for the current state of our draft.
 
 ### What do we hope to do with Swain Bot?
 Knowing the best pick for a given draft situation can dramatically improve a team's chance for success. Our objective with Swain Bot is to help provide insight into League's crucial draft phase by attempting to answer questions like:
@@ -79,10 +79,10 @@ If _s_ is non-terminal, the reward has the more simple form
 where _a_* is the action taken during the original memory.
 
 ### Deep Q-Learning (DQN)
-With the framework describing drafting as an MDP, we can apply a Q-Learning algorithm to estimate `Q(s,a)`, the maximum expected future return by taking action `a` from state `s`. With 138 total champions and 20 chosen at a time to appear in the final draft state, there are roughly `6.07x10^{23}` possible ending states, making a tabular Q-learning method out of the question. Observing that the input state matrix `s` can be interpreted as a monochromatic image, we opt to use a simple convolutional neural network (CNN) to estimate the value function for an arbitrary state. For a great (and freely available) introduction to CNNs, see Stanford's [CS231n](http://cs231n.stanford.edu/). The selected model's architecture consists of 5 total layers:
-- 3 CONV (3x3 stride) + ReLU + 2x2 MaxPool layers
-- 1 FC + ReLU layer
-- 1 FC linearly activated output layer
+With the framework describing drafting as an MDP, we can apply a Q-Learning algorithm to estimate `Q(s,a)`, the maximum expected future return by taking action `a` from state `s`. With 138 total champions and 20 chosen at a time to appear in the final draft state, there are roughly `6.07x10^{23}` possible ending states, making a tabular Q-learning method out of the question. Instead, we opt to use a straightforward fully connected neural network to estimate the value function for an arbitrary state. For a great (and freely available) introduction to CNNs, see Stanford's [CS231n](http://cs231n.stanford.edu/). The selected model's architecture consists of 4 total layers:
+- 1 One-hot encoded input layer (representing draft state)
+- 2 FC + ReLU layers with `1024` nodes each
+- 1 FC linearly activated output layer with `n_champ x n_pos+1` nodes (representing actions from the actionable state)
 
 Regularization is present in the model via dropout in between the FC layers. In order to help reduce the amount of time the model spends learning the underlying draft structure, the first FC layer is given several supplementary boolean inputs corresponding to which positions have been filled in the draft as well as if the draft is currently in a banning phase. These inputs aren't strictly necessary since the value of these variables is directly inferrable from the state matrix, but doing so substantially reduces the amount of training time required before the model begins producing legal submissions for input states. There are also three important modifications to the fundamental DQN algorithm that are necessary in order to ensure that the Q-learning is stable:
 1. Data augmentation
@@ -127,66 +127,67 @@ The model was trained in two stages. For the first stage, data was obtained from
 - Korea (LCK)
 - Taiwan, Hong Kong, & Macau (LMS)
 
-Between the two training stages the model underwent a dampening iteration (in which the value of all predictions were reduced) in order to simulate a change in metas associated with the gap in time between the Summer Season and Worlds Championships. The second stage of training used data from the 119 matches played during the 2017 World Championship with 3 randomly selected matches from the knockout stages held out for validation. The model learned on each match in the training set for 100 epochs (i.e. each match was seen 100 times in expectation).
+Between the two training stages the model underwent a dampening iteration (in which the value of all predictions were reduced) in order to simulate a change in metas associated with the gap in time between the Summer Season and Worlds Championships. The second stage of training used data from the 119 matches played during the 2017 World Championship with 11 randomly selected matches from the knockout stages held out for validation. The model learned on each match in the training set for 100 epochs (i.e. each match was seen 100 times in expectation). The model was trained using a smaller learning rate `alpha_0 = 1.0e-05` which was halved every 10 epochs until it reached a minimum value of `alpha_f = 1.0e-08`. 
 
 ### Validation Matches
-Of the three validation matches selected from the knockout stages of 2017 Worlds, two came from the group stage and one came from the finals matches.
-- (Group stage) Longzhu (LZ) vs Gigabyte Marines (GAM) Game 2
-- (Group stage) Team Solo Mid (TSM) vs Team World Elite (WE) Game 1
-- (Finals) Samsung Galaxy (SSG) vs SK Telecom T1 (SKT) Game 2
+The figures below illustrates the drafts from each match in the validation set. The left side of the draft represents the submissions made by the blue side, while the right side depicts submissions made by the red side. 
 
-The figure below illustrates the drafts from each match. The left side of the draft represents the submissions made by the blue side, while the right side depicts submissions made by the red side. 
-
-<img src="common/images/validation_matches.png" width="700">
-<img src="common/images/val_matches_1.png" width="700">
+<img src="common/images/val_matches_1.png" width="800">
 <img src="common/images/val_matches_2.png" width="800">
+
+The distribution of the eleven matches according to the stage of the worlds event they were played in was:
+- Play-in stage: 2 matches
+- Group stage: 5 matches
+- Knockout stage: 3 matches
+- Finals: 1 match
 
 The table below lists the classification (top 1), "good" set classification (top 5), and normalized root mean square error (l2 error) for three categories: all submissions predicted (full), all submissions excluding the first phase of bans (no round 1 bans), and picks only (no bans).
 
 ```
 Norm Information:
  Full
-  Num_predictions = 30
-  top 1: acc: 0.3
-  top 5: acc: 0.6333
-  l2 error: 0.8688
+  Num_predictions = 110
+  top 1: count 19 -> acc: 0.1727
+  top 5: count 62 -> acc: 0.5636
+  l2 error: 0.02775
 ---
  No Round 1 Bans
-  Num_predictions = 21
-  top 1: acc: 0.381
-  top 5: acc: 0.8571
-  l2 error: 1.03
+  Num_predictions = 77
+  top 1: count 17 -> acc: 0.2208
+  top 5: count 47 -> acc: 0.6104
+  l2 error: 0.03004
 ---
  No Bans
-  Num_predictions = 15
-  top 1: acc: 0.4667
-  top 5: acc: 0.8667
-  l2 error: 0.849
+  Num_predictions = 55
+  top 1: count 14 -> acc: 0.2545
+  top 5: count 39 -> acc: 0.7091
+  l2 error: 0.02436
 ```
 
-Starting with the top 1 classification accuracy it's apparent that predicting the exact submission at every stage in the draft is difficult for the model, which achieves an abysmal 30-45% accuracy across the three categories. This is likely due to a combination of lacking information about which teams are drafting (which would allow the model to account for submissions that are either "comfort picks" or picks that a team is biased against) and the uneven weighting between winning submissions and likely submissions. For the top 5 classification accuracy the model improves significantly, particularly when the first three bans are ignored. Combined with a stable l2 error this indicates that the model does in fact associate elevated values for the actual submissions from winning drafts even if they are not the exact submission the model predicts. Finally, the jump in performance between the full set of predictions and the predictions excluding the first phase of banning generally holds true. In contrast, the difference in performance after further removing the second phase of bans is smaller. This suggests that earlier submissions in the draft are significantly more difficult to predict than later ones. This might be due to a combination of factors. First, since these submissions are the furthest away from the most rewarding states (which are seen at the end of the draft) the uncertainty in the possible directions a draft can go is large. Second, even after it's complete the first phase of bans contributes relatively little information to the draft when compared with the information gained after several picks have been made. Finally, the first phase ban submissions are the ones perhaps most significantly influenced by team biases since they tend to revolve around the picks you and your opponent are likely to make.
+Starting with the top 1 classification accuracy it's apparent that predicting the exact submission at every stage in the draft is difficult for the model, which achieves an abysmal 15-25% accuracy across the three categories. This is likely due to a combination of lacking information about which teams are drafting (which would allow the model to distinguish between submissions that are either "comfort picks" or picks that a team is biased against) and the weighting difference between winning submissions and likely submissions. For the top 5 classification accuracy the model improves significantly, particularly when the first three bans are ignored. The stable l2 error also indicates that the model at least associates elevated values for the submissions from winning drafts even if they are not the exact submission it predicts. Finally, the jump in performance between the full set of predictions and the predictions excluding the first phase of banning generally holds true. In contrast, the difference in performance after further removing the second phase of bans is smaller. This suggests that earlier submissions in the draft are significantly more difficult to predict than later ones. This might be due to a combination of factors. First, since the submissions are the furthest away from the most rewarding states there is a large uncertainty in associating the reward observed at the end of a draft with the first few selections submitted. Second, even after it's complete the first phase of bans contributes relatively little information to the draft when compared with the information gained after several picks have been made. Finally, the first phase ban submissions are perhaps the most significantly influenced by team biases since they tend to revolve around removing the picks you and your opponent are likely to make.
 
-For completeness here is the table for all 2017 Worlds matches (including the play-in stages):
+For completeness here is the table for all 2017 Worlds matches (including the play-in stages): 
 ```
 Norm Information:
  Full
   Num_predictions = 1190
-  top 1: acc: 0.4008
-  top 5: acc: 0.6958
-  l2 error: 1.879
+  top 1: count 549 -> acc: 0.4613
+  top 5: count 905 -> acc: 0.7605
+  l2 error: 0.01443
 ---
  No Round 1 Bans
   Num_predictions = 833
-  top 1: acc: 0.5162
-  top 5: acc: 0.8331
-  l2 error: 2.221
+  top 1: count 513 -> acc: 0.6158
+  top 5: count 744 -> acc: 0.8932
+  l2 error: 0.01136
 ---
  No Bans
   Num_predictions = 595
-  top 1: acc: 0.5899
-  top 5: acc: 0.9059
-  l2 error: 1.4
+  top 1: count 371 -> acc: 0.6235
+  top 5: count 525 -> acc: 0.8824
+  l2 error: 0.01049
 ```
+Obviously since the model was trained on the majority of these matches it performs much better.
 
 Worlds 2017 was dominated by the "Ardent Censer" meta which favored hard-scaling position 1 carries combined with position 5 supports who could abuse the item Ardent Censer (an item which amplified the damage output of the position 1 pick). This made using early picks to secure a favorable bot lane matchup extremely popular. The remaining pick from the first phase tended to be spent selecting a safe jungler like Jarvan IV, Sejuani, or Gragas. As a result, if we look at the distribution of positions made during the first phase of each of the 119 drafts conducted at 2017 Worlds we can see a strong bias against the solo lanes (positions 2 and 3). 
 
