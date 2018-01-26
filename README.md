@@ -64,22 +64,24 @@ The reward schedule is a vital component of the MDP and determines what policy t
 3. an invalid draft (which cannot be played)
 
 All other states are valid, but non-terminal. An invalid state _s_ is one in which one or more of the following conditions are satisfied where _s_ represents:
-1. an incorrect number of picks or bans for the phase of the draft described by that state (e.g. any number of picks submitted during Ban Phase 1, four picks submitted by blue side during Pick Phase 1, two consecutive picks associated with red side during Pick Phase 2, etc.)
+1. an incorrect number of picks or bans for the phase of the draft described by that state (e.g. picks submitted during Ban Phase 1, too many picks submitted in a single phase, two consecutive picks associated with red side during Pick Phase 2, etc.)
 2. at least one champion selected in more than one position (e.g. picked and banned, picked by both teams, or picked by a team in more than one role)
-3. at least one non-ban actionable position with more than one champion submitted in that position. For partially complete drafts the opposing team position must also have no more than five submissions represented at any given time.
+3. at least one non-ban actionable position with more than one champion submitted to that position. For partially complete drafts the opposing team position must also have no more than five submissions represented.
+
+It's reasonable to have the network (or a secondary network) infer which actions lead to invalid drafts, and use that information to avoid predicting them. This essentially amounts to learning the rules of drafting. However we can get away with a smaller network by filtering out the illegal actions before making predictions. This helps significantly reduce the amount of training time required before observing reasonable results.
 
 The empirically determined reward schedule is defined in two parts depending on if _s_ is a terminal state. If _s_ is terminal, the reward is given by
 
 <img src="common/images/reward_sched_term.png" width="400">
 
-If _s_ is non-terminal, the reward has the more simple form
+If _s_ is non-terminal, the reward has the form
 
 <img src="common/images/reward_sched_non-term.png" width="360">
 
 where _a_* is the action taken during the original memory.
 
 ### Deep Q-Learning (DQN)
-With the framework describing drafting as an MDP, we can apply a Q-Learning algorithm to estimate `Q(s,a)`, the maximum expected future return by taking action `a` from state `s`. With 138 total champions and 20 chosen at a time to appear in the final draft state, there are roughly `6.07x10^{23}` possible ending states, making a tabular Q-learning method out of the question. Instead, we opt to use a straightforward fully connected neural network to estimate the value function for an arbitrary state. For a great (and freely available) introduction to CNNs, see Stanford's [CS231n](http://cs231n.stanford.edu/). The selected model's architecture consists of 4 total layers:
+With the framework describing drafting as an MDP, we can apply a Q-Learning algorithm to estimate `Q(s,a)`, the maximum expected future return by taking action `a` from state `s`. With 138 total champions and 20 chosen at a time to appear in the final draft state, there are roughly `6.07x10^{23}` possible ending states, making a tabular Q-learning method out of the question. Instead, we opt to use a straightforward fully connected neural network to estimate the value function for an arbitrary state. The selected model's architecture consists of 4 total layers:
 - 1 One-hot encoded input layer (representing draft state)
 - 2 FC + ReLU layers with `1024` nodes each
 - 1 FC linearly activated output layer with `n_champ x n_pos+1` nodes (representing actions from the actionable state)
@@ -204,11 +206,11 @@ We can compare this with the positions of the top 5 recommendations made by Swai
 
 ```
 Phase 1 Recommendations:
-  Position 1: Count 569, Ratio 0.319
-  Position 2: Count 233, Ratio 0.131
-  Position 3: Count 250, Ratio 0.14
-  Position 4: Count 310, Ratio 0.174
-  Position 5: Count 423, Ratio 0.237
+  Position 1: Count 611, Ratio 0.342
+  Position 2: Count 179, Ratio 0.1
+  Position 3: Count 248, Ratio 0.139
+  Position 4: Count 305, Ratio 0.171
+  Position 5: Count 442, Ratio 0.248
 ```
 Swain Bot agrees with the meta in using early picks to secure a bot lane. However, by comparison it is more likely to suggest a solo lane pick in the first phase instead of a jungler. This effect was also seen in the actual drafts towards the end of the tournament where solo lane picks like Galio and Malzahar became increasingly valuable and took over what would have likely been jungler picks in the earlier stages.
 
