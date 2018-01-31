@@ -204,7 +204,7 @@ class DraftState:
         if(self.evaluate() in DraftState.invalid_states):
             raise InvalidDraftState("Attempting to format an invalid draft state for network input with code {}".format(self.evaluate()))
 
-        return self.state
+        return self.state.reshape(-1)
 
     def format_secondary_inputs(self):
         """

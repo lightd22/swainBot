@@ -10,7 +10,7 @@ import experience_replay as er
 from rewards import get_reward
 import pandas as pd
 
-def train_network(online_net, target_net, training_matches, validation_matches, train_epochs, batch_size, buffer_size, dampen_states = False, load_model = False, verbose = False):
+def train_network(online_net, target_net, training_matches, validation_matches, train_epochs, batch_size, buffer_size, dampen_states = False, path_to_model = None, verbose = False):
     """
     Args:
         online_net (qNetwork): "live" Q-network to be trained.
@@ -21,7 +21,7 @@ def train_network(online_net, target_net, training_matches, validation_matches, 
         batch_size (int): size of each training set sampled from the replay buffer which will be used to update Qnet at a time
         buffer_size (int): size of replay buffer used
         dampen_states (bool): flag for running dampening routine on model
-        load_model (bool): flag to reload existing model
+        path_to_model (string): path to reload existing model
         verbose (bool): flag for enhanced output
     Returns:
         (loss,validation_accuracy) tuple
@@ -57,12 +57,12 @@ def train_network(online_net, target_net, training_matches, validation_matches, 
     assert(pre_training_steps >= batch_size), "Buffer not allowed to fill enough before sampling!"
     # Number of steps to force learner to observe submitted actions, rather than submit its own actions
     observations = 2000 #2*num_episodes*20
-    epsilon = 0.0 # Initial probability of letting the learner submit its own action
+    epsilon = 0.5 # Initial probability of letting the learner submit its own action
     eps_decay_rate = 1./(25*20*len(training_matches)) # Rate at which epsilon decays per submission
     # Number of steps to take between training
     update_freq = 1 # There are 10 submissions per match per side
-    overwrite_initial_lr = None#2.0e-5 # Overwrite default lr for network
-    lr_decay_freq = 20 # Decay learning rate after a set number of epochs
+    overwrite_initial_lr = 5.0e-6 # Overwrite default lr for network
+    lr_decay_freq = 10 # Decay learning rate after a set number of epochs
     min_learning_rate = 1.e-8 # Minimum learning rate allowed to decay to
 
     teams = [DraftState.BLUE_TEAM, DraftState.RED_TEAM]
@@ -74,9 +74,9 @@ def train_network(online_net, target_net, training_matches, validation_matches, 
     # Start training
     with tf.Session() as sess:
         sess.run(tf.global_variables_initializer())
-        if load_model:
+        if path_to_model:
             # Open saved model
-            path_to_model = "tmp/model_E{}.ckpt".format(25)
+            #path_to_model = "tmp/model_E{}.ckpt".format(25)
             #path_to_model = "model_predictions/validation/run_4/model_E25.ckpt"
             online_net.saver.restore(sess,path_to_model)
             print("\nCheckpoint loaded from {}".format(path_to_model))
@@ -128,7 +128,7 @@ def train_network(online_net, target_net, training_matches, validation_matches, 
                 for team in teams:
                     # Process match into individual experiences
                     experiences = mp.process_match(match, team)
-                    for experience in experiences:
+                    for pick_id, experience in enumerate(experiences):
                         # Some experiences include NULL submissions
                         # The learner isn't allowed to submit NULL picks so skip adding these
                         # to the buffer.
@@ -144,18 +144,18 @@ def train_network(online_net, target_net, training_matches, validation_matches, 
                             # to an invalid state add a negatively reinforced experience to the replay buffer.
                             random_submission = False
                             if(random.random() < epsilon):
-                                random_submission = True
-                                # Explore state space by submitting random action and checking if that action is legal
-                                pred_act = random.sample(state.get_valid_actions(form="list"),1)
-                            else:
                                 # Let model make prediction
                                 pred_Q = sess.run(online_net.valid_outQ,
                                     feed_dict={online_net.input:[state.format_state()],
                                                online_net.valid_actions:[state.get_valid_actions()]})
                                 sorted_actions = pred_Q[0,:].argsort()[::-1]
-                                pred_act = sorted_actions[0:4] # top 5 actions by model
+                                pred_act = [sorted_actions[0]] # top actions by model
+                            else:
+                                random_submission = True
+                                # Explore state space by submitting random action and checking if that action is legal
+                                #pred_act = random.sample(state.get_valid_actions(form="list"),1)
+                                pred_act = []
 
-                            top_action = pred_act[0]
                             for action in pred_act:
                                 (cid,pos) = state.format_action(action)
 
@@ -172,7 +172,7 @@ def train_network(online_net, target_net, training_matches, validation_matches, 
                                     else:
                                         bad_state_counts["loss"][state_code] += 1
                                     experience_replay.store([new_experience])
-                                elif(not random_submission and (cid,pos) != actual and action == top_action):
+                                elif(not random_submission and (cid,pos) != actual and action == pred_act[0]):
                                     # Add memories for "best" legal submission if it was chosen by model and does not duplicate already submitted memory
                                     learner_submitted_counts += 1
                                     experience_replay.store([new_experience])
@@ -254,7 +254,6 @@ def train_network(online_net, target_net, training_matches, validation_matches, 
                     # Stash a copy of the current model
                     out_path = online_net.saver.save(sess,"tmp/models/model_E{}.ckpt".format(i+1))
                     print("Stashed a copy of the current model in {}".format(out_path))
-
 
     stats = (loss_over_epochs,train_acc)
     return stats

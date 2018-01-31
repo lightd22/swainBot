@@ -291,9 +291,10 @@ def clean_champion_names(names):
     return cleanedNames
 
 if __name__ == "__main__":
-    gameData = query_wiki("2017", "LMS", "Summer_Season")
+    #gameData = query_wiki("2017", "LMS", "Summer_Season")
     #gameData = query_wiki("2017", "International", "WORLDS_QUALS/NA")
     #gameData = query_wiki("2017", "International", "MSI")
+    gameData = query_wiki("2018", "LMS", "Spring_Season")
     print("**********************************************")
     print("**********************************************")
     print("Testing query_wiki:")

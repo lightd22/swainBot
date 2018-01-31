@@ -1,4 +1,5 @@
 import tensorflow as tf
+
 class Model:
     def __init__(self, path_to_model):
         self._path_to_model = path_to_model

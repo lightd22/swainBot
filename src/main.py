@@ -97,14 +97,14 @@ print("***")
 state = DraftState(DraftState.BLUE_TEAM,valid_champ_ids)
 input_size = state.format_state().shape
 output_size = state.num_actions
-filter_size = (64,128,256)
+filter_size = (1024,1024)
 regularization_coeff = 7.5e-5#1.5e-4
-load_model = False
+path_to_model = "tmp/models/model_E{}.ckpt".format(50)
 
 # Training parameters
 batch_size = 16#32
 buffer_size = 4096#2048
-n_epoch = 10
+n_epoch = 50
 discount_factor = 0.9
 learning_rate = 2.0e-5#1.0e-4
 
@@ -118,7 +118,7 @@ for i in range(1):
     #training_ids.extend(mp.build_match_pool(950)["match_ids"])
     training_matches = mp.get_matches_by_id(training_ids)
     print("Learning on {} matches for {} epochs. lr {:.4e} reg {:4e}".format(len(training_matches),n_epoch, learning_rate, regularization_coeff),flush=True)
-    loss,train_acc = tn.train_network(online_net,target_net,training_matches,validation_matches,n_epoch,batch_size,buffer_size,dampen_states=False,load_model=load_model,verbose=True)
+    loss,train_acc = tn.train_network(online_net,target_net,training_matches,validation_matches,n_epoch,batch_size,buffer_size,dampen_states=False,path_to_model=path_to_model,verbose=True)
     print("Learning complete!")
     print("..final training accuracy: {:.4f}".format(train_acc))
     x = [i+1 for i in range(len(loss))]

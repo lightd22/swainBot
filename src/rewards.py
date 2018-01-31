@@ -30,9 +30,9 @@ def get_reward(state, match, submitted_action, actual_action):
             reward += 2.5
 
     if(submitted_action == actual_action):
-        reward += 1.
+        reward += 0.5
     else:
-        reward += -0.1
+        reward += -0.5
 
     return reward
 

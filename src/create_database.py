@@ -76,11 +76,12 @@ if __name__ == "__main__":
     print("Creating tables..")
     create_tables(cur, tableNames, columnInfo, clobber = False)
 
-    year = "2017"
+    year = "2018"
     regions = ["EU_LCS","NA_LCS","LPL","LMS","LCK"]
-    tournaments = ["Summer_Season", "Summer_Playoffs"]
+    tournaments = ["Spring_Season"]
     for region in regions:
         for tournament in tournaments:
+            skip_commit = False
             print("Querying: {}".format(year+"/"+region+"/"+tournament))
             gameData = query_wiki(year, region, tournament)
             for game in gameData:
@@ -93,6 +94,7 @@ if __name__ == "__main__":
                     else:
                         print(" Duplicate ban found! {}".format(ban))
                         print("  ".format(seen_bans))
+                        skip_commit = True
 
                 seen_picks = set()
                 for side in ["blue", "red"]:
@@ -104,29 +106,29 @@ if __name__ == "__main__":
                         else:
                             print("  Duplicate pick found! {}".format(p))
                             print("  ".format(seen_picks))
+                            skip_commit = True
 
                         if pos not in seen_positions:
                             seen_positions.add(pos)
                         else:
                             print("   Duplicate pos found! {}".format(pos))
                             print("  ".format(seen_positions))
+                            skip_commit = True
 
-            print("Attempting to insert {} games..".format(len(gameData)))
-            status = dbo.insert_team(cur,gameData)
-            status = dbo.insert_game(cur,gameData)
-            status = dbo.insert_ban(cur,gameData)
-            status = dbo.insert_pick(cur,gameData)
-            print("Committing changes to db..")
-            conn.commit()
+            if(not skip_commit):
+                print("Attempting to insert {} games..".format(len(gameData)))
+                status = dbo.insert_team(cur,gameData)
+                status = dbo.insert_game(cur,gameData)
+                status = dbo.insert_ban(cur,gameData)
+                status = dbo.insert_pick(cur,gameData)
+                print("Committing changes to db..")
+                conn.commit()
 
 #    print(json.dumps(game, indent=4, sort_keys=True))
 
-    year = "2017"
+    year = "2018"
     region = "International"
-    tournaments = ["WORLDS/Play-In", "WORLDS/Main_Event",
-                    "WORLDS_QUALS/NA", "WORLDS_QUALS/EU",
-                    "WORLDS_QUALS/LCK", "WORLDS_QUALS/LPL",
-                    "WORLDS_QUALS/LMS", "MSI/Play-In", "MSI/Main_Event"]
+    tournaments = []
 
     for tournament in tournaments:
         print("Querying: {}".format("/".join([year, region, tournament])))
@@ -189,7 +191,7 @@ if __name__ == "__main__":
     db = pd.read_sql_query(query, conn, params=params)
     print(db)
 
-    gameIds = dbo.get_game_ids_by_tournament(cur, "2017/INTL/WRLDS")
+    gameIds = dbo.get_game_ids_by_tournament(cur, "2018/NA/Spring_Season")
     for i in gameIds:
         match = dbo.get_match_data(cur, i)
         print("{} vs {}".format(match["blue_team"],match["red_team"]))

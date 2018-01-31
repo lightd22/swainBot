@@ -34,10 +34,9 @@ class Qnetwork():
         initial = tf.constant(0.1, shape=shape)
         return tf.Variable(initial,name)
 
-    def __init__(self, name, input_shape, output_shape, filter_sizes = (8,16,32), learning_rate=1.e-3, regularization_coeff = 0.01, discount_factor = 0.9):
+    def __init__(self, name, input_shape, output_shape, filter_sizes = (512,512), learning_rate=1.e-3, regularization_coeff = 0.01, discount_factor = 0.9):
         self._name = name
         self._input_shape = input_shape
-        self._secondary_input_shape = (6,)
         self._output_shape = output_shape
         self._regularization_coeff = regularization_coeff
         self._discount_factor = discount_factor
@@ -51,98 +50,46 @@ class Qnetwork():
             # 'None' here means the input tensor will flex with the number of training
             # examples (aka batch size).
             self.input = tf.placeholder(tf.float32, (None,)+input_shape, name="inputs")
-            # Reshape input for conv layer to be a tensor of shape [None, nChampions, nPos+2, 1]
-            # The extra '1' dimension added at the end represents the number of input channels
-            # (normally color channels for an image).
-
-            conv_input = tf.expand_dims(self.input,-1)
-
-            # First convolutional layer:
-            #  filters of 3x3 stencil, step size 1, RELu activation, and padding to
-            #  keep output spatial shape the same as the input shape
-            self.conv1 = tf.layers.conv2d(
-                            inputs=conv_input,
-                            filters=filter_sizes[0],
-                            kernel_size=[3,3],
-                            padding="SAME",
-                            activation=tf.nn.relu,
-                            use_bias=True,
-                            bias_initializer=tf.constant_initializer(0.1),
-                            name="conv1")
-
-            # First pooling layer:
-            #  2x2 max pooling with stride 2. Cuts spatial dimensions in half.
-            #  Uses padding when input dimensions are odd.
-            self.pool1 = tf.layers.max_pooling2d(
-                            inputs=self.conv1,
-                            pool_size=[2,2],
-                            strides=2,
-                            padding="SAME",
-                            name="pool1")
-
-            # Second convolutional layer:
-            #   filters of 3x3 stencil, stride 1, RELu activation, and padding to keep
-            #   spatial dimensions unchanged
-            self.conv2 = tf.layers.conv2d(
-                            inputs=self.pool1,
-                            filters=filter_sizes[1],
-                            kernel_size=[3,3],
-                            padding="SAME",
-                            activation=tf.nn.relu,
-                            use_bias=True,
-                            bias_initializer=tf.constant_initializer(0.1),
-                            name="conv2")
-
-            # Second pooling layer. Identical parameterization to other pooling layers.
-            self.pool2 = tf.layers.max_pooling2d(
-                            inputs=self.conv2,
-                            pool_size=[2,2],
-                            strides=2,
-                            padding="SAME",
-                            name="pool2")
-
-            # Third convolutional layer.
-            self.conv3 = tf.layers.conv2d(
-                            inputs=self.pool2,
-                            filters=filter_sizes[2],
-                            kernel_size=[3,3],
-                            padding="SAME",
-                            activation=tf.nn.relu,
-                            use_bias=True,
-                            bias_initializer=tf.constant_initializer(0.1),
-                            name="conv3")
-
-            # Third pooling layer. Identical parameterization to other pooling layers.
-            self.pool3 = tf.layers.max_pooling2d(
-                            inputs=self.conv3,
-                            pool_size=[2,2],
-                            strides=2,
-                            padding="SAME",
-                            name="pool3")
-
-            # Fully connected (FC) layer:
-            # Flatten input feature map (pool2) to be shape [-1, feature_size]
-            # If pool3 has shape = [-1, nx, ny, nf] then feature_size = nx*ny*nf
-            dim = int(np.prod(self.pool3.shape[1:]))
-            pool3_flat = tf.reshape(self.pool3, [-1, dim])
             self.dropout_keep_prob = tf.placeholder_with_default(1.0,shape=())
-            self.dropout1 = tf.nn.dropout(pool3_flat,self.dropout_keep_prob)
 
-            fc1_input_size = int(self.dropout1.shape[1])
-            fc1_output_size = fc1_input_size//2
+            # Fully connected (FC) layers:
+            self.fc0 = tf.layers.dense(
+                self.input,
+                filter_sizes[0],
+                activation=tf.nn.relu,
+                bias_initializer=tf.constant_initializer(0.1),
+                name="fc_0")
+            self.dropout0 = tf.nn.dropout(self.fc0, self.dropout_keep_prob)
 
-            self.fc1_weights = Qnetwork.weight_variable([fc1_input_size,fc1_output_size],"fc1_weight")
-            self.fc1_biases = Qnetwork.bias_variable([fc1_output_size],"fc1_bias")
+            self.fc1 = tf.layers.dense(
+                self.dropout0,
+                filter_sizes[1],
+                activation=tf.nn.relu,
+                bias_initializer=tf.constant_initializer(0.1),
+                name="fc_1")
+            self.dropout1 = tf.nn.dropout(self.fc1, self.dropout_keep_prob)
 
-            self.fc1 = tf.nn.relu(tf.add(tf.matmul(self.dropout1, self.fc1_weights), self.fc1_biases),name="fc1")
-            self.dropout2 = tf.nn.dropout(self.fc1,self.dropout_keep_prob)
+#            self.fc2 = tf.layers.dense(
+#                self.dropout1,
+#                filter_sizes[2],
+#                activation=tf.nn.relu,
+#                bias_initializer=tf.constant_initializer(0.1),
+#                name="fc_2")
+#            self.dropout2 = tf.nn.dropout(self.fc1, self.dropout_keep_prob)
 
             # FC output layer
-            self.fc2_weights = Qnetwork.weight_variable([fc1_output_size,output_shape],"fc2_weight")
-            self.fc2_biases = Qnetwork.bias_variable([output_shape],"fc2_bias")
-            self.outQ = tf.add(tf.matmul(self.dropout2, self.fc2_weights), self.fc2_biases, name="q_vals")
+            self.outQ = tf.layers.dense(
+                self.dropout1,
+                self._output_shape,
+                activation=None,
+                bias_initializer=tf.constant_initializer(0.1),
+                kernel_regularizer=tf.contrib.layers.l2_regularizer(scale=self._regularization_coeff),
+                name="q_vals")
 
+            # Placeholder for valid actions filter
             self.valid_actions = tf.placeholder(tf.bool, shape=self.outQ.shape, name="valid_actions")
+
+            # Filtered Q-values
             self.valid_outQ = tf.where(self.valid_actions, self.outQ, tf.scalar_mul(-np.inf,tf.ones_like(self.outQ)), name="valid_q_vals")
 
             # Max Q value amongst valid actions
@@ -180,8 +127,7 @@ class Qnetwork():
 
             # Simple sum-of-squares loss (error) function with regularization. Note that biases do not
             # need to be regularized since they are (generally) not subject to overfitting.
-            self.loss = tf.add(tf.reduce_mean(0.5*tf.square(self.target-self.estimatedQ)),
-                        self._regularization_coeff*(tf.nn.l2_loss(self.fc1_weights)+tf.nn.l2_loss(self.fc2_weights)),name="loss")
+            self.loss = tf.reduce_mean(0.5*tf.square(self.target-self.estimatedQ), name="loss")
 
             self.trainer = tf.train.AdamOptimizer(learning_rate = self.learning_rate)
             self.update = self.trainer.minimize(self.loss, name="update")

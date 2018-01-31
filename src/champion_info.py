@@ -164,7 +164,7 @@ def populate_champion_dictionary():
     #riotapi.set_region("NA")
     #riotapi.set_api_key(api_key)
     #champions = riotapi.get_champions()
-    DISABLED_CHAMPIONS = ["Ornn"]
+    DISABLED_CHAMPIONS = []
     if(look_local):
         with open('champions.json') as local_data:
             response = json.load(local_data)
