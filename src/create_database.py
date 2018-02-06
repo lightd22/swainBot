@@ -123,6 +123,8 @@ if __name__ == "__main__":
                 status = dbo.insert_pick(cur,gameData)
                 print("Committing changes to db..")
                 conn.commit()
+            else:
+                print("errors found.. skipping commit")
 
 #    print(json.dumps(game, indent=4, sort_keys=True))
 
@@ -175,7 +177,7 @@ if __name__ == "__main__":
     " WHERE game_id = 1 AND side_id = 0"
     )
     df = pd.read_sql_query(query, conn)
-    print(df)
+    #print(df)
 
     query = ("SELECT game.tournament, game.tourn_game_id, blue.team, red.team, ban.side_id,"
              "       ban.champion_id AS champ, ban.selection_order AS ord"
@@ -191,7 +193,7 @@ if __name__ == "__main__":
     db = pd.read_sql_query(query, conn, params=params)
     print(db)
 
-    gameIds = dbo.get_game_ids_by_tournament(cur, "2018/NA/Spring_Season")
+    gameIds = dbo.get_game_ids_by_tournament(cur, "2018/EU/Spring_Season")
     for i in gameIds:
         match = dbo.get_match_data(cur, i)
         print("{} vs {}".format(match["blue_team"],match["red_team"]))

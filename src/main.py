@@ -28,14 +28,7 @@ print("Number of valid championIds: {}".format(len(valid_champ_ids)))
 
 with open('worlds_matchids_by_stage.txt','r') as infile:
     worlds_data = json.load(infile)
-worlds_play_ins = worlds_data["play_ins_rd1"]
-worlds_play_ins.extend(worlds_data["play_ins_rd2"])
-worlds_groups = worlds_data["groups"]
-worlds_knockouts = worlds_data["knockouts"]
-worlds_finals = worlds_data["finals"]
 
-all_worlds_matches = worlds_play_ins+worlds_groups+worlds_knockouts+worlds_finals
-random.shuffle(all_worlds_matches)
 
 # Store training match data in a json file (for use later)
 reuse_matches = True
@@ -46,20 +39,15 @@ if reuse_matches:
     validation_ids = data["validation_ids"]
     training_ids = data["training_ids"]
 
-#    training_ids.extend(worlds_play_ins)
-
     n_matches = len(validation_ids) + len(training_ids)
     n_training = len(training_ids)
     training_matches = mp.get_matches_by_id(training_ids)
     validation_matches = mp.get_matches_by_id(validation_ids)
     print(n_matches, n_training, len(validation_ids))
 else:
-    n_val = 3
-
+    n_val = 40
     match_ids = []
-    match_ids.extend(worlds_groups)
-    match_ids.extend(worlds_knockouts)
-    match_ids.extend(worlds_finals)
+    match_ids.extend(mp.build_match_pool(0)["match_ids"])
     random.shuffle(match_ids)
 
     validation_ids = match_ids[:n_val]
@@ -99,15 +87,16 @@ input_size = state.format_state().shape
 output_size = state.num_actions
 filter_size = (1024,1024)
 regularization_coeff = 7.5e-5#1.5e-4
-path_to_model = "tmp/models/model_E{}.ckpt".format(50)
+path_to_model = None#"model_predictions/spring_2018/week_3/model_E{}.ckpt".format(30)#None
 
 # Training parameters
 batch_size = 16#32
 buffer_size = 4096#2048
-n_epoch = 50
+n_epoch = 45
 discount_factor = 0.9
 learning_rate = 2.0e-5#1.0e-4
 
+time.sleep(2.)
 for i in range(1):
     tf.reset_default_graph()
     online_net = qNetwork.Qnetwork("online",input_size, output_size, filter_size, learning_rate, regularization_coeff, discount_factor)
@@ -115,12 +104,12 @@ for i in range(1):
 
     training_ids = []
     training_ids.extend(data["training_ids"])
-    #training_ids.extend(mp.build_match_pool(950)["match_ids"])
+
     training_matches = mp.get_matches_by_id(training_ids)
     print("Learning on {} matches for {} epochs. lr {:.4e} reg {:4e}".format(len(training_matches),n_epoch, learning_rate, regularization_coeff),flush=True)
-    loss,train_acc = tn.train_network(online_net,target_net,training_matches,validation_matches,n_epoch,batch_size,buffer_size,dampen_states=False,path_to_model=path_to_model,verbose=True)
+    loss, train_acc, val_acc = tn.train_network(online_net,target_net,training_matches,validation_matches,n_epoch,batch_size,buffer_size,dampen_states=False,path_to_model=path_to_model,verbose=True)
     print("Learning complete!")
-    print("..final training accuracy: {:.4f}".format(train_acc))
+    print("..final training accuracy: {:.4f}".format(train_acc[-1]))
     x = [i+1 for i in range(len(loss))]
     fig = plt.figure()
     plt.plot(x,loss)
@@ -130,6 +119,13 @@ for i in range(1):
     fig_name = "tmp/loss_figures/annuled_rate/loss_E{}_run_{}.pdf".format(n_epoch,i+1)
     print("Loss figure saved in:{}".format(fig_name),flush=True)
     fig.savefig(fig_name)
+
+    fig = plt.figure()
+    plt.plot(x, train_acc, x, val_acc)
+    fig_name = "tmp/acc_figs/acc_E{}_run_{}.pdf".format(n_epoch,i+1)
+    print("Loss figure saved in:{}".format(fig_name),flush=True)
+    fig.savefig(fig_name)
+
 
 # Look at predicted Q values for states in a randomly drawn match
 match = random.sample(training_matches,1)[0]

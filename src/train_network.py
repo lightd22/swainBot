@@ -70,6 +70,8 @@ def train_network(online_net, target_net, training_matches, validation_matches, 
     # so we will use a winner-less match when getting rewards for such states
     blank_match = {"winner":None}
     loss_over_epochs = []
+    train_acc_over_epochs = []
+    val_acc_over_epochs = []
     total_steps = 0
     # Start training
     with tf.Session() as sess:
@@ -142,19 +144,20 @@ def train_network(online_net, target_net, training_matches, validation_matches, 
                         if(total_steps >= observations):
                             # Let the network predict the next action, if the action leads
                             # to an invalid state add a negatively reinforced experience to the replay buffer.
+                            pred_Q = sess.run(online_net.valid_outQ,
+                                feed_dict={online_net.input:[state.format_state()],
+                                           online_net.valid_actions:[state.get_valid_actions()]})
+                            sorted_actions = pred_Q[0,:].argsort()[::-1]
+
                             random_submission = False
                             if(random.random() < epsilon):
-                                # Let model make prediction
-                                pred_Q = sess.run(online_net.valid_outQ,
-                                    feed_dict={online_net.input:[state.format_state()],
-                                               online_net.valid_actions:[state.get_valid_actions()]})
-                                sorted_actions = pred_Q[0,:].argsort()[::-1]
-                                pred_act = [sorted_actions[0]] # top actions by model
-                            else:
-                                random_submission = True
+                                #random_submission = True
                                 # Explore state space by submitting random action and checking if that action is legal
                                 #pred_act = random.sample(state.get_valid_actions(form="list"),1)
-                                pred_act = []
+                                pred_act = random.sample(sorted_actions, 1)
+                            else:
+                                # Let model make prediction
+                                pred_act = [sorted_actions[0]] # top actions by model
 
                             for action in pred_act:
                                 (cid,pos) = state.format_action(action)
@@ -235,6 +238,8 @@ def train_network(online_net, target_net, training_matches, validation_matches, 
             val_loss,val_acc = validate_model(sess, validation_matches, online_net, target_net)
             loss,train_acc = validate_model(sess, training_matches, online_net, target_net)
             loss_over_epochs.append(loss)
+            train_acc_over_epochs.append(train_acc)
+            val_acc_over_epochs.append(val_acc)
             # Once training is complete, save the updated network
             out_path = online_net.saver.save(sess,"tmp/model_E{}.ckpt".format(train_epochs))
             if(verbose):
@@ -255,7 +260,7 @@ def train_network(online_net, target_net, training_matches, validation_matches, 
                     out_path = online_net.saver.save(sess,"tmp/models/model_E{}.ckpt".format(i+1))
                     print("Stashed a copy of the current model in {}".format(out_path))
 
-    stats = (loss_over_epochs,train_acc)
+    stats = (loss_over_epochs, train_acc_over_epochs, val_acc_over_epochs)
     return stats
 
 def create_target_update_ops(target_scope, online_scope, tau=1e-3, name="target_update"):
