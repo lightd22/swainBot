@@ -1,5 +1,11 @@
 import champion_info as cinfo
 import match_processing as mp
+from model import softmax
+from trainer import trainer
+import json
+from draftstate import DraftState
+import tensorflow as tf
+import experience_replay as er
 
 print("")
 print("********************************")
@@ -48,3 +54,19 @@ input_size = state.format_state().shape
 output_size = state.num_actions
 filter_size = (1024,1024)
 regularization_coeff = 7.5e-5#1.5e-4
+
+path_to_model = None
+
+# Training parameters
+batch_size = 64
+n_epoch = 50
+learning_rate = 2.0e-5#1.0e-4
+
+with tf.Session() as sess:
+    softmax_model = softmax.SoftmaxNetwork("softmax_model", input_size, output_size, filter_size, learning_rate, regularization_coeff)
+    sess.run(tf.global_variables_initializer())
+    if(path_to_model):
+        softmax_model.load(sess, path_to_model)
+    trainer = trainer.Trainer(sess, softmax_model, n_epoch, training_matches, validation_matches, batch_size)
+    trainer.train()
+    softmax_model.save(sess, "/tmp/model.ckpt")

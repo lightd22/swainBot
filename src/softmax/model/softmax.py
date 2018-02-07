@@ -29,13 +29,15 @@ class SoftmaxNetwork():
         initial = tf.constant(0.1, shape=shape)
         return tf.Variable(initial,name)
 
-    def __init__(self, name, input_shape, output_shape, filter_sizes = (512,512), learning_rate=1.e-3, regularization_coeff = 0.01, discount_factor = 0.9):
+    def __init__(self, name, input_shape, output_shape, filter_sizes = (512,512), learning_rate=1.e-3, regularization_coeff = 0.01):
         self._name = name
         self._input_shape = input_shape
         self._output_shape = output_shape
         self._regularization_coeff = regularization_coeff
+        self._learning_rate = learning_rate
         self._n_hidden_layers = len(filter_sizes)
         self._n_layers = self._n_hidden_layers + 2
+        self._filter_sizes = filter_sizes
 
         self.build_model()
         self.init_saver()
@@ -48,18 +50,18 @@ class SoftmaxNetwork():
 
     def build_model(self):
         with tf.variable_scope(self._name):
-            self.learning_rate = tf.Variable(learning_rate, trainable=False, name="learning_rate")
+            self.learning_rate = tf.Variable(self._learning_rate, trainable=False, name="learning_rate")
 
             # Incoming state matrices are of size input_size = (nChampions, nPos+2)
             # 'None' here means the input tensor will flex with the number of training
             # examples (aka batch size).
-            self.input = tf.placeholder(tf.float32, (None,)+input_shape, name="inputs")
+            self.input = tf.placeholder(tf.float32, (None,)+self._input_shape, name="inputs")
             self.dropout_keep_prob = tf.placeholder_with_default(1.0,shape=())
 
             # Fully connected (FC) layers:
             self.fc0 = tf.layers.dense(
                 self.input,
-                filter_sizes[0],
+                self._filter_sizes[0],
                 activation=tf.nn.relu,
                 bias_initializer=tf.constant_initializer(0.1),
                 name="fc_0")
@@ -67,7 +69,7 @@ class SoftmaxNetwork():
 
             self.fc1 = tf.layers.dense(
                 self.dropout0,
-                filter_sizes[1],
+                self._filter_sizes[1],
                 activation=tf.nn.relu,
                 bias_initializer=tf.constant_initializer(0.1),
                 name="fc_1")
@@ -89,12 +91,12 @@ class SoftmaxNetwork():
             self.valid_logits = tf.where(self.valid_actions, self.logits, tf.scalar_mul(-np.inf, tf.ones_like(self.logits)), name="valid_logits")
 
             # Predicted optimal action amongst valid actions
-            self.probabilities  = tf.nn.softmax(valid_logits, name="action_probabilites")
+            self.probabilities  = tf.nn.softmax(self.valid_logits, name="action_probabilites")
             self.prediction = tf.argmax(input=self.valid_logits, axis=1, name="predictions")
 
             self.actions = tf.placeholder(tf.int32, shape=[None], name="submitted_actions")
 
-            self.loss = tf.losses.sparse_softmax_cross_entropy(self.actions, self.valid_logits, name="loss")
+            self.loss = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(labels=self.actions, logits=self.valid_logits), name="loss")
 
             self.trainer = tf.train.AdamOptimizer(learning_rate = self.learning_rate)
             self.update = self.trainer.minimize(self.loss, name="update")

@@ -5,6 +5,7 @@ import experience_replay as er
 import match_processing as mp
 import pandas as pd
 import time
+from .draftstate import DraftState
 
 class Trainer():
     def __init__(self, sess, model, n_epoch, training_data, validation_data, batch_size):
@@ -23,15 +24,16 @@ class Trainer():
         self.fill_buffer(validation_data, self._val_buffer)
 
     def fill_buffer(self, data, buf):
+        teams = [DraftState.BLUE_TEAM, DraftState.RED_TEAM]
         for match in data:
-            for team in ["blue", "red"]:
+            for team in teams:
                 experiences = mp.process_match(match, team)
                 # remove null actions (usually missing bans)
                 for exp in experiences:
                     _,act,_,_ = exp
                     cid,pos = act
                     if(cid):
-                        buf.store(exp)
+                        buf.store([exp])
 
     def sample_buffer(self, buf, n_samples):
         experiences = buf.sample(n_samples)
@@ -39,7 +41,7 @@ class Trainer():
         actions = []
         valid_actions = []
         for (state, action, _, _) in experiences:
-            states.append(state.format())
+            states.append(state.format_state())
             valid_actions.append(state.get_valid_actions())
             actions.append(state.get_action(*action))
 
@@ -48,14 +50,14 @@ class Trainer():
     def train(self):
         losses = []
         accs = {"train":[], "val":[]}
-        for i in range(n_epoch):
+        for i in range(self._n_epoch):
             t0 =  time.time()
             loss, train_acc, val_acc = self.train_epoch()
             dt = time.time()-t0
             losses.append(loss)
             accs["train"].append(train_acc)
             accs["val"].append(val_acc)
-            print(" Finished epoch {}/{}: dt {:.2f}, loss {:.6f}, train {:.6f}, val {:.6f}".format(i+1, self._n_epoch, dt, loss, train_acc, val_acc), flush=True)
+            print(" Finished epoch {:2}/{}: dt {:.2f}, loss {:.6f}, train {:.6f}, val {:.6f}".format(i+1, self._n_epoch, dt, loss, train_acc, val_acc), flush=True)
 
         return (losses, accs)
 
@@ -70,6 +72,16 @@ class Trainer():
         _, val_acc = self.validate(self._val_buffer)
 
         return (loss, train_acc, val_acc)
+
+    def train_step(self):
+        states, actions, valid_actions = self.sample_buffer(self._buffer, self._batch_size)
+
+        feed_dict = {self._model.input:np.stack(states, axis=0),
+                     self._model.valid_actions:np.stack(valid_actions, axis=0),
+                     self._model.actions:actions,
+                     self._model.dropout_keep_prob:0.5}
+        _  = self._sess.run(self._model.update, feed_dict=feed_dict)
+
 
     def validate(self, buf):
         states, actions, valid_actions = self.sample_buffer(buf, buf.get_buffer_size())
@@ -99,12 +111,3 @@ class Trainer():
 
         accuracy = accurate_predictions/len(states)
         return (loss, accuracy)
-
-    def train_step(self):
-        states, actions, valid_actions = self.sample_buffer(self._buffer, self._batch_size)
-
-        feed_dict = {self._model.input:np.stack(states, axis=0),
-                     self._model.valid_actions:np.stack(valid_actions, axis=0),
-                     self._model.actions:actions,
-                     self._model.dropout_keep_prob:0.5}
-         _ = self._sess.run(self._model.update, feed_dict=feed_dict)
