@@ -59,8 +59,8 @@ path_to_model = None
 
 # Training parameters
 batch_size = 64
-n_epoch = 50
-learning_rate = 2.0e-5#1.0e-4
+n_epoch = 100
+learning_rate = 1.0e-5#1.0e-4
 
 with tf.Session() as sess:
     softmax_model = softmax.SoftmaxNetwork("softmax_model", input_size, output_size, filter_size, learning_rate, regularization_coeff)

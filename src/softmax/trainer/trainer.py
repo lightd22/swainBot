@@ -19,6 +19,7 @@ class Trainer():
         self._batch_size = batch_size
         self._buffer = er.ExperienceBuffer(max_buffer_size=20*len(training_data))
         self._val_buffer = er.ExperienceBuffer(max_buffer_size=20*len(validation_data))
+        self._min_learning_rate = 1e-8
 
         self.fill_buffer(training_data, self._buffer)
         self.fill_buffer(validation_data, self._val_buffer)
@@ -50,14 +51,19 @@ class Trainer():
     def train(self):
         losses = []
         accs = {"train":[], "val":[]}
+        lr_decay_freq = 10
         for i in range(self._n_epoch):
+            if((i>0) and (i % lr_decay_freq == 0) and (self._model.learning_rate.eval() >= self._min_learning_rate)):
+                # Decay learning rate accoring to decay schedule
+                self._model.learning_rate = 0.50*self._model.learning_rate
+
             t0 =  time.time()
             loss, train_acc, val_acc = self.train_epoch()
             dt = time.time()-t0
             losses.append(loss)
             accs["train"].append(train_acc)
             accs["val"].append(val_acc)
-            print(" Finished epoch {:2}/{}: dt {:.2f}, loss {:.6f}, train {:.6f}, val {:.6f}".format(i+1, self._n_epoch, dt, loss, train_acc, val_acc), flush=True)
+            print(" Finished epoch {:2}/{}: lr: {:.4e}, dt {:.2f}, loss {:.6f}, train {:.6f}, val {:.6f}".format(i+1, self._n_epoch, self._model.learning_rate.eval(), dt, loss, train_acc, val_acc), flush=True)
 
         return (losses, accs)
 
