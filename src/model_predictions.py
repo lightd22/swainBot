@@ -73,12 +73,14 @@ with open("{}/match_data.json".format(out_dir),'w') as outfile:
 
 count = 0
 k = 5 # Rank to look for in topk range
+
 full_diag = {"top1":0, "topk":0, "target":0, "l2":[],"k":k}
 no_rd1_ban_diag = {"top1":0, "topk":0, "target":0, "l2":[],"k":k}
 no_ban_diag = {"top1":0, "topk":0, "target":0, "l2":[],"k":k}
 second_phase_only = {"top1":0, "topk":0, "target":0, "l2":[],"k":k}
 bans_only = {"top1":0, "topk":0, "target":0, "l2":[],"k":k}
 model_diagnostics = {"full":full_diag, "no_rd1_ban":no_rd1_ban_diag, "no_bans":no_ban_diag, "phase_2_only":second_phase_only, "bans":bans_only}
+
 position_distributions = {"phase_1":[0,0,0,0,0], "phase_2":[0,0,0,0,0]}
 actual_pos_distributions = {"phase_1":[0,0,0,0,0], "phase_2":[0,0,0,0,0]}
 augmentable_picks = {DraftState.BLUE_TEAM:[0,1,4,6,8], DraftState.RED_TEAM:[0,1,3,6]}
