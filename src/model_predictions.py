@@ -72,7 +72,7 @@ with open("{}/match_data.json".format(out_dir),'w') as outfile:
     json.dump(matches,outfile)
 
 count = 0
-k = 10 # Rank to look for in topk range
+k = 5 # Rank to look for in topk range
 full_diag = {"top1":0, "topk":0, "target":0, "l2":[],"k":k}
 no_rd1_ban_diag = {"top1":0, "topk":0, "target":0, "l2":[],"k":k}
 no_ban_diag = {"top1":0, "topk":0, "target":0, "l2":[],"k":k}
