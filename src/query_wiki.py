@@ -42,8 +42,10 @@ def query_wiki(year, region, tournament):
     page_suffixes = ["", "/Bracket_Stage", "/4-6", "/4-7", "/7-9", "/7-10", "/8-10"]
 
     formatted_regions = {"NA_LCS":"League_Championship_Series/North_America",
+                        "NA_ACA":"NA_Academy_League",
                         "EU_LCS":"League_Championship_Series/Europe",
                         "LCK":"LCK",
+                        "KR_CHAL":"Challengers_Korea",
                         "LPL":"LPL",
                         "LMS":"LMS"}
 

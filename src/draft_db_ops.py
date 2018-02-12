@@ -3,7 +3,7 @@ import re
 from champion_info import champion_id_from_name,champion_name_from_id, convert_champion_alias, AliasException
 
 regionsDict = {"NA_LCS":"NA", "EU_LCS":"EU", "LCK":"LCK", "LPL":"LPL",
-                "LMS":"LMS", "International":"INTL"}
+                "LMS":"LMS", "International":"INTL", "NA_ACA": "NA_ACA", "KR_CHAL":"KR_CHAL"}
 internationalEventsDict = {"Mid-Season_Invitational":"MSI",
                     "Rift_Rivals":"RR","World_Championship":"WRLDS"}
 def get_game_ids_by_tournament(cursor, tournament):

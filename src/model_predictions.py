@@ -14,7 +14,7 @@ import math
 
 #path_to_model = "model_predictions/spring_2018/week_3/run_2/model_E10"
 #path_to_model = "tmp/models/model_E10"
-path_to_model = "tmp/model_E{}".format(30)
+path_to_model = "tmp/model_E{}".format(45)
 print("***")
 print("Loading Model From: {}".format(path_to_model))
 print("***")

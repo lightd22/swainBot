@@ -1,21 +1,20 @@
 import random
 import numpy as np
 import json
-from draftstate import DraftState
-import champion_info as cinfo
-
-import experience_replay as er
-import match_processing as mp
-
-import qNetwork
-from model import Model
-import train_network as tn
-import tensorflow as tf
-
 import sqlite3
-
 import matplotlib.pyplot as plt
 import time
+
+from draftstate import DraftState
+import champion_info as cinfo
+import match_processing as mp
+
+from models import qNetwork
+from trainer import DDQNTrainer
+from models.inference_model import InferenceModel
+
+import tensorflow as tf
+
 
 
 print("")
@@ -26,12 +25,13 @@ print("********************************")
 valid_champ_ids = cinfo.get_champion_ids()
 print("Number of valid championIds: {}".format(len(valid_champ_ids)))
 
-with open('worlds_matchids_by_stage.txt','r') as infile:
-    worlds_data = json.load(infile)
-
-
-# Store training match data in a json file (for use later)
+# Store training match data in a json file (for reuse later)
 reuse_matches = True
+val_count = 46
+save_match_pool = False
+
+validation_ids = []
+training_ids = []
 if reuse_matches:
     print("Using match data in match_pool.txt.")
     with open('match_pool.txt','r') as infile:
@@ -39,27 +39,29 @@ if reuse_matches:
     validation_ids = data["validation_ids"]
     training_ids = data["training_ids"]
 
-    n_matches = len(validation_ids) + len(training_ids)
-    n_training = len(training_ids)
-    training_matches = mp.get_matches_by_id(training_ids)
-    validation_matches = mp.get_matches_by_id(validation_ids)
-    print(n_matches, n_training, len(validation_ids))
-else:
-    n_val = 40
-    match_ids = []
-    match_ids.extend(mp.build_match_pool(0)["match_ids"])
-    random.shuffle(match_ids)
 
-    validation_ids = match_ids[:n_val]
-    training_ids = match_ids[n_val:]
+val_diff = val_count - len(validation_ids)
+if(val_diff > 0):
+    print("Insufficient number of validation matches. Attempting to add difference..")
+    current = []
+    current.extend(validation_ids)
+    current.extend(training_ids)
 
-    random.shuffle(validation_ids)
-    random.shuffle(training_ids)
+    total = mp.build_match_pool(0, randomize=False)["match_ids"]
+    new = list(set(total)-set(current))
+    assert(len(new) >= val_diff), "Not enough new matches to match required validation count!"
+    random.shuffle(new)
+    validation_ids.extend(new[:val_diff])
+    training_ids.extend(new[val_diff:])
+    save_match_pool = True
 
-    training_matches = mp.get_matches_by_id(training_ids)
-    validation_matches = mp.get_matches_by_id(validation_ids)
+if(save_match_pool):
+    print("Saving match pool to match_pool.txt..")
     with open('match_pool.txt','w') as outfile:
         json.dump({"training_ids":training_ids,"validation_ids":validation_ids},outfile)
+
+training_matches = mp.get_matches_by_id(training_ids)
+validation_matches = mp.get_matches_by_id(validation_ids)
 
 print("***")
 print("Validation matches:")
@@ -82,12 +84,13 @@ for match in validation_matches:
 print("***")
 
 # Network parameters
-state = DraftState(DraftState.BLUE_TEAM,valid_champ_ids)
+state = DraftState(DraftState.BLUE_TEAM, valid_champ_ids)
 input_size = state.format_state().shape
 output_size = state.num_actions
 filter_size = (1024,1024)
 regularization_coeff = 7.5e-5#1.5e-4
 path_to_model = None#"model_predictions/spring_2018/week_3/model_E{}.ckpt".format(30)#None
+load_path = "tmp/ddqn_model.ckpt"
 
 # Training parameters
 batch_size = 16#32
@@ -98,21 +101,21 @@ learning_rate = 2.0e-5#1.0e-4
 
 time.sleep(2.)
 for i in range(1):
-    tf.reset_default_graph()
-    online_net = qNetwork.Qnetwork("online",input_size, output_size, filter_size, learning_rate, regularization_coeff, discount_factor)
-    target_net = qNetwork.Qnetwork("target",input_size, output_size, filter_size, learning_rate, regularization_coeff, discount_factor)
-
-    training_ids = []
-    training_ids.extend(data["training_ids"])
-
-    training_matches = mp.get_matches_by_id(training_ids)
     print("Learning on {} matches for {} epochs. lr {:.4e} reg {:4e}".format(len(training_matches),n_epoch, learning_rate, regularization_coeff),flush=True)
-    loss, train_acc, val_acc = tn.train_network(online_net,target_net,training_matches,validation_matches,n_epoch,batch_size,buffer_size,dampen_states=False,path_to_model=path_to_model,verbose=True)
+
+    tf.reset_default_graph()
+    name = "ddqn"
+    out_path = "tmp/{}_model_E{}.ckpt".format(name, n_epoch)
+    ddqn = qNetwork.Qnetwork(name, out_path, input_size, output_size, filter_size, learning_rate, regularization_coeff, discount_factor)
+    trainer = DDQNTrainer(ddqn, n_epoch, training_matches, validation_matches, batch_size, buffer_size, load_path)
+    summaries = trainer.train()
+
+    #loss, train_acc, val_acc = tn.train_network(online_net,target_net,training_matches,validation_matches,n_epoch,batch_size,buffer_size,dampen_states=False,path_to_model=path_to_model,verbose=True)
     print("Learning complete!")
-    print("..final training accuracy: {:.4f}".format(train_acc[-1]))
-    x = [i+1 for i in range(len(loss))]
+    print("..final training accuracy: {:.4f}".format(summaries["train_acc"][-1]))
+    x = [i+1 for i in range(len(summaries["loss"]))]
     fig = plt.figure()
-    plt.plot(x,loss)
+    plt.plot(x,summaries["loss"])
     plt.ylabel('loss')
     plt.xlabel('epoch')
     #plt.ylim([0,2])
@@ -121,7 +124,7 @@ for i in range(1):
     fig.savefig(fig_name)
 
     fig = plt.figure()
-    plt.plot(x, train_acc, x, val_acc)
+    plt.plot(x, summaries["train_acc"], x, summaries["val_acc"])
     fig_name = "tmp/acc_figs/acc_E{}_run_{}.pdf".format(n_epoch,i+1)
     print("Loss figure saved in:{}".format(fig_name),flush=True)
     fig.savefig(fig_name)
@@ -143,8 +146,8 @@ for a in range(state.num_actions):
 xtick_labels = [cinfo.champion_name_from_id(cid)[:6] for cid in xticks]
 
 tf.reset_default_graph()
-path_to_model = "tmp/model_E{}".format(n_epoch)
-model = Model(path_to_model)
+path_to_model = "tmp/ddqn_model"#"tmp/model_E{}".format(n_epoch)
+model = InferenceModel(name="infer", path=path_to_model)
 for exp in experiences:
     state,act,rew,next_state = exp
     cid,pos = act
@@ -178,5 +181,5 @@ for exp in experiences:
 
 print("")
 print("********************************")
-print("**  Ending Smart Draft Run!   **")
+print("**  Ending Swain Bot Run!   **")
 print("********************************")

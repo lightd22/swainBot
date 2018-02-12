@@ -77,7 +77,7 @@ if __name__ == "__main__":
     create_tables(cur, tableNames, columnInfo, clobber = False)
 
     year = "2018"
-    regions = ["EU_LCS","NA_LCS","LPL","LMS","LCK"]
+    regions = ["EU_LCS","NA_LCS","LPL","LMS","LCK", "NA_ACA", "KR_CHAL"]
     tournaments = ["Spring_Season"]
     for region in regions:
         for tournament in tournaments:
@@ -94,7 +94,8 @@ if __name__ == "__main__":
                     else:
                         print(" Duplicate ban found! {}".format(ban))
                         print("  ".format(seen_bans))
-                        skip_commit = True
+                        if(ban != "none"):
+                            skip_commit = True
 
                 seen_picks = set()
                 for side in ["blue", "red"]:
@@ -105,14 +106,14 @@ if __name__ == "__main__":
                             seen_picks.add(p)
                         else:
                             print("  Duplicate pick found! {}".format(p))
-                            print("  ".format(seen_picks))
+                            print("  {}".format(seen_picks))
                             skip_commit = True
 
                         if pos not in seen_positions:
                             seen_positions.add(pos)
                         else:
                             print("   Duplicate pos found! {}".format(pos))
-                            print("  ".format(seen_positions))
+                            print("  {}".format(seen_positions))
                             skip_commit = True
 
             if(not skip_commit):
@@ -179,19 +180,19 @@ if __name__ == "__main__":
     df = pd.read_sql_query(query, conn)
     #print(df)
 
-    query = ("SELECT game.tournament, game.tourn_game_id, blue.team, red.team, ban.side_id,"
-             "       ban.champion_id AS champ, ban.selection_order AS ord"
-             "  FROM (game "
-             "       JOIN (SELECT id, display_name as team FROM team) AS blue"
-             "         ON game.blue_teamid = blue.id)"
-             "       JOIN (SELECT id, display_name as team FROM team) AS red"
-             "         ON game.red_teamid = red.id"
-             "  LEFT JOIN (SELECT game_id, side_id, champion_id, selection_order FROM ban) AS ban"
-             "         ON game.id = ban.game_id"
-             "  WHERE game.id IN (SELECT game_id FROM ban WHERE champion_id IS ?)")
-    params = (None,)
-    db = pd.read_sql_query(query, conn, params=params)
-    print(db)
+#    query = ("SELECT game.tournament, game.tourn_game_id, blue.team, red.team, ban.side_id,"
+#             "       ban.champion_id AS champ, ban.selection_order AS ord"
+#             "  FROM (game "
+#             "       JOIN (SELECT id, display_name as team FROM team) AS blue"
+#             "         ON game.blue_teamid = blue.id)"
+#             "       JOIN (SELECT id, display_name as team FROM team) AS red"
+#             "         ON game.red_teamid = red.id"
+#             "  LEFT JOIN (SELECT game_id, side_id, champion_id, selection_order FROM ban) AS ban"
+#             "         ON game.id = ban.game_id"
+#             "  WHERE game.id IN (SELECT game_id FROM ban WHERE champion_id IS ?)")
+#    params = (None,)
+#    db = pd.read_sql_query(query, conn, params=params)
+#    print(db)
 
     gameIds = dbo.get_game_ids_by_tournament(cur, "2018/EU/Spring_Season")
     for i in gameIds:
