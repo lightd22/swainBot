@@ -9,13 +9,11 @@ from draftstate import DraftState
 import champion_info as cinfo
 import match_processing as mp
 
-from models import qNetwork
-from trainer import DDQNTrainer
-from models.inference_model import InferenceModel
+from models import qNetwork, softmax
+from trainer import DDQNTrainer, SoftmaxTrainer
+from models.inference_model import QNetInferenceModel, SoftmaxInferenceModel
 
 import tensorflow as tf
-
-
 
 print("")
 print("********************************")
@@ -27,7 +25,7 @@ print("Number of valid championIds: {}".format(len(valid_champ_ids)))
 
 # Store training match data in a json file (for reuse later)
 reuse_matches = True
-val_count = 46
+val_count = 60
 save_match_pool = False
 
 validation_ids = []
@@ -38,7 +36,6 @@ if reuse_matches:
         data = json.load(infile)
     validation_ids = data["validation_ids"]
     training_ids = data["training_ids"]
-
 
 val_diff = val_count - len(validation_ids)
 if(val_diff > 0):
@@ -104,13 +101,19 @@ for i in range(1):
     print("Learning on {} matches for {} epochs. lr {:.4e} reg {:4e}".format(len(training_matches),n_epoch, learning_rate, regularization_coeff),flush=True)
 
     tf.reset_default_graph()
+    name = "softmax"
+    out_path = "tmp/{}_model_E{}.ckpt".format(name, n_epoch)
+    softnet = softmax.SoftmaxNetwork(name, out_path, input_size, output_size, filter_size, learning_rate, regularization_coeff)
+    trainer = SoftmaxTrainer(softnet, n_epoch, training_matches, validation_matches, batch_size, load_path=None)
+    summaries = trainer.train()
+
+    tf.reset_default_graph()
     name = "ddqn"
     out_path = "tmp/{}_model_E{}.ckpt".format(name, n_epoch)
     ddqn = qNetwork.Qnetwork(name, out_path, input_size, output_size, filter_size, learning_rate, regularization_coeff, discount_factor)
     trainer = DDQNTrainer(ddqn, n_epoch, training_matches, validation_matches, batch_size, buffer_size, load_path)
     summaries = trainer.train()
 
-    #loss, train_acc, val_acc = tn.train_network(online_net,target_net,training_matches,validation_matches,n_epoch,batch_size,buffer_size,dampen_states=False,path_to_model=path_to_model,verbose=True)
     print("Learning complete!")
     print("..final training accuracy: {:.4f}".format(summaries["train_acc"][-1]))
     x = [i+1 for i in range(len(summaries["loss"]))]

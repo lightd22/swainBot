@@ -3,7 +3,7 @@ import match_processing as mp
 import champion_info as cinfo
 import draft_db_ops as dbo
 from draftstate import DraftState
-from model import Model
+from models.inference_model import QNetInferenceModel, SoftmaxInferenceModel
 
 import json
 import pandas as pd
@@ -14,7 +14,9 @@ import math
 
 #path_to_model = "model_predictions/spring_2018/week_3/run_2/model_E10"
 #path_to_model = "tmp/models/model_E10"
-path_to_model = "tmp/model_E{}".format(45)
+#path_to_model = "tmp/model_E{}".format(45)
+#path_to_model = "tmp/ddqn_model_E{}".format(45)
+path_to_model = "tmp/softmax_model_E{}".format(45)
 print("***")
 print("Loading Model From: {}".format(path_to_model))
 print("***")
@@ -33,10 +35,11 @@ else:
 print("***")
 
 
-model = Model(path_to_model)
+#model = QNetInferenceModel(name="ddqn", path=path_to_model)
+model = SoftmaxInferenceModel(name="softmax", path=path_to_model)
 
-with open('worlds_matchids_by_stage.txt','r') as infile:
-    data = json.load(infile)
+#with open('worlds_matchids_by_stage.txt','r') as infile:
+#    data = json.load(infile)
 #match_ids = data["groups"]
 #match_ids.extend(data["knockouts"])
 #match_ids.extend(data["finals"])

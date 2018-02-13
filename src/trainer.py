@@ -303,3 +303,146 @@ class DDQNTrainer(BaseTrainer):
 
         accuracy = accurate_predictions/n_exp
         return (loss, accuracy)
+
+class SoftmaxTrainer(BaseTrainer):
+    def __init__(self, network, n_epoch, training_data, validation_data, batch_size, load_path=None):
+        num_episodes = len(training_data)
+        print("***")
+        print("Beginning training..")
+        print("  train_epochs: {}".format(n_epoch))
+        print("  num_episodes: {}".format(num_episodes))
+        print("  batch_size: {}".format(batch_size))
+        print("***")
+
+        self.model = network
+        self.n_epoch = n_epoch
+        self.training_data = training_data
+        self.validation_data = validation_data
+        self.batch_size = batch_size
+        self.load_path = load_path
+
+        self.step_count = 0
+        self.epoch_count = 0
+
+        self.teams = [DraftState.BLUE_TEAM, DraftState.RED_TEAM]
+
+        self._buffer = er.ExperienceBuffer(max_buffer_size=20*len(training_data))
+        self._val_buffer = er.ExperienceBuffer(max_buffer_size=20*len(validation_data))
+
+        self.fill_buffer(training_data, self._buffer)
+        self.fill_buffer(validation_data, self._val_buffer)
+
+    def fill_buffer(self, data, buf):
+        for match in data:
+            for team in self.teams:
+                experiences = mp.process_match(match, team)
+                # remove null actions (usually missing bans)
+                for exp in experiences:
+                    _,act,_,_ = exp
+                    cid,pos = act
+                    if(cid):
+                        buf.store([exp])
+
+    def sample_buffer(self, buf, n_samples):
+        experiences = buf.sample(n_samples)
+        states = []
+        actions = []
+        valid_actions = []
+        for (state, action, _, _) in experiences:
+            states.append(state.format_state())
+            valid_actions.append(state.get_valid_actions())
+            actions.append(state.get_action(*action))
+
+        return (states, actions, valid_actions)
+
+    def train(self):
+        summaries = {}
+        summaries["loss"] = []
+        summaries["train_acc"] = []
+        summaries["val_acc"] = []
+
+        lr_decay_freq = 10
+        min_learning_rate = 1.e-8 # Minimum learning rate allowed to decay to
+
+        stash_model = True # Flag for stashing a copy of the model
+        model_stash_interval = 10 # Stashes a copy of the model this often
+
+        # Load existing model
+        self.model.sess.run(self.model.ops_dict["init"])
+        if(self.load_path):
+            self.model.load(self.load_path)
+            print("\nCheckpoint loaded from {}".format(self.load_path))
+
+        for self.epoch_count in range(self.n_epoch):
+            learning_rate = self.model.ops_dict["learning_rate"].eval(self.model.sess)
+            if((self.epoch_count>0) and (self.epoch_count % lr_decay_freq == 0) and (learning_rate>= min_learning_rate)):
+                # Decay learning rate accoring to schedule
+                learning_rate = 0.5*learning_rate
+                self.model.sess.run(self.model.ops_dict["learning_rate"].assign(learning_rate))
+
+            t0 =  time.time()
+            loss, train_acc, val_acc = self.train_epoch()
+            dt = time.time()-t0
+            print(" Finished epoch {:2}/{}: lr: {:.4e}, dt {:.2f}, loss {:.6f}, train {:.6f}, val {:.6f}".format(self.epoch_count+1, self.n_epoch, learning_rate, dt, loss, train_acc, val_acc), flush=True)
+            summaries["loss"].append(loss)
+            summaries["train_acc"].append(train_acc)
+            summaries["val_acc"].append(val_acc)
+
+            if(stash_model):
+                if(self.epoch_count>0 and (self.epoch_count+1)%model_stash_interval==0):
+                    # Stash a copy of the current model
+                    out_path = "tmp/models/{}_model_E{}.ckpt".format(self.model._name, self.epoch_count+1)
+                    self.model.save(path=out_path)
+                    print("Stashed a copy of the current model in {}".format(out_path))
+
+        self.model.save(path=self.model._path_to_model)
+        return summaries
+
+    def train_epoch(self):
+        n_iter = self._buffer.buffer_size // self.batch_size
+
+        for it in range(n_iter):
+            self.train_step()
+
+        loss, train_acc = self.validate_model(self._buffer)
+        _, val_acc = self.validate_model(self._val_buffer)
+
+        return (loss, train_acc, val_acc)
+
+    def train_step(self):
+        states, actions, valid_actions = self.sample_buffer(self._buffer, self.batch_size)
+
+        feed_dict = {self.model.ops_dict["input"]:np.stack(states, axis=0),
+                     self.model.ops_dict["valid_actions"]:np.stack(valid_actions, axis=0),
+                     self.model.ops_dict["actions"]:actions,
+                     self.model.ops_dict["dropout_keep_prob"]:0.5}
+        _  = self.model.sess.run(self.model.ops_dict["update"], feed_dict=feed_dict)
+
+    def validate_model(self, buf):
+        states, actions, valid_actions = self.sample_buffer(buf, buf.get_buffer_size())
+
+        feed_dict = {self.model.ops_dict["input"]:np.stack(states, axis=0),
+                     self.model.ops_dict["valid_actions"]:np.stack(valid_actions, axis=0),
+                     self.model.ops_dict["actions"]:actions}
+        loss, train_probs = self.model.sess.run([self.model.ops_dict["loss"], self.model.ops_dict["probabilities"]], feed_dict=feed_dict)
+
+        THRESHOLD = 5
+        accurate_predictions = 0
+        for k in range(len(states)):
+            probabilities = train_probs[k,:]
+            data = [(a, probabilities[a]) for a in range(len(probabilities))]
+            df = pd.DataFrame(data, columns=['act_id','prob'])
+
+            df.sort_values('prob',ascending=False,inplace=True)
+            df.reset_index(drop=True,inplace=True)
+            df['rank'] = df.index
+
+            submitted_action_id = actions[k]
+            submitted_row = df[df['act_id']==submitted_action_id]
+
+            rank = submitted_row['rank'].iloc[0]
+            if(rank < THRESHOLD):
+                accurate_predictions += 1
+
+        accuracy = accurate_predictions/len(states)
+        return (loss, accuracy)
