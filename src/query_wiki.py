@@ -60,6 +60,12 @@ def query_wiki(year, region, tournament):
                         "WORLDS_QUALS/LPL": "Season_China_Regional_Finals",
                         "WORLDS_QUALS/LMS": "Season_Taiwan_Regional_Finals",
     }
+
+    with open('patch_info.json','r') as infile:
+        patch_data = json.load(infile)
+        patches = patch_data["patch_info"][year][region][tournament]
+        print(patches)
+
     # Build list of titles of pages to query
     if region == "International":
         title_root = ["_".join([year,formatted_international_tournaments[tournament]])]
@@ -93,6 +99,7 @@ def query_wiki(year, region, tournament):
         # in team or champion names.
         raw_text = page_data[page]["revisions"][0]["*"].replace(" ","").replace("\\n"," ")
         print(page_data[page]["title"])
+    
         # string representation of blue and red teams, ordered by game
         blue_teams = parse_raw_text("(team1=[\w\s]+)",raw_text)
         red_teams = parse_raw_text("(team2=[\w\s]+)",raw_text)

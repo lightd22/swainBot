@@ -25,7 +25,7 @@ print("Number of valid championIds: {}".format(len(valid_champ_ids)))
 
 # Store training match data in a json file (for reuse later)
 reuse_matches = True
-val_count = 60
+val_count = 40
 save_match_pool = False
 
 validation_ids = []
@@ -87,7 +87,7 @@ output_size = state.num_actions
 filter_size = (1024,1024)
 regularization_coeff = 7.5e-5#1.5e-4
 path_to_model = None#"model_predictions/spring_2018/week_3/model_E{}.ckpt".format(30)#None
-load_path = "tmp/ddqn_model.ckpt"
+load_path = "tmp/ddqn_model_E45.ckpt"
 
 # Training parameters
 batch_size = 16#32
@@ -100,12 +100,12 @@ time.sleep(2.)
 for i in range(1):
     print("Learning on {} matches for {} epochs. lr {:.4e} reg {:4e}".format(len(training_matches),n_epoch, learning_rate, regularization_coeff),flush=True)
 
-    tf.reset_default_graph()
-    name = "softmax"
-    out_path = "tmp/{}_model_E{}.ckpt".format(name, n_epoch)
-    softnet = softmax.SoftmaxNetwork(name, out_path, input_size, output_size, filter_size, learning_rate, regularization_coeff)
-    trainer = SoftmaxTrainer(softnet, n_epoch, training_matches, validation_matches, batch_size, load_path=None)
-    summaries = trainer.train()
+#    tf.reset_default_graph()
+#    name = "softmax"
+#    out_path = "tmp/{}_model_E{}.ckpt".format(name, n_epoch)
+#    softnet = softmax.SoftmaxNetwork(name, out_path, input_size, output_size, filter_size, learning_rate, regularization_coeff)
+#    trainer = SoftmaxTrainer(softnet, n_epoch, training_matches, validation_matches, batch_size, load_path=None)
+#    summaries = trainer.train()
 
     tf.reset_default_graph()
     name = "ddqn"
@@ -149,8 +149,8 @@ for a in range(state.num_actions):
 xtick_labels = [cinfo.champion_name_from_id(cid)[:6] for cid in xticks]
 
 tf.reset_default_graph()
-path_to_model = "tmp/ddqn_model"#"tmp/model_E{}".format(n_epoch)
-model = InferenceModel(name="infer", path=path_to_model)
+path_to_model = "tmp/ddqn_model_E45"#"tmp/model_E{}".format(n_epoch)
+model = QNetInferenceModel(name="infer", path=path_to_model)
 for exp in experiences:
     state,act,rew,next_state = exp
     cid,pos = act

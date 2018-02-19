@@ -15,6 +15,7 @@ import math
 #path_to_model = "model_predictions/spring_2018/week_3/run_2/model_E10"
 #path_to_model = "tmp/models/model_E10"
 #path_to_model = "tmp/model_E{}".format(45)
+
 #path_to_model = "tmp/ddqn_model_E{}".format(45)
 path_to_model = "tmp/softmax_model_E{}".format(45)
 print("***")
@@ -33,7 +34,6 @@ if(specific_team):
 else:
     print("Looking at drafts submitted by winning team")
 print("***")
-
 
 #model = QNetInferenceModel(name="ddqn", path=path_to_model)
 model = SoftmaxInferenceModel(name="softmax", path=path_to_model)
