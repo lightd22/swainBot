@@ -40,6 +40,10 @@ def build_match_pool(num_matches, randomize=True):
     dbName = "competitiveGameData.db"
     conn = sqlite3.connect("tmp/"+dbName)
     cur = conn.cursor()
+    patches = [
+        "8.2",
+        "8.3"
+    ]
     tournaments = [
         "2018/EU/Spring_Season",
         "2018/NA/Spring_Season",
@@ -51,9 +55,10 @@ def build_match_pool(num_matches, randomize=True):
     ]
     match_pool = []
     # Build list of eligible match ids
-    for tournament in tournaments:
-        game_ids = dbo.get_game_ids_by_tournament(cur, tournament)
-        match_pool.extend(game_ids)
+    for patch in patches:
+        for tournament in tournaments:
+            game_ids = dbo.get_game_ids_by_tournament(cur, tournament, patch="8.2")
+            match_pool.extend(game_ids)
 
     print("Number of available matches for training={}".format(len(match_pool)))
     if(num_matches == 0):
@@ -233,6 +238,7 @@ if __name__ == "__main__":
     data = build_match_pool(1)
     matches = data["matches"]
     for match in matches:
+        print(match["patch"])
         for team in [DraftState.BLUE_TEAM, DraftState.RED_TEAM]:
             for augment_data in [False, True]:
                 experiences = process_match(match, team, augment_data)

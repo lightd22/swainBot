@@ -58,8 +58,9 @@ if __name__ == "__main__":
     columnInfo = []
     # Game table columns
     columnInfo.append(["id INTEGER PRIMARY KEY",
-                        "tournament TEXT","tourn_game_id INTEGER", "blue_teamid INTEGER NOT NULL",
-                        "red_teamid INTEGER NOT NULL", "winning_team INTEGER"])
+                        "tournament TEXT","tourn_game_id INTEGER", "week INTEGER", "patch TEXT",
+                        "blue_teamid INTEGER NOT NULL", "red_teamid INTEGER NOT NULL",
+                        "winning_team INTEGER"])
     # Pick table columns
     columnInfo.append(["id INTEGER PRIMARY KEY",
                         "game_id INTEGER", "champion_id INTEGER","position_id INTEGER",
@@ -74,7 +75,7 @@ if __name__ == "__main__":
     conn = sqlite3.connect("tmp/"+dbName)
     cur = conn.cursor()
     print("Creating tables..")
-    create_tables(cur, tableNames, columnInfo, clobber = False)
+    create_tables(cur, tableNames, columnInfo, clobber = True)
 
     year = "2018"
     regions = ["EU_LCS","NA_LCS","LPL","LMS","LCK", "NA_ACA", "KR_CHAL"]
@@ -86,7 +87,7 @@ if __name__ == "__main__":
             gameData = query_wiki(year, region, tournament)
             for game in gameData:
                 seen_bans = set()
-                print("{} v {}".format(game["blue_team"], game["red_team"]))
+                print("Week {}, patch {}, {} v {}".format(game["week"], game["patch"], game["blue_team"], game["red_team"]))
                 bans = game["bans"]["blue"] + game["bans"]["red"]
                 for ban in bans:
                     if ban not in seen_bans:
@@ -194,9 +195,10 @@ if __name__ == "__main__":
 #    db = pd.read_sql_query(query, conn, params=params)
 #    print(db)
 
+    print("***")
     gameIds = dbo.get_game_ids_by_tournament(cur, "2018/EU/Spring_Season")
     for i in gameIds:
         match = dbo.get_match_data(cur, i)
-        print("{} vs {}".format(match["blue_team"],match["red_team"]))
+        print("Week {}, patch {}: {} vs {}".format(match["week"], match["patch"], match["blue_team"],match["red_team"]))
     print("Closing db..")
     conn.close()

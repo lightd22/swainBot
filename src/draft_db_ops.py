@@ -6,7 +6,7 @@ regionsDict = {"NA_LCS":"NA", "EU_LCS":"EU", "LCK":"LCK", "LPL":"LPL",
                 "LMS":"LMS", "International":"INTL", "NA_ACA": "NA_ACA", "KR_CHAL":"KR_CHAL"}
 internationalEventsDict = {"Mid-Season_Invitational":"MSI",
                     "Rift_Rivals":"RR","World_Championship":"WRLDS"}
-def get_game_ids_by_tournament(cursor, tournament):
+def get_game_ids_by_tournament(cursor, tournament, patch=None):
     """
     getMatchIdsByTournament queries the connected db for game ids which match the
     input tournament string.
@@ -14,11 +14,16 @@ def get_game_ids_by_tournament(cursor, tournament):
     Args:
         cursor (sqlite cursor): cursor used to execute commmands
         tournament (string): id string for tournament (ie "2017/EU/Summer_Split")
+        patch (string, optional): id string for patch to additionally filter
     Returns:
         gameIds (list(int)): list of gameIds
     """
-    query = "SELECT id FROM game WHERE tournament=? ORDER BY id"
-    params = (tournament,)
+    if patch:
+        query = "SELECT id FROM game WHERE tournament=? AND patch=? ORDER BY id"
+        params = (tournament, patch)
+    else:
+        query = "SELECT id FROM game WHERE tournament=? ORDER BY id"
+        params = (tournament,)
     cursor.execute(query, params)
     response = cursor.fetchall()
     vals = []
@@ -37,12 +42,12 @@ def get_match_data(cursor, gameId):
     Returns:
         match (dict): formatted pick/ban phase data for game
     """
-    match = {"id": gameId ,"winner": None, "blue":{}, "red":{}, "blue_team":None, "red_team":None}
+    match = {"id": gameId ,"winner": None, "blue":{}, "red":{}, "blue_team":None, "red_team":None, "week":None, "patch":None}
     # Get winning team
-    query = "SELECT tournament, tourn_game_id, winning_team FROM game WHERE id=?"
+    query = "SELECT tournament, tourn_game_id, week, patch, winning_team FROM game WHERE id=?"
     params = (gameId,)
     cursor.execute(query, params)
-    match["tournament"], match["tourn_game_id"], match["winner"] = cursor.fetchone()#[0]
+    match["tournament"], match["tourn_game_id"], match["week"], match["patch"], match["winner"] = cursor.fetchone()#[0]
 
     # Get ban data
     query = "SELECT champion_id, selection_order FROM ban WHERE game_id=? and side_id=? ORDER BY selection_order"
@@ -157,8 +162,10 @@ def insert_game(cursor, gameData):
                     redTeamId = redTeamId[0]
 
             winner = game["winning_team"]
-            vals = (tournamentData, tournGameId, blueTeamId, redTeamId, winner)
-            cursor.execute("INSERT INTO game(tournament, tourn_game_id, blue_teamid, red_teamid, winning_team) VALUES(?,?,?,?,?)", vals)
+            week = game["week"]
+            patch = game["patch"]
+            vals = (tournamentData, tournGameId, week, patch, blueTeamId, redTeamId, winner)
+            cursor.execute("INSERT INTO game(tournament, tourn_game_id, week, patch, blue_teamid, red_teamid, winning_team) VALUES(?,?,?,?,?,?,?)", vals)
     status = 1
     return status
 

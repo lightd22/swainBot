@@ -90,7 +90,7 @@ def query_wiki(year, region, tournament):
     # Get list of page keys (actually a list of pageIds.. could be used to identify pages?)
     page_keys = list(sorted(page_data.keys()))
     page_keys = [k for k in page_keys if int(k)>=0] # Filter out "invalid page" and "missing page" responses
-    formattedData = []
+    formatted_data = []
     tournGameId = 0
 
     for page in page_keys:
@@ -99,93 +99,102 @@ def query_wiki(year, region, tournament):
         # in team or champion names.
         raw_text = page_data[page]["revisions"][0]["*"].replace(" ","").replace("\\n"," ")
         print(page_data[page]["title"])
-    
-        # string representation of blue and red teams, ordered by game
-        blue_teams = parse_raw_text("(team1=[\w\s]+)",raw_text)
-        red_teams = parse_raw_text("(team2=[\w\s]+)",raw_text)
 
-        blue_scores = parse_raw_text("(team1score=[0-9])",raw_text)
-        red_scores = parse_raw_text("(team2score=[0-9])",raw_text)
+        week_labels = parse_raw_text("(name=Week[0-9]+)", raw_text)
+        week_numbers = [int(i.replace("week","")) for i in week_labels]
+        week_data = re.split("(name=Week[0-9]+)", raw_text)[2::2]
+        num_games_on_page = 0
+        for i in range(len(week_numbers)):
+            data = week_data[i]
 
-        # winning_teams holds which team won for each parsed game
-        # winner = 1 -> first team won (i.e blue team)
-        # winner = 2 -> second team won (i.e red team)
-        winning_teams = parse_raw_text("(winner=[0-9])",raw_text)
-        winning_teams = [int(i)-1 for i in winning_teams] # Convert string response to int
-        num_games_on_page = len(winning_teams)
-        if(num_games_on_page == 0):
-            continue
+            # winning_teams holds which team won for each parsed game
+            # winner = 1 -> first team won (i.e blue team)
+            # winner = 2 -> second team won (i.e red team)
+            winning_teams = parse_raw_text("(winner=[0-9])", data)
+            winning_teams = [int(i)-1 for i in winning_teams] # Convert string response to int
+            num_games_in_week = len(winning_teams)
 
-        # bans holds the string identifiers of submitted bans for each team in the parsed game
-        # ex: bans[k] = list of bans for kth game on the page
-        all_blue_bans = parse_raw_text("(blueban[0-9]=\w[\w\s',.]+)", raw_text)
-        all_red_bans = parse_raw_text("(redban[0-9]=\w[\w\s',.]+)", raw_text)
-        assert len(all_blue_bans)==len(all_red_bans), "blue bans: {}, red bans: {}".format(len(all_blue_bans),len(all_red_bans))
-        bans_per_team = len(all_blue_bans)//num_games_on_page
+            if(num_games_in_week == 0):
+                continue
+            else:
+                num_games_on_page += num_games_in_week
 
-        # blue_picks[i] = list of picks for kth game on the page
-        all_blue_picks = parse_raw_text("(bluepick[0-9]=\w[\w\s',.]+)", raw_text)
-        all_blue_roles = parse_raw_text("(bluepick[0-9]role=\w[\w\s',.]+)", raw_text)
-        all_red_picks = parse_raw_text("(redpick[0-9]=\w[\w\s',.]+)", raw_text)
-        all_red_roles = parse_raw_text("(redpick[0-9]role=\w[\w\s',.]+)", raw_text)
-        assert len(all_blue_picks)==len(all_red_picks), "blue picks: {}, red picks: {}".format(len(all_blue_picks),len(all_red_picks))
-        assert len(all_blue_roles)==len(all_red_roles), "blue roles: {}, red roles: {}".format(len(all_blue_roles),len(all_red_roles))
-        picks_per_team = len(all_blue_picks)//num_games_on_page
+            # string representation of blue and red teams, ordered by game
+            blue_teams = parse_raw_text("(team1=[\w\s]+)", data)
+            red_teams = parse_raw_text("(team2=[\w\s]+)", data)
 
-        # Clean fields involving chanmpion names, looking for aliases if necessary
-        all_blue_bans = clean_champion_names(all_blue_bans)
-        all_red_bans = clean_champion_names(all_red_bans)
-        all_blue_picks = clean_champion_names(all_blue_picks)
-        all_red_picks = clean_champion_names(all_red_picks)
+            blue_scores = parse_raw_text("(team1score=[0-9])", data)
+            red_scores = parse_raw_text("(team2score=[0-9])", data)
 
-        # Format data by match
-        blue_bans = []
-        red_bans = []
-        for k in range(num_games_on_page):
-            blue_bans.append(all_blue_bans[bans_per_team*k:bans_per_team*(k+1)])
-            red_bans.append(all_red_bans[bans_per_team*k:bans_per_team*(k+1)])
+            # bans holds the string identifiers of submitted bans for each team in the parsed game
+            # ex: bans[k] = list of bans for kth game on the page
+            all_blue_bans = parse_raw_text("(blueban[0-9]=\w[\w\s',.]+)", data)
+            all_red_bans = parse_raw_text("(redban[0-9]=\w[\w\s',.]+)", data)
+            assert len(all_blue_bans)==len(all_red_bans), "blue bans: {}, red bans: {}".format(len(all_blue_bans),len(all_red_bans))
+            bans_per_team = len(all_blue_bans)//num_games_in_week
 
-        # submissions holds the identifiers of submitted (pick, position) pairs for each team in the parsed game
-        # string representation for the positions are converted to ints to match DraftState expectations
-        blue_picks = []
-        red_picks = []
-        for k in range(num_games_on_page):
-            picks = all_blue_picks[picks_per_team*k:picks_per_team*(k+1)]
-            positions = position_string_to_id(all_blue_roles[picks_per_team*k:picks_per_team*(k+1)])
-            blue_picks.append(list(zip(picks,positions)))
+            # blue_picks[i] = list of picks for kth game on the page
+            all_blue_picks = parse_raw_text("(bluepick[0-9]=\w[\w\s',.]+)", data)
+            all_blue_roles = parse_raw_text("(bluepick[0-9]role=\w[\w\s',.]+)", data)
+            all_red_picks = parse_raw_text("(redpick[0-9]=\w[\w\s',.]+)", data)
+            all_red_roles = parse_raw_text("(redpick[0-9]role=\w[\w\s',.]+)", data)
+            assert len(all_blue_picks)==len(all_red_picks), "blue picks: {}, red picks: {}".format(len(all_blue_picks),len(all_red_picks))
+            assert len(all_blue_roles)==len(all_red_roles), "blue roles: {}, red roles: {}".format(len(all_blue_roles),len(all_red_roles))
+            picks_per_team = len(all_blue_picks)//num_games_in_week
 
-            picks = all_red_picks[picks_per_team*k:picks_per_team*(k+1)]
-            positions = position_string_to_id(all_red_roles[picks_per_team*k:picks_per_team*(k+1)])
-            red_picks.append(list(zip(picks,positions)))
+            # Clean fields involving chanmpion names, looking for aliases if necessary
+            all_blue_bans = clean_champion_names(all_blue_bans)
+            all_red_bans = clean_champion_names(all_red_bans)
+            all_blue_picks = clean_champion_names(all_blue_picks)
+            all_red_picks = clean_champion_names(all_red_picks)
 
-        total_blue_bans = sum([len(bans) for bans in blue_bans])
-        total_red_bans = sum([len(bans) for bans in red_bans])
-        total_blue_picks = sum([len(picks) for picks in blue_picks])
-        total_red_picks = sum([len(picks) for picks in red_picks])
+            # Format data by match
+            blue_bans = []
+            red_bans = []
+            for k in range(num_games_in_week):
+                blue_bans.append(all_blue_bans[bans_per_team*k:bans_per_team*(k+1)])
+                red_bans.append(all_red_bans[bans_per_team*k:bans_per_team*(k+1)])
 
-        print("Total number of games found: {}".format(num_games_on_page))
-        print("There should be {} bans. We found {} blue bans and {} red bans".format(num_games_on_page*5,total_blue_bans,total_red_bans))
-        print("There should be {} picks. We found {} blue picks and {} red picks".format(num_games_on_page*5,total_blue_picks,total_red_picks))
-        assert total_red_bans==total_blue_bans, "Bans don't match!"
-        assert total_red_picks==total_blue_picks, "Picks don't match!"
-        if num_games_on_page > 0: # At least one game found on current page
-            for k in range(num_games_on_page):
-                print("Game {}: {} vs {}".format(k+1,blue_teams[k],red_teams[k]))
+            # submissions holds the identifiers of submitted (pick, position) pairs for each team in the parsed game
+            # string representation for the positions are converted to ints to match DraftState expectations
+            blue_picks = []
+            red_picks = []
+            for k in range(num_games_in_week):
+                picks = all_blue_picks[picks_per_team*k:picks_per_team*(k+1)]
+                positions = position_string_to_id(all_blue_roles[picks_per_team*k:picks_per_team*(k+1)])
+                blue_picks.append(list(zip(picks,positions)))
 
-                tournGameId += 1
-                bans = {"blue": blue_bans[k], "red":red_bans[k]}
-                picks = {"blue": blue_picks[k], "red":red_picks[k]}
-                blue = {"bans": blue_bans[k], "picks":blue_picks[k]}
-                red = {"bans": red_bans[k], "picks":red_picks[k]}
-                gameData = {"region": region, "year":year, "tournament": tournament,
-                            "blue_team": blue_teams[k], "red_team": red_teams[k],
-                            "winning_team": winning_teams[k],
-                            "blue_score":blue_scores[k], "red_score":red_scores[k],
-                            "bans": bans, "picks": picks, "blue":blue, "red":red,
-                            "tourn_game_id": tournGameId}
-                formattedData.append(gameData)
+                picks = all_red_picks[picks_per_team*k:picks_per_team*(k+1)]
+                positions = position_string_to_id(all_red_roles[picks_per_team*k:picks_per_team*(k+1)])
+                red_picks.append(list(zip(picks,positions)))
 
-    return formattedData
+            total_blue_bans = sum([len(bans) for bans in blue_bans])
+            total_red_bans = sum([len(bans) for bans in red_bans])
+            total_blue_picks = sum([len(picks) for picks in blue_picks])
+            total_red_picks = sum([len(picks) for picks in red_picks])
+            print("Total number of games found: {}".format(num_games_in_week))
+            print("There should be {} bans. We found {} blue bans and {} red bans".format(num_games_in_week*5,total_blue_bans,total_red_bans))
+            print("There should be {} picks. We found {} blue picks and {} red picks".format(num_games_in_week*5,total_blue_picks,total_red_picks))
+            assert total_red_bans==total_blue_bans, "Bans don't match!"
+            assert total_red_picks==total_blue_picks, "Picks don't match!"
+            if(num_games_in_week > 0): # At least one game found on current page
+                for k in range(num_games_in_week):
+                    print("Week {}, Game {}: {} vs {}".format(week_numbers[i],k+1,blue_teams[k],red_teams[k]))
+
+                    tournGameId += 1
+                    bans = {"blue": blue_bans[k], "red":red_bans[k]}
+                    picks = {"blue": blue_picks[k], "red":red_picks[k]}
+                    blue = {"bans": blue_bans[k], "picks":blue_picks[k]}
+                    red = {"bans": red_bans[k], "picks":red_picks[k]}
+                    gameData = {"region": region, "year":year, "tournament": tournament,
+                                "blue_team": blue_teams[k], "red_team": red_teams[k],
+                                "winning_team": winning_teams[k],
+                                "blue_score":blue_scores[k], "red_score":red_scores[k],
+                                "bans": bans, "picks": picks, "blue":blue, "red":red,
+                                "tourn_game_id": tournGameId, "week":week_numbers[i],
+                                "patch":patches[week_numbers[i]-1]}
+                    formatted_data.append(gameData)
+    return formatted_data
 def position_string_to_id(positions):
     """
     position_string_to_id converts input position strings to their integer representations defined by:
@@ -325,9 +334,11 @@ if __name__ == "__main__":
                 blue_bans.append(ban)
         for (pick,pos) in picks:
             blue_picks.append(pick)
-        s = "|team1picks=" + ", ".join(blue_picks)
-        t = "|team1bans=" + ", ".join(blue_bans)
+        s = "team1picks=" + ", ".join(blue_picks)
+        t = "team1bans=" + ", ".join(blue_bans)
         print("blue team = {}".format(team1))
+        print(s)
+        print(t)
 
         team2 = game["red_team"]
         picks = game["picks"]["red"]
@@ -341,11 +352,12 @@ if __name__ == "__main__":
                 red_bans.append(ban)
         for (pick,pos) in picks:
             red_picks.append(pick)
-        t = t + "|team2bans=" + ", ".join(red_bans)
-        s = s + "|team2picks=" + ", ".join(red_picks)
+        t = "team2bans=" + ", ".join(red_bans)
+        s = "team2picks=" + ", ".join(red_picks)
         print("red team = {}".format(team2))
         print(s)
         print(t)
+        print("Week {}, patch {}".format(game["week"], game["patch"]))
         print("***")
 #    for game in gameData:
 #        print(json.dumps(game, indent=4, sort_keys=True))
