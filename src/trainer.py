@@ -51,6 +51,9 @@ class DDQNTrainer(BaseTrainer):
         self.dampen_states = False
         self.teams = [DraftState.BLUE_TEAM, DraftState.RED_TEAM]
 
+        self.N_TEMP_TRAIN_MATCHES = 25
+        self.TEMP_TRAIN_PATCHES = ["8.2"]
+
     def train(self):
         """
         Core training loop over epochs
@@ -126,7 +129,14 @@ class DDQNTrainer(BaseTrainer):
         null_actions = 0
 
         # Shuffle match presentation order
-        shuffled_matches = random.sample(self.training_data, len(self.training_data))
+        if(self.N_TEMP_TRAIN_MATCHES):
+            print("Adding {} matches to training pool.".format(self.N_TEMP_TRAIN_MATCHES))
+            temp_matches = mp.build_match_pool(self.N_TEMP_TRAIN_MATCHES, patches=self.TEMP_TRAIN_PATCHES)["matches"]
+        else:
+            temp_matches = []
+        data = self.training_data + temp_matches
+
+        shuffled_matches = random.sample(data, len(data))
         for match in shuffled_matches:
             for team in self.teams:
                 # Process match into individual experiences

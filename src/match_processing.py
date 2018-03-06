@@ -24,11 +24,12 @@ def get_matches_by_id(match_ids):
     conn.close()
     return match_data
 
-def build_match_pool(num_matches, randomize=True):
+def build_match_pool(num_matches, randomize=True, patches=None):
     """
     Args:
         num_matches (int): Number of matches to include in the queue (0 indicates to use the maximum number of matches available)
         randomize (bool): Flag for randomizing order of output matches.
+        patches (list(string)): List of patch numbers to use when building pool, if patches is None, defaults to using most recent patches
     Returns:
         match_data (dictionary): dictionary containing two keys:
             "match_ids": list of match_ids for pooled matches
@@ -40,10 +41,13 @@ def build_match_pool(num_matches, randomize=True):
     dbName = "competitiveGameData.db"
     conn = sqlite3.connect("tmp/"+dbName)
     cur = conn.cursor()
-    patches = [
-        "8.2",
-        "8.3"
-    ]
+    if(patches is None):
+        patches = [
+#            "8.1",
+#            "8.2",
+            "8.3",
+            "8.4"
+        ]
     tournaments = [
         "2018/EU/Spring_Season",
         "2018/NA/Spring_Season",
@@ -57,7 +61,7 @@ def build_match_pool(num_matches, randomize=True):
     # Build list of eligible match ids
     for patch in patches:
         for tournament in tournaments:
-            game_ids = dbo.get_game_ids_by_tournament(cur, tournament, patch="8.2")
+            game_ids = dbo.get_game_ids_by_tournament(cur, tournament, patch=patch)
             match_pool.extend(game_ids)
 
     print("Number of available matches for training={}".format(len(match_pool)))
@@ -176,7 +180,7 @@ def process_match(match, team, augment_data=True):
         memory = (s, a, r, s_next)
         experiences.append(memory)
     else:
-        print("{} vs {}".format(match["blue_team"],match["red_team"]))
+        print("Week {} match_id {} {} vs {}".format(match["week"], match["id"], match["blue_team"],match["red_team"]))
         draft.display()
         print("Error code {}".format(draft.evaluate()))
         print("Number of experiences {}".format(len(experiences)))
@@ -235,7 +239,7 @@ def build_action_queue(match):
     return action_queue
 
 if __name__ == "__main__":
-    data = build_match_pool(1)
+    data = build_match_pool(1, patches=["8.2"])
     matches = data["matches"]
     for match in matches:
         print(match["patch"])
@@ -248,3 +252,8 @@ if __name__ == "__main__":
                     print("{} - {}".format(count,a))
                     count+=1
                 print("")
+
+    data = build_match_pool(0, randomize=False, patches=["8.3","8.4"])
+#    matches = data["matches"]
+#    for match in matches:
+#        print("Week {}, Patch {}: {} vs {}. Winner:{}".format(match["week"], match["patch"], match["blue_team"], match["red_team"], match["winner"]))

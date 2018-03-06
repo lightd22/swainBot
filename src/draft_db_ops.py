@@ -122,6 +122,29 @@ def get_game_id(cursor,gameData):
             gameId = gameId[0]
     return gameId
 
+def delete_game_from_table(cursor, game_ids, table_name):
+    """
+    Deletes rows corresponding to game_id from table table_name.
+    Args:
+        cursor (sqlite cursor): cursor used to execute commmands
+        game_ids (list(int)): game_ids to be removed from table
+        table_name (string): name of table to remove rows from
+    Returns:
+        status (int): status = 1 if delete was successful, otherwise status = 0
+    """
+    status = 0
+    assert isinstance(game_ids,list), "game_ids is not a list"
+    for game_id in game_ids:
+        query = "SELECT count(*) FROM {table_name} WHERE game_id=?".format(table_name=table_name)
+        vals = (game_id,)
+        cursor.execute(query, vals)
+        print("Found {count} rows for game_id={game_id} to delete from table {table}".format(count=cursor.fetchone()[0], game_id=game_id, table=table_name))
+
+        query = "DELETE FROM {table_name} WHERE game_id=?".format(table_name=table_name)
+        cursor.execute(query, vals)
+    status = 1
+    return status
+
 def insert_game(cursor, gameData):
     """
     insert_game attempts to format collected gameData from query_wiki() and insert

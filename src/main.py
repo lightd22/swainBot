@@ -8,6 +8,7 @@ import time
 from draftstate import DraftState
 import champion_info as cinfo
 import match_processing as mp
+from match_list import build_match_list
 
 from models import qNetwork, softmax
 from trainer import DDQNTrainer, SoftmaxTrainer
@@ -23,41 +24,22 @@ print("********************************")
 valid_champ_ids = cinfo.get_champion_ids()
 print("Number of valid championIds: {}".format(len(valid_champ_ids)))
 
-# Store training match data in a json file (for reuse later)
-reuse_matches = True
-val_count = 40
-save_match_pool = False
+N_TRAIN = 148
+N_VAL = 36
+PATCHES = ["8.3", "8.4"]
+PRUNE_PATCHES = None#["8.1", "8.2"]
+build_match_list(N_TRAIN, N_VAL, reuse=True, patches=PATCHES, prune_patches=PRUNE_PATCHES)
 
-validation_ids = []
-training_ids = []
-if reuse_matches:
+REUSE_MATCHES = True
+if REUSE_MATCHES:
     print("Using match data in match_pool.txt.")
     with open('match_pool.txt','r') as infile:
         data = json.load(infile)
     validation_ids = data["validation_ids"]
     training_ids = data["training_ids"]
 
-val_diff = val_count - len(validation_ids)
-if(val_diff > 0):
-    print("Insufficient number of validation matches. Attempting to add difference..")
-    current = []
-    current.extend(validation_ids)
-    current.extend(training_ids)
+    print("Found {} training matches and {} validation matches in pool.".format(len(training_ids), len(validation_ids)))
 
-    total = mp.build_match_pool(0, randomize=False)["match_ids"]
-    new = list(set(total)-set(current))
-    assert(len(new) >= val_diff), "Not enough new matches to match required validation count!"
-    random.shuffle(new)
-    validation_ids.extend(new[:val_diff])
-    training_ids.extend(new[val_diff:])
-    save_match_pool = True
-
-if(save_match_pool):
-    print("Saving match pool to match_pool.txt..")
-    with open('match_pool.txt','w') as outfile:
-        json.dump({"training_ids":training_ids,"validation_ids":validation_ids},outfile)
-
-training_matches = mp.get_matches_by_id(training_ids)
 validation_matches = mp.get_matches_by_id(validation_ids)
 
 print("***")
@@ -87,7 +69,7 @@ output_size = state.num_actions
 filter_size = (1024,1024)
 regularization_coeff = 7.5e-5#1.5e-4
 path_to_model = None#"model_predictions/spring_2018/week_3/model_E{}.ckpt".format(30)#None
-load_path = "tmp/ddqn_model_E45.ckpt"
+load_path = None#"tmp/ddqn_model_E45.ckpt"
 
 # Training parameters
 batch_size = 16#32
@@ -95,17 +77,18 @@ buffer_size = 4096#2048
 n_epoch = 45
 discount_factor = 0.9
 learning_rate = 2.0e-5#1.0e-4
-
 time.sleep(2.)
 for i in range(1):
+
+    training_matches = mp.get_matches_by_id(training_ids)
     print("Learning on {} matches for {} epochs. lr {:.4e} reg {:4e}".format(len(training_matches),n_epoch, learning_rate, regularization_coeff),flush=True)
 
-#    tf.reset_default_graph()
-#    name = "softmax"
-#    out_path = "tmp/{}_model_E{}.ckpt".format(name, n_epoch)
-#    softnet = softmax.SoftmaxNetwork(name, out_path, input_size, output_size, filter_size, learning_rate, regularization_coeff)
-#    trainer = SoftmaxTrainer(softnet, n_epoch, training_matches, validation_matches, batch_size, load_path=None)
-#    summaries = trainer.train()
+    tf.reset_default_graph()
+    name = "softmax"
+    out_path = "tmp/{}_model_E{}.ckpt".format(name, n_epoch)
+    softnet = softmax.SoftmaxNetwork(name, out_path, input_size, output_size, filter_size, learning_rate, regularization_coeff)
+    trainer = SoftmaxTrainer(softnet, n_epoch, training_matches, validation_matches, batch_size, load_path=None)
+    summaries = trainer.train()
 
     tf.reset_default_graph()
     name = "ddqn"
@@ -129,7 +112,7 @@ for i in range(1):
     fig = plt.figure()
     plt.plot(x, summaries["train_acc"], x, summaries["val_acc"])
     fig_name = "tmp/acc_figs/acc_E{}_run_{}.pdf".format(n_epoch,i+1)
-    print("Loss figure saved in:{}".format(fig_name),flush=True)
+    print("Accuracy figure saved in:{}".format(fig_name),flush=True)
     fig.savefig(fig_name)
 
 

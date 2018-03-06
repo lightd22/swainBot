@@ -75,11 +75,17 @@ if __name__ == "__main__":
     conn = sqlite3.connect("tmp/"+dbName)
     cur = conn.cursor()
     print("Creating tables..")
-    create_tables(cur, tableNames, columnInfo, clobber = True)
+    create_tables(cur, tableNames, columnInfo, clobber = False)
+
+    #deleted_match_ids = None
+    #dbo.delete_game_from_table(cur, game_ids = deleted_match_ids, table_name="pick")
+    #dbo.delete_game_from_table(cur, game_ids = deleted_match_ids, table_name="ban")
 
     year = "2018"
-    regions = ["EU_LCS","NA_LCS","LPL","LMS","LCK", "NA_ACA", "KR_CHAL"]
+    regions = ["EU_LCS","NA_LCS","LPL","LMS","LCK","NA_ACA","KR_CHAL"]
     tournaments = ["Spring_Season"]
+    NUM_BANS = 10
+    NUM_PICKS = 10
     for region in regions:
         for tournament in tournaments:
             skip_commit = False
@@ -88,7 +94,13 @@ if __name__ == "__main__":
             for game in gameData:
                 seen_bans = set()
                 print("Week {}, patch {}, {} v {}".format(game["week"], game["patch"], game["blue_team"], game["red_team"]))
+                print("blue picks {} \n red picks {}".format(game["picks"]["blue"], game["picks"]["red"]))
                 bans = game["bans"]["blue"] + game["bans"]["red"]
+                picks = game["picks"]["blue"] + game["picks"]["red"]
+                if(len(bans) != NUM_BANS or len(picks)!= NUM_PICKS):
+                    print("Incorrect number of picks and/or bans found! {} picks, {} bans".format(len(picks), len(bans)))
+                    skip_commit = True
+
                 for ban in bans:
                     if ban not in seen_bans:
                         seen_bans.add(ban)
@@ -108,6 +120,7 @@ if __name__ == "__main__":
                         else:
                             print("  Duplicate pick found! {}".format(p))
                             print("  {}".format(seen_picks))
+                            #print("  {}".format(game["picks"][side]))
                             skip_commit = True
 
                         if pos not in seen_positions:
@@ -127,8 +140,6 @@ if __name__ == "__main__":
                 conn.commit()
             else:
                 print("errors found.. skipping commit")
-
-#    print(json.dumps(game, indent=4, sort_keys=True))
 
     year = "2018"
     region = "International"
@@ -196,9 +207,15 @@ if __name__ == "__main__":
 #    print(db)
 
     print("***")
-    gameIds = dbo.get_game_ids_by_tournament(cur, "2018/EU/Spring_Season")
+    gameIds = [493, 545]#dbo.get_game_ids_by_tournament(cur, "2018/NA/Spring_Season")
     for i in gameIds:
         match = dbo.get_match_data(cur, i)
-        print("Week {}, patch {}: {} vs {}".format(match["week"], match["patch"], match["blue_team"],match["red_team"]))
+        print("match_id:{} Week {}, patch {}: {} vs {}".format(match["id"], match["week"], match["patch"], match["blue_team"],match["red_team"]))
+        print(match["blue"]["picks"])
+        print(match["blue"]["bans"])
+        print("")
+        print(match["red"]["picks"])
+        print(match["red"]["bans"])
+
     print("Closing db..")
     conn.close()

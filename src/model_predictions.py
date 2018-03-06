@@ -16,8 +16,11 @@ import math
 #path_to_model = "tmp/models/model_E10"
 #path_to_model = "tmp/model_E{}".format(45)
 
-#path_to_model = "tmp/ddqn_model_E{}".format(45)
-path_to_model = "tmp/softmax_model_E{}".format(45)
+path_to_model = "tmp/ddqn_model_E{}".format(45)
+model = QNetInferenceModel(name="ddqn", path=path_to_model)
+
+#path_to_model = "tmp/softmax_model_E{}".format(45)
+#model = SoftmaxInferenceModel(name="softmax", path=path_to_model)
 print("***")
 print("Loading Model From: {}".format(path_to_model))
 print("***")
@@ -35,9 +38,6 @@ else:
     print("Looking at drafts submitted by winning team")
 print("***")
 
-#model = QNetInferenceModel(name="ddqn", path=path_to_model)
-model = SoftmaxInferenceModel(name="softmax", path=path_to_model)
-
 #with open('worlds_matchids_by_stage.txt','r') as infile:
 #    data = json.load(infile)
 #match_ids = data["groups"]
@@ -48,6 +48,7 @@ model = SoftmaxInferenceModel(name="softmax", path=path_to_model)
 with open('match_pool.txt','r') as infile:
     data = json.load(infile)
 match_ids = data['validation_ids']
+#match_ids = data['training_ids']
 #match_ids.extend(data['training_ids'])
 dbName = "competitiveGameData.db"
 conn = sqlite3.connect("tmp/"+dbName)
