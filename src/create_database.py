@@ -77,9 +77,9 @@ if __name__ == "__main__":
     print("Creating tables..")
     create_tables(cur, tableNames, columnInfo, clobber = False)
 
-    #deleted_match_ids = None
-    #dbo.delete_game_from_table(cur, game_ids = deleted_match_ids, table_name="pick")
-    #dbo.delete_game_from_table(cur, game_ids = deleted_match_ids, table_name="ban")
+#    deleted_match_ids = [770]
+#    dbo.delete_game_from_table(cur, game_ids = deleted_match_ids, table_name="pick")
+#    dbo.delete_game_from_table(cur, game_ids = deleted_match_ids, table_name="ban")
 
     year = "2018"
     regions = ["EU_LCS","NA_LCS","LPL","LMS","LCK","NA_ACA","KR_CHAL"]

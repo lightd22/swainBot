@@ -147,7 +147,7 @@ class Qnetwork(base_model.BaseModel):
                 # because the gather operation is applied to outQ directly. Apparently this propagates the gradient more efficiently
                 # under specific sparsity conditions (which tf.Variables like outQ satisfy)
 
-                # Simple sum-of-squares loss (error) function with regularization. Note that biases do not
+                # Simple sum-of-squares loss (error) function. Note that biases do not
                 # need to be regularized since they are (generally) not subject to overfitting.
                 ops_dict["loss"] = tf.reduce_mean(0.5*tf.square(ops_dict["target"]-estimatedQ), name="loss")
 

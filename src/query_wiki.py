@@ -129,15 +129,15 @@ def query_wiki(year, region, tournament):
             # bans holds the string identifiers of submitted bans for each team in the parsed game
             # ex: bans[k] = list of bans for kth game on the page
             all_blue_bans = parse_raw_text("(blueban[0-9]=\w[\w\s',.]+)", data)
-            all_red_bans = parse_raw_text("(redban[0-9]=\w[\w\s',.]+)", data)
+            all_red_bans = parse_raw_text("(red_ban[0-9]=\w[\w\s',.]+)", data)
             assert len(all_blue_bans)==len(all_red_bans), "blue bans: {}, red bans: {}".format(len(all_blue_bans),len(all_red_bans))
             bans_per_team = len(all_blue_bans)//num_games_in_week
 
             # blue_picks[i] = list of picks for kth game on the page
             all_blue_picks = parse_raw_text("(bluepick[0-9]=\w[\w\s',.]+)", data)
-            all_blue_roles = parse_raw_text("(bluepick[0-9]role=\w[\w\s',.]+)", data)
-            all_red_picks = parse_raw_text("(redpick[0-9]=\w[\w\s',.]+)", data)
-            all_red_roles = parse_raw_text("(redpick[0-9]role=\w[\w\s',.]+)", data)
+            all_blue_roles = parse_raw_text("(bluerole[0-9]=\w[\w\s',.]+)", data)
+            all_red_picks = parse_raw_text("(red_pick[0-9]=\w[\w\s',.]+)", data)
+            all_red_roles = parse_raw_text("(red_role[0-9]=\w[\w\s',.]+)", data)
             assert len(all_blue_picks)==len(all_red_picks), "blue picks: {}, red picks: {}".format(len(all_blue_picks),len(all_red_picks))
             assert len(all_blue_roles)==len(all_red_roles), "blue roles: {}, red roles: {}".format(len(all_blue_roles),len(all_red_roles))
             picks_per_team = len(all_blue_picks)//num_games_in_week

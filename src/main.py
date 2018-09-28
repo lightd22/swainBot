@@ -24,9 +24,9 @@ print("********************************")
 valid_champ_ids = cinfo.get_champion_ids()
 print("Number of valid championIds: {}".format(len(valid_champ_ids)))
 
-N_TRAIN = 148
-N_VAL = 36
-PATCHES = ["8.3", "8.4"]
+N_TRAIN = 272
+N_VAL = 90
+PATCHES = ["8.3", "8.4", "8.5"]
 PRUNE_PATCHES = None#["8.1", "8.2"]
 build_match_list(N_TRAIN, N_VAL, reuse=True, patches=PATCHES, prune_patches=PRUNE_PATCHES)
 
@@ -76,7 +76,7 @@ batch_size = 16#32
 buffer_size = 4096#2048
 n_epoch = 45
 discount_factor = 0.9
-learning_rate = 2.0e-5#1.0e-4
+learning_rate = 1.0e-4#2.0e-5#
 time.sleep(2.)
 for i in range(1):
 

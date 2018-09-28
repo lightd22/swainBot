@@ -46,7 +46,8 @@ def build_match_pool(num_matches, randomize=True, patches=None):
 #            "8.1",
 #            "8.2",
             "8.3",
-            "8.4"
+            "8.4",
+            "8.5"
         ]
     tournaments = [
         "2018/EU/Spring_Season",
@@ -239,7 +240,7 @@ def build_action_queue(match):
     return action_queue
 
 if __name__ == "__main__":
-    data = build_match_pool(1, patches=["8.2"])
+    data = build_match_pool(1, patches=["8.3"])
     matches = data["matches"]
     for match in matches:
         print(match["patch"])
@@ -253,7 +254,7 @@ if __name__ == "__main__":
                     count+=1
                 print("")
 
-    data = build_match_pool(0, randomize=False, patches=["8.3","8.4"])
+    data = build_match_pool(0, randomize=False, patches=["8.4","8.5"])
 #    matches = data["matches"]
 #    for match in matches:
 #        print("Week {}, Patch {}: {} vs {}. Winner:{}".format(match["week"], match["patch"], match["blue_team"], match["red_team"], match["winner"]))
