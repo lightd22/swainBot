@@ -83,7 +83,7 @@ if __name__ == "__main__":
 
     year = "2018"
     regions = ["EU_LCS","NA_LCS","LPL","LMS","LCK","NA_ACA","KR_CHAL"]
-    tournaments = ["Spring_Season"]
+    tournaments = ["Spring_Season", "Spring_Playoffs", "Summer_Season", "Summer_Playoffs", "Regional_Finals"]
     NUM_BANS = 10
     NUM_PICKS = 10
     for region in regions:

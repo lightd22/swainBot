@@ -39,7 +39,7 @@ def query_wiki(year, region, tournament):
     url_root = "https://lol.gamepedia.com/api.php"
 
     # Semi-standardized page suffixes for pick/ban pages
-    page_suffixes = ["", "/Bracket_Stage", "/4-6", "/4-7", "/7-9", "/7-10", "/8-10"]
+    page_suffixes = ["", "/Bracket_Stage", "/3-4", "/5-6", "/5-8", "/4-6", "/4-7", "/7-9", "/7-10", "/8-10", "/7-8", "/9-11"]
 
     formatted_regions = {"NA_LCS":"League_Championship_Series/North_America",
                         "NA_ACA":"NA_Academy_League",
@@ -47,7 +47,8 @@ def query_wiki(year, region, tournament):
                         "LCK":"LCK",
                         "KR_CHAL":"Challengers_Korea",
                         "LPL":"LPL",
-                        "LMS":"LMS"}
+                        "LMS":"LMS",
+                        "LDL":"LDL"}
 
     formatted_international_tournaments = {
                         "WORLDS/Play-In": "Season_World_Championship/Play-In",

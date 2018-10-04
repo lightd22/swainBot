@@ -1,6 +1,6 @@
 from collections import deque
 from draftstate import DraftState
-from champion_info import get_champion_ids, champion_name_from_id
+from champion_info import get_champion_ids
 from rewards import get_reward
 from copy import deepcopy
 
