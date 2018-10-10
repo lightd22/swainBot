@@ -1,6 +1,6 @@
 import numpy as np
-from champion_info import champion_name_from_id, valid_champion_id, get_champion_ids
-from draft import Draft
+from data.champion_info import champion_name_from_id, valid_champion_id, get_champion_ids
+from .draft import Draft
 
 class InvalidDraftState(Exception):
     pass

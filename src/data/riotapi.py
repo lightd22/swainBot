@@ -1,5 +1,5 @@
 import requests
-import myRiotApiKey
+from . import myRiotApiKey
 import time
 api_versions = {
     "staticdata": "v3",

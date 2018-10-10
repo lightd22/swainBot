@@ -6,10 +6,12 @@ import tensorflow as tf
 import pandas as pd
 import numpy as np
 
-from draftstate import DraftState
-import experience_replay as er
-import match_processing as mp
-from rewards import get_reward
+import data.match_pool as pool
+
+from features.draftstate import DraftState
+import features.experience_replay as er
+import features.match_processing as mp
+from features.rewards import get_reward
 
 class BaseTrainer():
     pass
@@ -52,7 +54,7 @@ class DDQNTrainer(BaseTrainer):
         self.teams = [DraftState.BLUE_TEAM, DraftState.RED_TEAM]
 
         self.N_TEMP_TRAIN_MATCHES = 25
-        self.TEMP_TRAIN_PATCHES = ["8.2"]
+        self.TEMP_TRAIN_PATCHES = ["8.13","8.14","8.15"]
 
     def train(self):
         """
@@ -130,8 +132,10 @@ class DDQNTrainer(BaseTrainer):
 
         # Shuffle match presentation order
         if(self.N_TEMP_TRAIN_MATCHES):
-            print("Adding {} matches to training pool.".format(self.N_TEMP_TRAIN_MATCHES))
-            temp_matches = mp.build_match_pool(self.N_TEMP_TRAIN_MATCHES, patches=self.TEMP_TRAIN_PATCHES)["matches"]
+            path_to_db = "../data/competitiveMatchData.db"
+            sources = {"patches":self.TEMP_TRAIN_PATCHES, "tournaments":[]}
+            print("Adding {} matches to training pool from {}.".format(self.N_TEMP_TRAIN_MATCHES, path_to_db))
+            temp_matches = pool.match_pool(self.N_TEMP_TRAIN_MATCHES, path_to_db, randomize=True, match_sources=sources)["matches"]
         else:
             temp_matches = []
         data = self.training_data + temp_matches

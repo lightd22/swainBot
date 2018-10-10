@@ -4,7 +4,7 @@ from .riotapi import make_request, api_versions
 import requests
 import re
 import json
-from .myRiotApiKey import api_key
+from . import myRiotApiKey
 
 # Box is a vacant class with no initial members. This will be used to hold the champion_id list and champion_id <-> name dictionaries.
 
@@ -177,7 +177,7 @@ def populate_champion_dictionary():
     Populates the module dictionary whose keys are champion Ids and values are strings of the corresponding champion's name.
     """
     #riotapi.set_region("NA")
-    #riotapi.set_api_key(api_key)
+    #riotapi.set_api_key(myRiotApiKey.api_key)
     #champions = riotapi.get_champions()
     DISABLED_CHAMPIONS = []
     if(look_local):
@@ -185,7 +185,7 @@ def populate_champion_dictionary():
             response = json.load(local_data)
     else:
         request = "{static}/{version}/champions".format(static="static-data",version=api_versions["staticdata"])
-        params = {"locale":"en_US", "dataById":"true", "api_key":api_key }
+        params = {"locale":"en_US", "dataById":"true", "api_key":myRiotApiKey.api_key }
         response = make_request(request,"GET",params)
     data = response["data"]
     champions = []

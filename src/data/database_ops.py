@@ -15,7 +15,7 @@ def get_matches_by_id(match_ids, path):
     cur = conn.cursor()
     match_data = []
     for match_id in match_ids:
-        match = dbo.get_match_data(cur, match_id)
+        match = get_match_data(cur, match_id)
         match_data.append(match)
     conn.close()
     return match_data

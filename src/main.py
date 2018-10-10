@@ -5,10 +5,11 @@ import sqlite3
 import matplotlib.pyplot as plt
 import time
 
-from draftstate import DraftState
-import champion_info as cinfo
-import match_processing as mp
-from match_list import build_match_list
+from features.draftstate import DraftState
+import data.champion_info as cinfo
+import features.match_processing as mp
+from data.match_pool import test_train_split
+import data.database_ops as dbo
 
 from models import qNetwork, softmax
 from trainer import DDQNTrainer, SoftmaxTrainer
@@ -24,26 +25,24 @@ print("********************************")
 valid_champ_ids = cinfo.get_champion_ids()
 print("Number of valid championIds: {}".format(len(valid_champ_ids)))
 
-N_TRAIN = 272
-N_VAL = 90
-PATCHES = ["8.3", "8.4", "8.5"]
-PRUNE_PATCHES = None#["8.1", "8.2"]
-build_match_list(N_TRAIN, N_VAL, reuse=True, patches=PATCHES, prune_patches=PRUNE_PATCHES)
+LIST_PATH = None#"../data/test_train_split.txt"
+LIST_SAVE_PATH = "../data/test_train_split.txt"
+PATH_TO_DB = "../data/competitiveMatchData.db"
+MODEL_DIR = "../models/"
+N_TRAIN = 173
+N_VAL = 20
+PATCHES = None
+PRUNE_PATCHES = None
+result = test_train_split(N_TRAIN, N_VAL, PATH_TO_DB, LIST_PATH, LIST_SAVE_PATH)
 
-REUSE_MATCHES = True
-if REUSE_MATCHES:
-    print("Using match data in match_pool.txt.")
-    with open('match_pool.txt','r') as infile:
-        data = json.load(infile)
-    validation_ids = data["validation_ids"]
-    training_ids = data["training_ids"]
+validation_ids = result["validation_ids"]
+training_ids = result["training_ids"]
+print("Found {} training matches and {} validation matches in pool.".format(len(training_ids), len(validation_ids)))
 
-    print("Found {} training matches and {} validation matches in pool.".format(len(training_ids), len(validation_ids)))
-
-validation_matches = mp.get_matches_by_id(validation_ids)
+validation_matches = dbo.get_matches_by_id(validation_ids, PATH_TO_DB)
 
 print("***")
-print("Validation matches:")
+print("Displaying Validation matches:")
 count = 0
 for match in validation_matches:
     count += 1
@@ -79,20 +78,20 @@ discount_factor = 0.9
 learning_rate = 1.0e-4#2.0e-5#
 time.sleep(2.)
 for i in range(1):
-
-    training_matches = mp.get_matches_by_id(training_ids)
+    training_matches = dbo.get_matches_by_id(training_ids, PATH_TO_DB)
     print("Learning on {} matches for {} epochs. lr {:.4e} reg {:4e}".format(len(training_matches),n_epoch, learning_rate, regularization_coeff),flush=True)
+    break
 
     tf.reset_default_graph()
     name = "softmax"
-    out_path = "tmp/{}_model_E{}.ckpt".format(name, n_epoch)
+    out_path = "{}{}_model_E{}.ckpt".format(MODEL_DIR, name, n_epoch)
     softnet = softmax.SoftmaxNetwork(name, out_path, input_size, output_size, filter_size, learning_rate, regularization_coeff)
     trainer = SoftmaxTrainer(softnet, n_epoch, training_matches, validation_matches, batch_size, load_path=None)
     summaries = trainer.train()
 
     tf.reset_default_graph()
     name = "ddqn"
-    out_path = "tmp/{}_model_E{}.ckpt".format(name, n_epoch)
+    out_path = "{}{}_model_E{}.ckpt".format(MODEL_DIR, name, n_epoch)
     ddqn = qNetwork.Qnetwork(name, out_path, input_size, output_size, filter_size, learning_rate, regularization_coeff, discount_factor)
     trainer = DDQNTrainer(ddqn, n_epoch, training_matches, validation_matches, batch_size, buffer_size, load_path)
     summaries = trainer.train()
@@ -132,8 +131,11 @@ for a in range(state.num_actions):
 xtick_labels = [cinfo.champion_name_from_id(cid)[:6] for cid in xticks]
 
 tf.reset_default_graph()
-path_to_model = "tmp/ddqn_model_E45"#"tmp/model_E{}".format(n_epoch)
-model = QNetInferenceModel(name="infer", path=path_to_model)
+#path_to_model = "../models/ddqn_model_E{}".format(45)#"tmp/ddqn_model_E45"#"tmp/model_E{}".format(n_epoch)
+#model = QNetInferenceModel(name="infer", path=path_to_model)
+path_to_model = "../models/softmax_model_E{}".format(45)#"tmp/ddqn_model_E45"#"tmp/model_E{}".format(n_epoch)
+model = SoftmaxInferenceModel(name="infer", path=path_to_model)
+
 for exp in experiences:
     state,act,rew,next_state = exp
     cid,pos = act

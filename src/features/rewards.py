@@ -1,5 +1,5 @@
 import numpy as np
-from draftstate import DraftState as ds
+from .draftstate import DraftState as ds
 
 def get_reward(state, match, submitted_action, actual_action):
     """

@@ -64,7 +64,7 @@ def test_train_split(n_training, n_validation, path_to_db, list_path=None, save_
 def grow_pool(count, current_pool, path_to_db, match_sources=None):
     total = match_pool(0, path_to_db, randomize=False, match_sources=match_sources)["match_ids"]
     new = list(set(total)-set(current_pool))
-    assert(len(new) >= count), "Not enough new matches to match required count!"
+    assert(len(new) >= count), "Not enough new matches to match required count! avail: {} needed: {}".format(len(new), count)
     random.shuffle(new)
 
     return new[:count]
@@ -107,9 +107,9 @@ def match_pool(num_matches, path_to_db, randomize=True, match_sources=None):
 
     # If patches or tournaments is empty, grab matches from all patches from specified tournaments or all tournaments from specified matches
     if not patches:
-        patches = [None for tournament in tournaments]
+        patches = [None]
     if not tournaments:
-        tournaments = [None for patch in patches]
+        tournaments = [None]
 
     match_pool = []
     conn = sqlite3.connect(path_to_db)
