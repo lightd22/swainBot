@@ -1,7 +1,7 @@
 ﻿# Swain Bot
 Created by Devin Light
 
-~~A [web version of Swain Bot](https://swainbot.herokuapp.com) (hosted on Heroku) is available to play with. (Note: this model has a limited number of concurrent users and is much slower than the local version because it is hosted using the free tier offered by Heroku)~~ Since this project has been on the back-burner for a while, the Heroku-hosted version of Swain Bot has been taken down as of March 2019 and will be updated TBD.
+~~A [web version of Swain Bot](https://swainbot.herokuapp.com) (hosted on Heroku) is available to play with. (Note: this model has a limited number of concurrent users and is much slower than the local version because it is hosted using the free tier offered by Heroku)~~ Since this project has been on the back-burner for a while, the Heroku-hosted version of Swain Bot has been taken down and will be updated TBD.
 
 ## Introduction
 ### What is League of Legends?
